@@ -32,10 +32,6 @@ struct ContentView: View {
     NSWorkspace.shared.open(url)
   }
 
-  // System memory formatting using shared utility
-  private func formatSystemMemory() -> String {
-    return SystemMemory.formatMemory()
-  }
 
   var body: some View {
     // Main container for the popover content with organized model sections
@@ -194,7 +190,7 @@ struct ContentView: View {
             .padding(.trailing, 4)
             .opacity(0.9)
 
-          Text(formatSystemMemory())
+          Text(SystemMemory.formatMemory())
             .font(.system(size: 12))
             .foregroundColor(.secondary)
 

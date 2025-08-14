@@ -18,12 +18,6 @@ struct ModelRow: View {
     modelManager.getModelStatus(model)
   }
 
-  private var currentDownload: Progress? {
-    if case .downloading(let progress) = modelStatus {
-      return progress
-    }
-    return nil
-  }
 
   var body: some View {
     HStack(alignment: .center, spacing: 4) {
@@ -42,7 +36,6 @@ struct ModelRow: View {
           Text(model.family)
 
           Text(model.variant)
-          // Text(model.quantization == "Q4_K_M" ? "\(model.variant) (Q4)" : model.variant)
         }
 
         // Model metadata: variant, quantization, and size

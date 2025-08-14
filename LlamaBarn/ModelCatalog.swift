@@ -442,21 +442,6 @@ enum ModelCatalog {
     return estimatedMemoryUsageMB <= availableMemoryMB
   }
 
-  /// Returns the best model from each family that fits within system memory constraints
-  /// Compares estimated runtime memory usage against available system memory
-  static func bestModelsForSystem() -> [ModelCatalogEntry] {
-    guard getSystemMemoryMB() > 0 else { return [] }
-
-    // Group models by family and select only compatible models
-    let modelsByFamily = Dictionary(grouping: models, by: { $0.family })
-
-    return modelsByFamily.compactMap { (_, familyModels) in
-      let compatibleModels = familyModels.filter(isModelCompatible)
-      return compatibleModels.max(by: compareModelsBySize)
-    }
-    .sorted { lhs, rhs in lhs.family < rhs.family }
-  }
-
   /// Returns all model families, showing the best model from each family regardless of memory constraints
   /// If no models in a family fit in memory, shows the smallest model from that family
   static func allFamiliesForSystem() -> [ModelCatalogEntry] {

@@ -93,21 +93,6 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
     return getModelStatus(model) == .downloaded
   }
 
-  /// Returns download progress information for a specific model
-  func getDownloadProgress(for model: ModelCatalogEntry) -> Progress? {
-    if case .downloading(let progress) = getModelStatus(model) {
-      return progress
-    }
-    return nil
-  }
-
-  /// Checks if a model is currently being downloaded
-  func isModelDownloading(_ model: ModelCatalogEntry) -> Bool {
-    if case .downloading = getModelStatus(model) {
-      return true
-    }
-    return false
-  }
 
   /// Safely deletes a downloaded model and its associated files
   /// Automatically stops the server if the model is currently active

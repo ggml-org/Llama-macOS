@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftUI
 import os.log
 
 /// Essential errors that can occur during llama-server operations
