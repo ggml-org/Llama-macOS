@@ -45,7 +45,8 @@ struct ContentView: View {
           .font(.system(size: 14, weight: .regular))
 
         if llamaServer.memoryUsageMB > 0 {
-          Text("(\(Int(llamaServer.memoryUsageMB)) MB)")
+          let memoryUsageGB = llamaServer.memoryUsageMB / 1024.0
+          Text(String(format: "(%.2f GB)", memoryUsageGB))
             .font(.system(size: 11, weight: .medium, design: .monospaced))
             .foregroundColor(.secondary)
             .padding(.leading, 4)
