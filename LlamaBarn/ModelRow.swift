@@ -34,8 +34,10 @@ struct ModelRow: View {
         // Model name with family and capabilities
         HStack(spacing: 4) {
           Text(model.family)
+            .foregroundColor(isModelCompatible ? .primary : .primary.opacity(0.3))
 
           Text(model.variant)
+            .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
         }
 
         // Model metadata: variant, quantization, and size
@@ -64,7 +66,7 @@ struct ModelRow: View {
 
         }
         .font(.system(size: 10, weight: .medium, design: .monospaced))
-        .foregroundColor(.secondary)
+        .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
       }
 
       Spacer()
@@ -151,7 +153,6 @@ struct ModelRow: View {
     }
     .padding(.horizontal, 8)
     .padding(.vertical, 8)
-    .foregroundColor(isModelCompatible ? .primary : .secondary)
     .background(
       isHovered && isModelCompatible
         ? Color.primary.opacity(0.05) : Color.clear
