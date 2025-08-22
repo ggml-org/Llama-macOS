@@ -162,6 +162,13 @@ class LlamaServer {
     if let mmprojPath = mmprojPath {
       arguments.append(contentsOf: ["--mmproj", mmprojPath])
     }
+
+    // Add batch size optimization for devices with 32+ GB RAM
+    let systemMemoryGB = Double(SystemMemory.getMemoryMB()) / 1024.0
+    if systemMemoryGB >= 32.0 {
+      arguments.append(contentsOf: ["-ub", "2048", "-b", "2048"])
+    }
+
     arguments.append(contentsOf: extraArgs)
 
     let workingDirectory = URL(fileURLWithPath: llamaServerPath).deletingLastPathComponent().path
