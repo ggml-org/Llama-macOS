@@ -133,6 +133,7 @@ struct ModelRow: View {
           // Interactive run/stop control
           Image(systemName: isActive ? "stop" : "play")
             .font(.system(size: 16))
+            .foregroundColor(isActive ? .red : .accentColor)
             .frame(width: 32, height: 32)
         }
       case .downloading:
@@ -140,6 +141,7 @@ struct ModelRow: View {
         HStack(spacing: 8) {
           Image(systemName: "multiply")
             .font(.system(size: 16))
+            .foregroundColor(.red)
             .frame(width: 32, height: 32)
         }
       case .available:
@@ -147,6 +149,7 @@ struct ModelRow: View {
         Image(systemName: "arrow.down")
           .symbolRenderingMode(.palette)
           .font(.system(size: 16))
+          .foregroundColor(.accentColor)
           .frame(width: 32, height: 32)
       }
     }
