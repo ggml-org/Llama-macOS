@@ -42,46 +42,24 @@ enum ModelCatalog {
       quantization: "mxfp4"
     ),
 
-    // MARK: - DeepSeek R1 Distill Family
-    // Distilled reasoning models with enhanced efficiency
+    // MARK: - DeepSeek R1 0528 Family
+    // Latest reasoning models with enhanced efficiency
 
-    // High quality 70B model with Q4_K_M quantization
+    // High quality 8B model with Q8_0 quantization
     ModelCatalogEntry(
-      id: "deepseek-r1-distill-llama-70b",
-      family: "DeepSeek R1 Distill",
-      variant: "70B",
-      sizeInBillions: 70,
-      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 20))!,
+      id: "deepseek-r1-0528-qwen3-8b-q8",
+      family: "DeepSeek R1 0528",
+      variant: "8B",
+      sizeInBillions: 8,
+      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 5, day: 29))!,
       supportsVision: false,
       supportsAudio: false,
       supportsTools: true,
       contextLength: 131072,
-      fileSizeMB: 43520,  // 42.5 GB
+      fileSizeMB: 8934,  // 8.71 GB
       downloadUrl: URL(
         string:
-          "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Llama-70B-GGUF/resolve/main/DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf"
-      )!,
-      visionFile: nil,
-      serverArgs: [],
-      icon: "ModelLogos/DeepSeek",
-      quantization: "Q4_K_M"
-    ),
-
-    // High quality 32B model with Q8_0 quantization
-    ModelCatalogEntry(
-      id: "deepseek-r1-distill-qwen-32b-q8",
-      family: "DeepSeek R1 Distill",
-      variant: "32B",
-      sizeInBillions: 32,
-      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 20))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
-      contextLength: 131072,
-      fileSizeMB: 34800,  // 34.8 GB
-      downloadUrl: URL(
-        string:
-          "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q8_0.gguf"
+          "https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF/resolve/main/DeepSeek-R1-0528-Qwen3-8B-Q8_0.gguf"
       )!,
       visionFile: nil,
       serverArgs: [],
@@ -89,87 +67,21 @@ enum ModelCatalog {
       quantization: "Q8_0"
     ),
 
-    // 32B model with Q4_K_M quantization
-    ModelCatalogEntry(
-      id: "deepseek-r1-distill-qwen-32b",
-      family: "DeepSeek R1 Distill",
-      variant: "32B",
-      sizeInBillions: 32,
-      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 20))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
-      contextLength: 131072,
-      fileSizeMB: 19900,  // 19.9 GB
-      downloadUrl: URL(
-        string:
-          "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-32B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-32B-Q4_K_M.gguf"
-      )!,
-      visionFile: nil,
-      serverArgs: [],
-      icon: "ModelLogos/DeepSeek",
-      quantization: "Q4_K_M"
-    ),
-
-    // 14B model with Q4_K_M quantization
-    ModelCatalogEntry(
-      id: "deepseek-r1-distill-qwen-14b",
-      family: "DeepSeek R1 Distill",
-      variant: "14B",
-      sizeInBillions: 14,
-      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 20))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
-      contextLength: 131072,
-      fileSizeMB: 9216,  // 8.99 GB
-      downloadUrl: URL(
-        string:
-          "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-14B-Q4_K_M.gguf"
-      )!,
-      visionFile: nil,
-      serverArgs: [],
-      icon: "ModelLogos/DeepSeek",
-      quantization: "Q4_K_M"
-    ),
-
     // 8B model with Q4_K_M quantization
     ModelCatalogEntry(
-      id: "deepseek-r1-distill-llama-8b",
-      family: "DeepSeek R1 Distill",
+      id: "deepseek-r1-0528-qwen3-8b",
+      family: "DeepSeek R1 0528",
       variant: "8B",
       sizeInBillions: 8,
-      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 20))!,
+      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 5, day: 29))!,
       supportsVision: false,
       supportsAudio: false,
       supportsTools: true,
       contextLength: 131072,
-      fileSizeMB: 4920,  // 4.92 GB
+      fileSizeMB: 5151,  // 5.03 GB
       downloadUrl: URL(
         string:
-          "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Llama-8B-GGUF/resolve/main/DeepSeek-R1-Distill-Llama-8B-Q4_K_M.gguf"
-      )!,
-      visionFile: nil,
-      serverArgs: [],
-      icon: "ModelLogos/DeepSeek",
-      quantization: "Q4_K_M"
-    ),
-
-    // Compact 1.5B model with Q4_K_M quantization
-    ModelCatalogEntry(
-      id: "deepseek-r1-distill-qwen-1.5b",
-      family: "DeepSeek R1 Distill",
-      variant: "1.5B",
-      sizeInBillions: 1.5,
-      releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 1, day: 20))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
-      contextLength: 131072,
-      fileSizeMB: 1120,  // 1.12 GB
-      downloadUrl: URL(
-        string:
-          "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B-Q4_K_M.gguf"
+          "https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF/resolve/main/DeepSeek-R1-0528-Qwen3-8B-Q4_K_M.gguf"
       )!,
       visionFile: nil,
       serverArgs: [],
