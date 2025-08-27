@@ -9,3 +9,5 @@ xcuserdata
 .mcp.json
 claude.md
 gemini.md
+
+*.code-workspace
