@@ -47,7 +47,7 @@ struct ModelFamilyRow: View {
                     .font(.system(size: 7, weight: .bold))
                     .foregroundColor(Self.darkGreen)
                 }
-                Text(model.variant)
+                Text(model.variant + (model.simplifiedQuantization == "Q8" ? "+" : ""))
                   .font(.system(size: 9, weight: .medium, design: .monospaced))
               }
               .padding(.horizontal, 6)
