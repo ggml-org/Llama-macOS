@@ -28,6 +28,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
 
   var downloadedModels: [ModelCatalogEntry] = []
   var activeDownloads: [String: (progress: Progress, task: URLSessionDownloadTask)] = [:]
+  var modelsBeingDeleted: Set<String> = []
   var downloadUpdateTrigger: Int = 0
 
   private var urlSession: URLSession!
@@ -79,10 +80,10 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
   func getModelStatus(_ model: ModelCatalogEntry) -> ModelStatus {
     if let download = activeDownloads[model.id] {
       return .downloading(download.progress)
-    } else if model.isDownloaded {
-      return .downloaded
-    } else {
+    } else if modelsBeingDeleted.contains(model.id) || !model.isDownloaded {
       return .available
+    } else {
+      return .downloaded
     }
   }
 
@@ -101,6 +102,9 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       llamaServer.stop()
     }
 
+    // Mark model as being deleted for immediate UI feedback
+    modelsBeingDeleted.insert(model.id)
+
     // Immediately remove from UI for responsive feedback
     downloadedModels.removeAll { $0.id == model.id }
 
@@ -114,11 +118,18 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
         if let visionFilePath = model.visionFilePath, canDeleteVisionFile(model: model) {
           try FileManager.default.removeItem(atPath: visionFilePath)
         }
-      } catch {
-        // If deletion fails, add the model back to the list
+
+        // Successfully deleted - remove from being deleted set
         await MainActor.run {
+          self.modelsBeingDeleted.remove(model.id)
+        }
+      } catch {
+        // If deletion fails, add the model back to the list and remove from being deleted
+        await MainActor.run {
+          self.modelsBeingDeleted.remove(model.id)
+          // Re-check if files still exist after failed deletion
           if model.isDownloaded {
-            downloadedModels.append(model)
+            self.downloadedModels.append(model)
           }
         }
         logger.error("Failed to delete model: \(error.localizedDescription)")

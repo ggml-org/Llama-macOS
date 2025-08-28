@@ -29,20 +29,14 @@ struct ModelRow: View {
         .opacity(0.9)
 
       // Model details section (name, size, capabilities)
-      VStack(alignment: .leading, spacing: 4) {
-        // Model name with family and capabilities
+      if case .downloaded = modelStatus {
+        // Single line layout for installed models
         HStack(spacing: 4) {
           Text(model.family)
             .foregroundColor(isModelCompatible ? .primary : .primary.opacity(0.3))
 
           Text(model.variant)
             .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
-        }
-
-        // Model metadata: variant, quantization, and size
-        HStack(spacing: 4) {
-          Text(model.totalSize)
-            .font(.system(size: 10, weight: .medium, design: .monospaced))
 
           // Show divider and capability icons only if model has special features
           if model.supportsVision || model.supportsAudio {
@@ -56,16 +50,58 @@ struct ModelRow: View {
           if model.supportsVision {
             Image(systemName: "eyeglasses")
               .help("Vision")
+              .font(.system(size: 10, weight: .medium, design: .monospaced))
+              .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
           }
 
           if model.supportsAudio {
             Image(systemName: "waveform")
               .help("Audio")
+              .font(.system(size: 10, weight: .medium, design: .monospaced))
+              .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
+          }
+        }
+      } else {
+        // Multi-line layout for available/downloading models
+        VStack(alignment: .leading, spacing: 4) {
+          // Model name with family and capabilities
+          HStack(spacing: 4) {
+            Text(model.family)
+              .foregroundColor(isModelCompatible ? .primary : .primary.opacity(0.3))
+
+            Text(model.variant)
+              .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
           }
 
+          // Model metadata: variant, quantization, and size
+          HStack(spacing: 4) {
+            // Show size for models that aren't downloaded
+            Text(model.totalSize)
+              .font(.system(size: 10, weight: .medium, design: .monospaced))
+
+            // Show divider and capability icons only if model has special features
+            if model.supportsVision || model.supportsAudio {
+              Rectangle()
+                .fill(Color.secondary.opacity(0.3))
+                .frame(width: 1, height: 8)
+                .padding(.horizontal, 2)
+            }
+
+            // Visual indicators for model capabilities
+            if model.supportsVision {
+              Image(systemName: "eyeglasses")
+                .help("Vision")
+            }
+
+            if model.supportsAudio {
+              Image(systemName: "waveform")
+                .help("Audio")
+            }
+
+          }
+          .font(.system(size: 10, weight: .medium, design: .monospaced))
+          .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
         }
-        .font(.system(size: 10, weight: .medium, design: .monospaced))
-        .foregroundColor(isModelCompatible ? .secondary : .primary.opacity(0.3))
       }
 
       Spacer()
@@ -154,7 +190,16 @@ struct ModelRow: View {
       }
     }
     .padding(.horizontal, 8)
-    .padding(.vertical, 8)
+    .padding(
+      .vertical,
+      {
+        if case .downloaded = modelStatus {
+          return 4
+        } else {
+          return 8
+        }
+      }()
+    )
     .background(
       isHovered && isModelCompatible
         ? Color.primary.opacity(0.05) : Color.clear
@@ -171,6 +216,9 @@ struct ModelRow: View {
     // Context menu for downloaded models only (provides delete option)
     .contextMenu {
       if case .downloaded = modelStatus {
+        Text(model.totalSize)
+          .foregroundColor(.secondary)
+        Divider()
         #if DEBUG
           Button(action: {
             llamaServer.startWithMaxContext(model: model)
@@ -216,4 +264,5 @@ struct ModelRow: View {
     let modelPath = model.modelFilePath
     NSWorkspace.shared.selectFile(modelPath, inFileViewerRootedAtPath: "")
   }
+
 }
