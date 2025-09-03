@@ -13,6 +13,7 @@ final class CatalogModelMenuItemView: NSView {
 
   private let statusIcon = NSImageView()
   private let labelField = NSTextField(labelWithString: "")
+  private let sizeLabel = NSTextField(labelWithString: "")
   private let progressLabel = NSTextField(labelWithString: "")
   private let backgroundView = NSView()
 
@@ -33,7 +34,7 @@ final class CatalogModelMenuItemView: NSView {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 26) }
+  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 40) }
 
   private func setup() {
     wantsLayer = true
@@ -46,18 +47,39 @@ final class CatalogModelMenuItemView: NSView {
     labelField.lineBreakMode = .byTruncatingTail
     labelField.translatesAutoresizingMaskIntoConstraints = false
 
+    sizeLabel.font = Font.secondary
+    sizeLabel.textColor = .secondaryLabelColor
+    sizeLabel.lineBreakMode = .byTruncatingTail
+    sizeLabel.translatesAutoresizingMaskIntoConstraints = false
+
     progressLabel.font = Font.secondary
     progressLabel.textColor = .secondaryLabelColor
     progressLabel.alignment = .right
     progressLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    let stack = NSStackView(views: [statusIcon, labelField, progressLabel])
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    stack.orientation = .horizontal
-    stack.spacing = 6
-    stack.alignment = .centerY
+    // Two-line text column (title + size/badges)
+    let textColumn = NSStackView(views: [labelField, sizeLabel])
+    textColumn.translatesAutoresizingMaskIntoConstraints = false
+    textColumn.orientation = .vertical
+    textColumn.alignment = .leading
+    textColumn.spacing = 1
+
+    // Leading group aligns status icon with first line of text
+    let leading = NSStackView(views: [statusIcon, textColumn])
+    leading.translatesAutoresizingMaskIntoConstraints = false
+    leading.orientation = .horizontal
+    leading.alignment = .top
+    leading.spacing = 6
+
+    // Main horizontal row with flexible space and trailing progress
+    let hStack = NSStackView(views: [leading, NSView(), progressLabel])
+    hStack.translatesAutoresizingMaskIntoConstraints = false
+    hStack.orientation = .horizontal
+    hStack.spacing = 6
+    hStack.alignment = .centerY
+
     addSubview(backgroundView)
-    backgroundView.addSubview(stack)
+    backgroundView.addSubview(hStack)
 
     NSLayoutConstraint.activate([
       backgroundView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 5),
@@ -67,10 +89,10 @@ final class CatalogModelMenuItemView: NSView {
       statusIcon.widthAnchor.constraint(equalToConstant: 14),
       statusIcon.heightAnchor.constraint(equalToConstant: 14),
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 48),
-      stack.leadingAnchor.constraint(equalTo: backgroundView.leadingAnchor, constant: 8),
-      stack.trailingAnchor.constraint(equalTo: backgroundView.trailingAnchor, constant: -8),
-      stack.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 4),
-      stack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -4),
+      hStack.leadingAnchor.constraint(equalTo: backgroundView.leadingAnchor, constant: 8),
+      hStack.trailingAnchor.constraint(equalTo: backgroundView.trailingAnchor, constant: -8),
+      hStack.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 4),
+      hStack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -4),
     ])
   }
 
@@ -119,12 +141,14 @@ final class CatalogModelMenuItemView: NSView {
     let compatible = ModelCatalog.isModelCompatible(model)
     var title = "\(model.displayName)"
     if model.quantization == "Q8_0" { title += " (\(model.quantization))" }
-    title += " - \(model.totalSize)"
-    if model.supportsVision { title += " · 👓" }
-    if model.supportsAudio { title += " · 🔊" }
     labelField.stringValue = title
+    var secondary = "\(model.totalSize)"
+    if model.supportsVision { secondary += " · 👓" }
+    if model.supportsAudio { secondary += " · 🔊" }
+    sizeLabel.stringValue = secondary
     // Use semantic disabled text so dark mode contrast remains acceptable (alpha on secondaryLabelColor was too dim).
     labelField.textColor = compatible ? .labelColor : .tertiaryLabelColor
+    sizeLabel.textColor = compatible ? .secondaryLabelColor : .tertiaryLabelColor
 
     progressLabel.stringValue = ""
     switch status {

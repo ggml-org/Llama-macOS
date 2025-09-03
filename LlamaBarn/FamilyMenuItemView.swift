@@ -34,7 +34,7 @@ final class FamilyMenuItemView: NSView {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 48) }
+  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 40) }
 
   private func setup() {
     wantsLayer = true
@@ -65,7 +65,7 @@ final class FamilyMenuItemView: NSView {
 
     let textColumn = NSStackView(views: [familyLabel, chipsStack])
     textColumn.orientation = .vertical
-    textColumn.spacing = 2
+    textColumn.spacing = 1
     textColumn.alignment = .leading
     textColumn.translatesAutoresizingMaskIntoConstraints = false
 
@@ -97,8 +97,8 @@ final class FamilyMenuItemView: NSView {
       chevron.heightAnchor.constraint(equalToConstant: 16),
       hStack.leadingAnchor.constraint(equalTo: backgroundView.leadingAnchor, constant: 8),
       hStack.trailingAnchor.constraint(equalTo: backgroundView.trailingAnchor, constant: -8),
-      hStack.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 6),
-      hStack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -6),
+      hStack.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 4),
+      hStack.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -4),
     ])
   }
 
