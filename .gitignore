@@ -7,7 +7,6 @@ build
 xcuserdata
 
 .mcp.json
+agents.md
 claude.md
 gemini.md
-
-*.code-workspace
