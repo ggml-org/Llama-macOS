@@ -179,7 +179,7 @@ final class ModelMenuItemView: NSView {
     // Use a neutral adaptive highlight instead of accent color blue. We derive from labelColor so it
     // inverts appropriately in light/dark without introducing a semantic (accent/destructive) hue.
     if isHighlighted {
-      backgroundView.layer?.backgroundColor = NSColor.lbHoverBackground.cgColor
+      backgroundView.layer?.backgroundColor = NSColor.cgColor(.lbHoverBackground, in: backgroundView)
     } else {
       backgroundView.layer?.backgroundColor = NSColor.clear.cgColor
     }

@@ -114,8 +114,11 @@ final class FamilyMenuItemView: NSView {
   override func mouseExited(with event: NSEvent) { isHighlighted = false }
 
   private func updateHighlight() {
-    backgroundView.layer?.backgroundColor =
-      isHighlighted ? NSColor.lbHoverBackground.cgColor : NSColor.clear.cgColor
+    if isHighlighted {
+      backgroundView.layer?.backgroundColor = NSColor.cgColor(.lbHoverBackground, in: backgroundView)
+    } else {
+      backgroundView.layer?.backgroundColor = NSColor.clear.cgColor
+    }
     backgroundView.layer?.cornerRadius = 6
     applyIconTint()
   }
@@ -234,11 +237,11 @@ private final class ChipView: NSView {
     // Final simplified ordering to avoid confusion & accidental lower contrast for supported chips:
     // Downloaded: primary, Compatible (supported but not downloaded): secondary, Unsupported: disabled.
     if lastDownloaded {
-      label.textColor = .lbPrimaryText
+      label.textColor = .labelColor
     } else if lastCompatible {
-      label.textColor = .lbSecondaryText
+      label.textColor = .secondaryLabelColor
     } else {
-      label.textColor = .lbDisabledText
+      label.textColor = .tertiaryLabelColor
     }
   }
   override var intrinsicContentSize: NSSize {

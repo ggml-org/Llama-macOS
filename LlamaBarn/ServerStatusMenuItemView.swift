@@ -96,8 +96,11 @@ final class ServerStatusMenuItemView: NSView {
   }
 
   private func updateHighlight() {
-    backgroundView.layer?.backgroundColor =
-      isHighlighted ? NSColor.lbHoverBackground.cgColor : NSColor.clear.cgColor
+    if isHighlighted {
+      backgroundView.layer?.backgroundColor = NSColor.cgColor(.lbHoverBackground, in: backgroundView)
+    } else {
+      backgroundView.layer?.backgroundColor = NSColor.clear.cgColor
+    }
     backgroundView.layer?.cornerRadius = 6
   }
 

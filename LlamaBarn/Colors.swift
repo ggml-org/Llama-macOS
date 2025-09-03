@@ -1,62 +1,47 @@
 import AppKit
 
 // Central place for custom colors that are not satisfied by system semantic colors.
-// We prefer semantic/dynamic colors over hard-coding single HEX values so the UI
-// adapts to light / dark appearances while keeping sufficient contrast.
+// Prefer semantic/dynamic colors so the UI adapts to light/dark automatically.
 extension NSColor {
-  /// A greener, higher-contrast variant for tiny status chips & indicators.
-  /// - Light appearance: darker, saturated green for readability on light bg.
-  /// - Dark appearance: lighter, slightly desaturated green for readability on dark bg.
-  static var llamaGreen: NSColor {
-    let appearance = NSApplication.shared.effectiveAppearance
-    let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    if isDark {
-      // ~#65D679 (adjusted to avoid neon while keeping contrast on dark backgrounds)
+  private static func isDark(_ appearance: NSAppearance) -> Bool {
+    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+  }
+
+  /// Greener, high-contrast variant for small status chips & indicators.
+  static let llamaGreen: NSColor = NSColor(name: NSColor.Name("llamaGreen")) { appearance in
+    if isDark(appearance) {
+      // ~#65D679 (avoid neon; good contrast on dark bg)
       return NSColor(calibratedRed: 0.40, green: 0.84, blue: 0.47, alpha: 1.0)
     } else {
-      // ~#1F7F3A (darker than systemGreen for better legibility at 8pt)
+      // ~#1F7F3A (darker than systemGreen for tiny text)
       return NSColor(calibratedRed: 0.12, green: 0.50, blue: 0.23, alpha: 1.0)
     }
   }
 
-  // MARK: - LlamaBarn semantic roles (text)
-  // Keep this intentionally small & map directly to platform semantic colors so updates are centralized.
-  // Contrast ordering: primary > secondary > disabled.
-  static var lbPrimaryText: NSColor { .labelColor }
-  static var lbSecondaryText: NSColor { .secondaryLabelColor }
-  static var lbDisabledText: NSColor {
-    // Use tertiaryLabelColor but bump minimum alpha in dark mode to avoid illegibility.
-    let base = NSColor.tertiaryLabelColor
-    if NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-      return base.withAlphaComponent(max(base.alphaComponent, 0.55))
-    }
-    return base
-  }
+  // MARK: - Semantic roles (text)
+  // Prefer system semantic colors directly at call sites.
 
   /// Subtle border / hairline separator for pills & chips.
-  static var lbSubtleBorder: NSColor {
-    // Derive from secondary text for predictable contrast; boosted light-mode alpha to avoid disappearing
-    // on vibrancy backgrounds. We resolve the dynamic color at call-sites before converting to CGColor.
-    let isDark =
-      NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    let alpha: CGFloat = isDark ? 0.30 : 0.26  // was 0.18 in light; raised to mitigate flicker/vanishing
-    return lbSecondaryText.withAlphaComponent(alpha)
-  }
+  /// Now mapped to system `separatorColor` for platform consistency.
+  static let lbSubtleBorder: NSColor = .separatorColor
 
-  // Preferred semantic hover background for interactive rows.
-  // Tuned for improved visibility in dark mode (prior neutralHoverBackground became too faint).
-  // We keep neutralHoverBackground for backward compatibility (temporary) but migrate callers to this.
-  static var lbHoverBackground: NSColor {
-    // Neutral hover built from luminance overlays, not labelColor tint, so light/dark both look balanced.
-    // Pattern: In light mode use a translucent black; in dark mode use a translucent white.
-    // This mirrors system overlay design (e.g. iOS/macOS materials) and avoids muddy grays.
-    let appearance = NSApplication.shared.effectiveAppearance
-    let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+  /// Hover background for interactive rows.
+  static let lbHoverBackground: NSColor = NSColor(name: NSColor.Name("lbHoverBackground")) { appearance in
     let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
     let lightAlpha: CGFloat = increaseContrast ? 0.08 : 0.06  // black on light background
     let darkAlpha: CGFloat = increaseContrast ? 0.14 : 0.11  // white on dark background
-    return
-      (isDark
-      ? NSColor.white.withAlphaComponent(darkAlpha) : NSColor.black.withAlphaComponent(lightAlpha))
+    return isDark(appearance)
+      ? NSColor.white.withAlphaComponent(darkAlpha)
+      : NSColor.black.withAlphaComponent(lightAlpha)
+  }
+
+  /// Resolve a dynamic color to a `CGColor` for a specific view/appearance.
+  /// Hides the `performAsCurrentDrawingAppearance` boilerplate used when assigning to CALayer properties.
+  static func cgColor(_ color: NSColor, in view: NSView) -> CGColor {
+    var result: CGColor = NSColor.clear.cgColor
+    view.effectiveAppearance.performAsCurrentDrawingAppearance {
+      result = color.cgColor
+    }
+    return result
   }
 }
