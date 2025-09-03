@@ -155,7 +155,6 @@ class LlamaServer {
       "--alias", modelName,
       "--log-file", "/tmp/llama-server.log",
       "--no-mmap",
-      "-fa",
       "--jinja",
     ]
 
