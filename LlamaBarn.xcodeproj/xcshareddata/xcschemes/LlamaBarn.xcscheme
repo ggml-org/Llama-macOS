@@ -50,6 +50,13 @@
             ReferencedContainer = "container:LlamaBarn.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "BARN_SIMULATE_MEM_GB"
+            value = "256"
+            isEnabled = "NO">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
