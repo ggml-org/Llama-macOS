@@ -217,12 +217,7 @@ final class InstalledModelMenuItemView: MenuRowView {
       ])
     }
     // Compose a default secondary line (size + capability badges) used when not downloading
-    let defaultSecondary: String = {
-      var secondary = "\(model.totalSize)"
-      if model.supportsVision { secondary += " · 👓" }
-      if model.supportsAudio { secondary += " · 🔊" }
-      return secondary
-    }()
+    let defaultSecondary: String = model.totalSize
 
     // Download progress / action area
     switch status {

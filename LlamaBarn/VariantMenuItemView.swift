@@ -112,10 +112,7 @@ final class VariantMenuItemView: MenuRowView {
     var title = "\(model.displayName)"
     if model.quantization == "Q8_0" { title += " (\(model.quantization))" }
     labelField.stringValue = title
-    var secondary = "\(model.totalSize)"
-    if model.supportsVision { secondary += " · 👓" }
-    if model.supportsAudio { secondary += " · 🔊" }
-    sizeLabel.stringValue = secondary
+    sizeLabel.stringValue = model.totalSize
     // Use semantic disabled text so dark mode contrast remains acceptable (alpha on secondaryLabelColor was too dim).
     labelField.textColor = compatible ? .labelColor : .tertiaryLabelColor
     sizeLabel.textColor = compatible ? .secondaryLabelColor : .tertiaryLabelColor

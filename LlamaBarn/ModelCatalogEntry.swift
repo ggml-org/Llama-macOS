@@ -7,9 +7,6 @@ struct ModelCatalogEntry: Identifiable, Codable {
   let variant: String  // Size/variant identifier (e.g., "8B", "E4B")
   let sizeInBillions: Double  // Number of parameters in billions
   let releaseDate: Date  // Model release date
-  let supportsVision: Bool  // Can process images/visual input
-  let supportsAudio: Bool  // Can process audio input
-  let supportsTools: Bool  // Supports function calling/tools
   let contextLength: Int  // Maximum context length in tokens
   let fileSizeMB: Int  // File size for progress tracking and display
   let downloadUrl: URL  // Remote download URL
@@ -27,9 +24,6 @@ struct ModelCatalogEntry: Identifiable, Codable {
     variant: String,
     sizeInBillions: Double,
     releaseDate: Date,
-    supportsVision: Bool,
-    supportsAudio: Bool,
-    supportsTools: Bool,
     contextLength: Int,
     fileSizeMB: Int,
     downloadUrl: URL,
@@ -44,9 +38,6 @@ struct ModelCatalogEntry: Identifiable, Codable {
     self.variant = variant
     self.sizeInBillions = sizeInBillions
     self.releaseDate = releaseDate
-    self.supportsVision = supportsVision
-    self.supportsAudio = supportsAudio
-    self.supportsTools = supportsTools
     self.contextLength = contextLength
     self.fileSizeMB = fileSizeMB
     self.downloadUrl = downloadUrl

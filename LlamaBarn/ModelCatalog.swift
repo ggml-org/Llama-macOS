@@ -27,9 +27,7 @@ enum ModelCatalog {
       variant: "20B",
       sizeInBillions: 20,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 8, day: 2))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 12390,  // 12.1 GB
       downloadUrl: URL(
@@ -50,9 +48,7 @@ enum ModelCatalog {
       variant: "120B",
       sizeInBillions: 120,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 8, day: 2))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 63387,  // 63.39 GB across 3 shards
       downloadUrl: URL(
@@ -85,9 +81,7 @@ enum ModelCatalog {
       variant: "8B",
       sizeInBillions: 8,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 5, day: 29))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 8934,  // 8.71 GB
       downloadUrl: URL(
@@ -107,9 +101,7 @@ enum ModelCatalog {
       variant: "8B",
       sizeInBillions: 8,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 5, day: 29))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 5151,  // 5.03 GB
       downloadUrl: URL(
@@ -132,9 +124,7 @@ enum ModelCatalog {
       variant: "235B",
       sizeInBillions: 235,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 256000,  // 250 GB
       downloadUrl: URL(
@@ -154,9 +144,7 @@ enum ModelCatalog {
       variant: "235B",
       sizeInBillions: 235,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 114688,  // 112 GB
       downloadUrl: URL(
@@ -176,9 +164,7 @@ enum ModelCatalog {
       variant: "30B",
       sizeInBillions: 30,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 32768,  // 32 GB
       downloadUrl: URL(
@@ -198,9 +184,7 @@ enum ModelCatalog {
       variant: "30B",
       sizeInBillions: 30,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 15052,  // 14.7 GB
       downloadUrl: URL(
@@ -220,9 +204,7 @@ enum ModelCatalog {
       variant: "4B",
       sizeInBillions: 4,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 4384,  // 4.28 GB
       downloadUrl: URL(
@@ -242,9 +224,7 @@ enum ModelCatalog {
       variant: "4B",
       sizeInBillions: 4,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 2560,  // 2.5 GB
       downloadUrl: URL(
@@ -267,9 +247,7 @@ enum ModelCatalog {
       variant: "235B",
       sizeInBillions: 235,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 256000,  // 250 GB
       downloadUrl: URL(
@@ -289,9 +267,7 @@ enum ModelCatalog {
       variant: "235B",
       sizeInBillions: 235,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 114688,  // 112 GB
       downloadUrl: URL(
@@ -311,9 +287,7 @@ enum ModelCatalog {
       variant: "30B",
       sizeInBillions: 30,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 32768,  // 32 GB
       downloadUrl: URL(
@@ -333,9 +307,7 @@ enum ModelCatalog {
       variant: "30B",
       sizeInBillions: 30,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 15052,  // 14.7 GB
       downloadUrl: URL(
@@ -355,9 +327,7 @@ enum ModelCatalog {
       variant: "4B",
       sizeInBillions: 4,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 4384,  // 4.28 GB
       downloadUrl: URL(
@@ -377,9 +347,7 @@ enum ModelCatalog {
       variant: "4B",
       sizeInBillions: 4,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 1))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 2560,  // 2.5 GB
       downloadUrl: URL(
@@ -402,9 +370,7 @@ enum ModelCatalog {
       variant: "30B",
       sizeInBillions: 30,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 31))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 33280,  // 32.5 GB
       downloadUrl: URL(
@@ -424,9 +390,7 @@ enum ModelCatalog {
       variant: "30B",
       sizeInBillions: 30,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 7, day: 31))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 262144,
       fileSizeMB: 19046,  // 18.6 GB
       downloadUrl: URL(
@@ -449,9 +413,7 @@ enum ModelCatalog {
       variant: "E4B",
       sizeInBillions: 4,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 1, day: 15))!,
-      supportsVision: true,
-      supportsAudio: true,
-      supportsTools: false,
+      
       contextLength: 32768,
       fileSizeMB: 7526,  // 7.35 GB
       downloadUrl: URL(
@@ -471,9 +433,7 @@ enum ModelCatalog {
       variant: "E4B",
       sizeInBillions: 4,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 1, day: 15))!,
-      supportsVision: true,
-      supportsAudio: true,
-      supportsTools: false,
+      
       contextLength: 32768,
       fileSizeMB: 4505,  // 4.4 GB
       downloadUrl: URL(
@@ -494,9 +454,7 @@ enum ModelCatalog {
       variant: "E2B",
       sizeInBillions: 1,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2024, month: 1, day: 1))!,
-      supportsVision: true,
-      supportsAudio: true,
-      supportsTools: false,
+      
       contextLength: 32768,
       fileSizeMB: 3103,  // 3.03 GB
       downloadUrl: URL(
@@ -519,9 +477,7 @@ enum ModelCatalog {
       variant: "27B",
       sizeInBillions: 27,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 4, day: 24))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 15909,  // 15.9 GB
       downloadUrl: URL(
@@ -541,9 +497,7 @@ enum ModelCatalog {
       variant: "12B",
       sizeInBillions: 12,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 4, day: 21))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 7131,  // 6.98 GB
       downloadUrl: URL(
@@ -563,9 +517,7 @@ enum ModelCatalog {
       variant: "4B",
       sizeInBillions: 4,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 4, day: 22))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 2526,  // 2.53 GB
       downloadUrl: URL(
@@ -585,9 +537,7 @@ enum ModelCatalog {
       variant: "1B",
       sizeInBillions: 1,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 8, day: 27))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 131072,
       fileSizeMB: 720,  // 720 MB
       downloadUrl: URL(
@@ -607,9 +557,7 @@ enum ModelCatalog {
       variant: "270M",
       sizeInBillions: 0.27,
       releaseDate: Calendar.current.date(from: DateComponents(year: 2025, month: 8, day: 14))!,
-      supportsVision: false,
-      supportsAudio: false,
-      supportsTools: true,
+      
       contextLength: 32768,
       fileSizeMB: 241,  // 241 MB
       downloadUrl: URL(
