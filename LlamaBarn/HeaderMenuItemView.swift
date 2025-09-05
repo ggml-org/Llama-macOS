@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 
-/// Top menu title view showing app name and a subtitle with version info.
-final class TitleMenuItemView: NSView {
+/// Header row showing app name and versions.
+final class HeaderMenuItemView: NSView {
   private enum Font {
     static let title = NSFont.systemFont(ofSize: 13, weight: .semibold)
     static let subtitle = NSFont.systemFont(ofSize: 10, weight: .regular)

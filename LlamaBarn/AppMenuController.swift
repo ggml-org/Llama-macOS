@@ -11,7 +11,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
   private let modelManager: ModelManager
   private let server: LlamaServer
   private let llamaCppVersion: String
-  private var titleView: TitleMenuItemView?
+  private var titleView: HeaderMenuItemView?
   // No stored reference needed for the memory footer.
 
   private var observationTimer: Timer?
@@ -76,7 +76,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     // App title + version subtitle at the very top
     let tItem = NSMenuItem()
     tItem.isEnabled = false
-    let tView = TitleMenuItemView(server: server, llamaCppVersion: llamaCppVersion)
+    let tView = HeaderMenuItemView(server: server, llamaCppVersion: llamaCppVersion)
     tItem.view = tView
     tView.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
     titleView = tView
@@ -84,7 +84,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     menu.addItem(.separator())
 
     // Installed section header
-    menu.addItem(makeSectionHeaderItem("Installed"))
+    menu.addItem(makeSectionHeaderItem("Installed models"))
 
     // Include downloading models in Installed section (original behavior)
     let downloadingModels = ModelCatalog.models.filter { m in
@@ -101,7 +101,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
       for model in installed {
         let item = NSMenuItem()
         item.isEnabled = false  // Keep menu open when interacting with the custom view
-        let view = ModelMenuItemView(model: model, server: server, modelManager: modelManager) {
+        let view = InstalledModelMenuItemView(model: model, server: server, modelManager: modelManager) {
           [weak self] in
           // Rebuild so the row can disappear (if download canceled) or convert to available
           if let menu = self?.statusItem.menu { self?.rebuildMenu(menu) }
@@ -118,12 +118,12 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     let sortedFamilies = familiesDict.keys.sorted()
     if !sortedFamilies.isEmpty {
       menu.addItem(.separator())
-      menu.addItem(makeSectionHeaderItem("Available"))
+      menu.addItem(makeSectionHeaderItem("Catalog"))
 
       for family in sortedFamilies {
         guard let models = familiesDict[family] else { continue }
         let familyItem = NSMenuItem()
-        let famView = FamilyMenuItemView(family: family, models: models, modelManager: modelManager)
+        let famView = FamilyHeaderMenuItemView(family: family, models: models, modelManager: modelManager)
         familyItem.view = famView
         familyItem.representedObject = family as NSString
         let submenu = NSMenu(title: family)
@@ -133,7 +133,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
           let modelItem = NSMenuItem()
           modelItem.isEnabled = false
           modelItem.representedObject = model.id as NSString
-          let view = CatalogModelMenuItemView(model: model, modelManager: modelManager) {
+          let view = VariantMenuItemView(model: model, modelManager: modelManager) {
             [weak self] in
             if let menu = self?.statusItem.menu { self?.rebuildMenu(menu) }
           }
@@ -150,7 +150,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     // Server status item
     let serverItem = NSMenuItem()
     serverItem.isEnabled = false
-    let serverView = ServerStatusMenuItemView(server: server) { [weak self] in
+    let serverView = ServerMenuItemView(server: server) { [weak self] in
       guard let url = URL(string: "http://localhost:\(LlamaServer.defaultPort)/") else { return }
       NSWorkspace.shared.open(url)
       // Close the menu after opening the UI
@@ -244,19 +244,19 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     // No need to refresh memory footer: RAM doesn't change at runtime, and
     // the menu rebuild sets it correctly on open.
     statusItem.menu?.items.forEach { menuItem in
-      if let view = menuItem.view as? ModelMenuItemView { view.refresh() }
-      if let view = menuItem.view as? ServerStatusMenuItemView { view.refresh() }
+      if let view = menuItem.view as? InstalledModelMenuItemView { view.refresh() }
+      if let view = menuItem.view as? ServerMenuItemView { view.refresh() }
       // Update all catalog model submenu items
       if let submenu = menuItem.submenu {
         for subItem in submenu.items {
-          if let view = subItem.view as? CatalogModelMenuItemView { view.refresh() }
+          if let view = subItem.view as? VariantMenuItemView { view.refresh() }
         }
       }
-      if let famView = menuItem.view as? FamilyMenuItemView { famView.refresh() }
+      if let famView = menuItem.view as? FamilyHeaderMenuItemView { famView.refresh() }
     }
   }
 
-  // Legacy updateTitleItem removed (replaced by TitleMenuItemView)
+  // Legacy updateTitleItem removed (replaced by HeaderMenuItemView)
 
   // MARK: - Catalog Helpers
 

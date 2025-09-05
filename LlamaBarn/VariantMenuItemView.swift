@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 
-/// Custom view used for model catalog entries so selecting (download/cancel) does not dismiss the menu.
-final class CatalogModelMenuItemView: NSView {
+/// Menu row for a downloadable model variant inside a family submenu.
+final class VariantMenuItemView: NSView {
   private enum Font {
     static let primary = NSFont.systemFont(ofSize: 13)
     static let secondary = NSFont.systemFont(ofSize: 10, weight: .medium)
@@ -11,7 +11,7 @@ final class CatalogModelMenuItemView: NSView {
   private unowned let modelManager: ModelManager
   private let membershipChanged: () -> Void
 
-  private let statusIcon = NSImageView()
+  private let statusIndicator = NSImageView()
   private let labelField = NSTextField(labelWithString: "")
   private let sizeLabel = NSTextField(labelWithString: "")
   private let progressLabel = NSTextField(labelWithString: "")
@@ -40,8 +40,8 @@ final class CatalogModelMenuItemView: NSView {
     wantsLayer = true
     backgroundView.translatesAutoresizingMaskIntoConstraints = false
     backgroundView.wantsLayer = true
-    statusIcon.translatesAutoresizingMaskIntoConstraints = false
-    statusIcon.symbolConfiguration = .init(pointSize: 12, weight: .regular)
+    statusIndicator.translatesAutoresizingMaskIntoConstraints = false
+    statusIndicator.symbolConfiguration = .init(pointSize: 12, weight: .regular)
 
     labelField.font = Font.primary
     labelField.lineBreakMode = .byTruncatingTail
@@ -65,7 +65,7 @@ final class CatalogModelMenuItemView: NSView {
     textColumn.spacing = 1
 
     // Leading group aligns status icon with first line of text
-    let leading = NSStackView(views: [statusIcon, textColumn])
+    let leading = NSStackView(views: [statusIndicator, textColumn])
     leading.translatesAutoresizingMaskIntoConstraints = false
     leading.orientation = .horizontal
     leading.alignment = .top
@@ -86,8 +86,8 @@ final class CatalogModelMenuItemView: NSView {
       backgroundView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -5),
       backgroundView.topAnchor.constraint(equalTo: topAnchor),
       backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
-      statusIcon.widthAnchor.constraint(equalToConstant: 14),
-      statusIcon.heightAnchor.constraint(equalToConstant: 14),
+      statusIndicator.widthAnchor.constraint(equalToConstant: 14),
+      statusIndicator.heightAnchor.constraint(equalToConstant: 14),
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 48),
       hStack.leadingAnchor.constraint(equalTo: backgroundView.leadingAnchor, constant: 8),
       hStack.trailingAnchor.constraint(equalTo: backgroundView.trailingAnchor, constant: -8),
@@ -153,9 +153,9 @@ final class CatalogModelMenuItemView: NSView {
     progressLabel.stringValue = ""
     switch status {
     case .downloaded:
-      statusIcon.image = NSImage(
+      statusIndicator.image = NSImage(
         systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil)
-      statusIcon.contentTintColor = .systemGreen
+      statusIndicator.contentTintColor = .systemGreen
     case .downloading(let progress):
       let pct: Int
       if progress.totalUnitCount > 0 {
@@ -163,18 +163,18 @@ final class CatalogModelMenuItemView: NSView {
       } else {
         pct = 0
       }
-      statusIcon.image = NSImage(
+      statusIndicator.image = NSImage(
         systemSymbolName: "arrow.down.circle.fill", accessibilityDescription: nil)
-      statusIcon.contentTintColor = .controlAccentColor
+      statusIndicator.contentTintColor = .controlAccentColor
       progressLabel.stringValue = "\(pct)%"
     case .available:
       if compatible {
-        statusIcon.image = NSImage(
+        statusIndicator.image = NSImage(
           systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
-        statusIcon.contentTintColor = .secondaryLabelColor
+        statusIndicator.contentTintColor = .secondaryLabelColor
       } else {
-        statusIcon.image = NSImage(systemSymbolName: "nosign", accessibilityDescription: nil)
-        statusIcon.contentTintColor = .systemOrange
+        statusIndicator.image = NSImage(systemSymbolName: "nosign", accessibilityDescription: nil)
+        statusIndicator.contentTintColor = .systemOrange
       }
     }
     needsDisplay = true

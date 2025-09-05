@@ -1,12 +1,12 @@
 import AppKit
 import Foundation
 
-/// Custom NSView used inside the AppKit status bar menu to represent a single installed model.
+/// Menu row representing a single installed model.
 /// Visual states:
 /// - Idle: icon + label + play symbol
 /// - Loading: icon + label + spinner + stop symbol
 /// - Running: icon + label + green circle + stop symbol
-final class ModelMenuItemView: NSView {
+final class InstalledModelMenuItemView: NSView {
   // Shared font metrics
   private enum Font {
     static let primary = NSFont.systemFont(ofSize: 13)
@@ -24,7 +24,7 @@ final class ModelMenuItemView: NSView {
   private let stateContainer = NSView()
   private let spinner = NSProgressIndicator()
   private let greenDot = NSView()
-  private let actionImageView = NSImageView()
+  private let indicatorImageView = NSImageView()
   private let progressLabel = NSTextField(labelWithString: "")
   // Second-line label: used for progress during downloads and for
   // consistent two-line layout (size/badges) when idle/running.
@@ -80,9 +80,9 @@ final class ModelMenuItemView: NSView {
     greenDot.layer?.cornerRadius = 4
     greenDot.layer?.backgroundColor = NSColor.llamaGreen.cgColor
 
-    actionImageView.translatesAutoresizingMaskIntoConstraints = false
-    actionImageView.symbolConfiguration = .init(pointSize: 14, weight: .regular)
-    actionImageView.contentTintColor = .controlAccentColor
+    indicatorImageView.translatesAutoresizingMaskIntoConstraints = false
+    indicatorImageView.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+    indicatorImageView.contentTintColor = .controlAccentColor
 
     progressLabel.font = Font.secondary
     progressLabel.textColor = .secondaryLabelColor
@@ -131,7 +131,7 @@ final class ModelMenuItemView: NSView {
     leading.spacing = 6
 
     // Right: status/progress/delete/action in a row
-    let rightStack = NSStackView(views: [stateContainer, progressLabel, deleteImageView, actionImageView])
+    let rightStack = NSStackView(views: [stateContainer, progressLabel, deleteImageView, indicatorImageView])
     rightStack.translatesAutoresizingMaskIntoConstraints = false
     rightStack.orientation = .horizontal
     rightStack.spacing = 6
@@ -155,8 +155,8 @@ final class ModelMenuItemView: NSView {
       iconView.heightAnchor.constraint(equalToConstant: 16),
       stateContainer.widthAnchor.constraint(equalToConstant: 16),
       stateContainer.heightAnchor.constraint(equalToConstant: 16),
-      actionImageView.widthAnchor.constraint(equalToConstant: 16),
-      actionImageView.heightAnchor.constraint(equalToConstant: 16),
+      indicatorImageView.widthAnchor.constraint(equalToConstant: 16),
+      indicatorImageView.heightAnchor.constraint(equalToConstant: 16),
       deleteImageView.widthAnchor.constraint(equalToConstant: 16),
       deleteImageView.heightAnchor.constraint(equalToConstant: 16),
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 48),
@@ -280,8 +280,8 @@ final class ModelMenuItemView: NSView {
         bytesLabel.stringValue = completedText
       }
       bytesLabel.isHidden = false
-      actionImageView.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
-      actionImageView.contentTintColor = .systemRed
+      indicatorImageView.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
+      indicatorImageView.contentTintColor = .systemRed
       deleteImageView.isHidden = true
     case .downloaded:
       // If this model is currently running, show live RAM usage on the right.
@@ -299,8 +299,8 @@ final class ModelMenuItemView: NSView {
       bytesLabel.stringValue = defaultSecondary
       bytesLabel.isHidden = false
       let symbolName = (isLoadingServer || isRunning) ? "stop" : "play"
-      actionImageView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
-      actionImageView.contentTintColor =
+      indicatorImageView.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+      indicatorImageView.contentTintColor =
         (isLoadingServer || isRunning) ? .systemRed : .controlAccentColor
       // Only show on hover via updateHighlight
       if isHighlighted { deleteImageView.isHidden = false }
@@ -308,7 +308,7 @@ final class ModelMenuItemView: NSView {
       progressLabel.stringValue = ""
       bytesLabel.stringValue = defaultSecondary
       bytesLabel.isHidden = false
-      actionImageView.image = nil
+      indicatorImageView.image = nil
       deleteImageView.isHidden = true
     }
     applyIconTint(isActive: isLoadingServer || isRunning)

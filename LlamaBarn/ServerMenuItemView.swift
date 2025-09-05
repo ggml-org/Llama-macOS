@@ -1,9 +1,8 @@
 import AppKit
 import Foundation
 
-/// AppKit menu row showing llama-server status.
-/// Mirrors the prior SwiftUI ServerStatusView behavior.
-final class ServerStatusMenuItemView: NSView {
+/// Menu row showing llama-server status with a link indicator.
+final class ServerMenuItemView: NSView {
   private enum Font {
     static let primary = NSFont.systemFont(ofSize: 13)
   }
@@ -12,7 +11,7 @@ final class ServerStatusMenuItemView: NSView {
 
   private let iconView = NSImageView()
   private let textField = NSTextField(labelWithString: "")
-  private let linkIcon = NSImageView()
+  private let linkIndicator = NSImageView()
   private let backgroundView = NSView()
   private var trackingArea: NSTrackingArea?
   private var isHighlighted = false { didSet { updateHighlight() } }
@@ -43,15 +42,15 @@ final class ServerStatusMenuItemView: NSView {
     textField.lineBreakMode = .byTruncatingTail
     textField.translatesAutoresizingMaskIntoConstraints = false
 
-    linkIcon.image = NSImage(systemSymbolName: "link", accessibilityDescription: nil)
-    linkIcon.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-    linkIcon.translatesAutoresizingMaskIntoConstraints = false
-    linkIcon.contentTintColor = .secondaryLabelColor
+    linkIndicator.image = NSImage(systemSymbolName: "link", accessibilityDescription: nil)
+    linkIndicator.symbolConfiguration = .init(pointSize: 12, weight: .regular)
+    linkIndicator.translatesAutoresizingMaskIntoConstraints = false
+    linkIndicator.contentTintColor = .secondaryLabelColor
 
     let spacer = NSView()
     spacer.translatesAutoresizingMaskIntoConstraints = false
 
-    let stack = NSStackView(views: [iconView, textField, spacer, linkIcon])
+    let stack = NSStackView(views: [iconView, textField, spacer, linkIndicator])
     stack.translatesAutoresizingMaskIntoConstraints = false
     stack.orientation = .horizontal
     stack.alignment = .centerY
@@ -66,8 +65,8 @@ final class ServerStatusMenuItemView: NSView {
       backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
       iconView.widthAnchor.constraint(equalToConstant: 18),
       iconView.heightAnchor.constraint(equalToConstant: 18),
-      linkIcon.widthAnchor.constraint(equalToConstant: 14),
-      linkIcon.heightAnchor.constraint(equalToConstant: 14),
+      linkIndicator.widthAnchor.constraint(equalToConstant: 14),
+      linkIndicator.heightAnchor.constraint(equalToConstant: 14),
       stack.leadingAnchor.constraint(equalTo: backgroundView.leadingAnchor, constant: 8),
       stack.trailingAnchor.constraint(equalTo: backgroundView.trailingAnchor, constant: -8),
       stack.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 6),
@@ -109,12 +108,12 @@ final class ServerStatusMenuItemView: NSView {
       textField.stringValue = "Running on localhost:\(LlamaServer.defaultPort)"
       textField.textColor = .labelColor
       iconView.contentTintColor = .labelColor
-      linkIcon.contentTintColor = .linkColor
+      linkIndicator.contentTintColor = .linkColor
     } else {
       textField.stringValue = "Server not running"
       textField.textColor = .secondaryLabelColor
       iconView.contentTintColor = .secondaryLabelColor
-      linkIcon.contentTintColor = .tertiaryLabelColor
+      linkIndicator.contentTintColor = .tertiaryLabelColor
       isHighlighted = false
     }
     needsDisplay = true

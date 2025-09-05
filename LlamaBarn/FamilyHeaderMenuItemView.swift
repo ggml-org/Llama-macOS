@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 
-/// Displays a model family with variant "chips" summarizing status.
-final class FamilyMenuItemView: NSView {
+/// Displays a model family with variant badges summarizing status.
+final class FamilyHeaderMenuItemView: NSView {
   fileprivate enum Font {
     static let primary = NSFont.systemFont(ofSize: 13, weight: .regular)
     // Reduced chip font size from 10 -> 8 per design update
@@ -14,12 +14,12 @@ final class FamilyMenuItemView: NSView {
 
   private let iconView = NSImageView()
   private let familyLabel = NSTextField(labelWithString: "")
-  private let chipsStack = NSStackView()
+  private let badgesStack = NSStackView()
   private let chevron = NSImageView()
   private let backgroundView = NSView()
-  private var chipsMap: [String: ChipView] = [:]
+  private var badgesMap: [String: BadgeView] = [:]
   // Identifier for ephemeral separator views between chips
-  private let chipSeparatorID = NSUserInterfaceItemIdentifier("chip-separator")
+  private let badgeSeparatorID = NSUserInterfaceItemIdentifier("badge-separator")
 
   private var trackingArea: NSTrackingArea?
   private var isHighlighted = false { didSet { updateHighlight() } }
@@ -53,19 +53,19 @@ final class FamilyMenuItemView: NSView {
     familyLabel.font = Font.primary
     familyLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    chipsStack.orientation = .horizontal
-    chipsStack.spacing = 6
-    chipsStack.alignment = .centerY
-    // Let chips hug their intrinsic content; default distribution avoids stretching when hugging is required
-    chipsStack.translatesAutoresizingMaskIntoConstraints = false
+    badgesStack.orientation = .horizontal
+    badgesStack.spacing = 6
+    badgesStack.alignment = .centerY
+    // Let badges hug their intrinsic content; default distribution avoids stretching when hugging is required
+    badgesStack.translatesAutoresizingMaskIntoConstraints = false
 
     chevron.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
-    // Match trailing action icon sizing (16x16 w/ pointSize 14) used in ModelMenuItemView for alignment
+    // Match trailing indicator sizing (16x16 w/ pointSize 14) used in InstalledModelMenuItemView for alignment
     chevron.symbolConfiguration = .init(pointSize: 14, weight: .regular)
     chevron.contentTintColor = .secondaryLabelColor
     chevron.translatesAutoresizingMaskIntoConstraints = false
 
-    let textColumn = NSStackView(views: [familyLabel, chipsStack])
+    let textColumn = NSStackView(views: [familyLabel, badgesStack])
     textColumn.orientation = .vertical
     textColumn.spacing = 1
     textColumn.alignment = .leading
@@ -129,56 +129,56 @@ final class FamilyMenuItemView: NSView {
     let sortedModels = models.sorted(by: ModelCatalogEntry.displayOrder(_:_:))
     var seen: Set<String> = []
     // Remove any existing separators before rebuilding
-    removeChipSeparators()
+    removeBadgeSeparators()
     for model in sortedModels {
       let key = model.id
       seen.insert(key)
       let status = modelManager.getModelStatus(model)
       let downloaded = (status == .downloaded)
       let compatible = ModelCatalog.isModelCompatible(model)
-      let chip =
-        chipsMap[key]
+      let badge =
+        badgesMap[key]
         ?? {
-          let c = ChipView()
-          chipsMap[key] = c
-          chipsStack.addArrangedSubview(c)
+          let c = BadgeView()
+          badgesMap[key] = c
+          badgesStack.addArrangedSubview(c)
           return c
         }()
-      chip.configure(
+      badge.configure(
         text: model.variant + (model.simplifiedQuantization == "Q8" ? "+" : ""),
         showCheck: downloaded,
         downloaded: downloaded,
         compatible: compatible
       )
     }
-    for (key, chip) in chipsMap where !seen.contains(key) {
-      chipsStack.removeArrangedSubview(chip)
-      chip.removeFromSuperview()
-      chipsMap.removeValue(forKey: key)
+    for (key, badge) in badgesMap where !seen.contains(key) {
+      badgesStack.removeArrangedSubview(badge)
+      badge.removeFromSuperview()
+      badgesMap.removeValue(forKey: key)
     }
-    // Ensure separators exist between all remaining chips
-    rebuildChipSeparators()
+    // Ensure separators exist between all remaining badges
+    rebuildBadgeSeparators()
     needsDisplay = true
   }
 
-  private func removeChipSeparators() {
-    for view in chipsStack.arrangedSubviews where view.identifier == chipSeparatorID {
-      chipsStack.removeArrangedSubview(view)
+  private func removeBadgeSeparators() {
+    for view in badgesStack.arrangedSubviews where view.identifier == badgeSeparatorID {
+      badgesStack.removeArrangedSubview(view)
       view.removeFromSuperview()
     }
   }
 
-  private func rebuildChipSeparators() {
-    // Collect chips in order as they appear
-    let chips = chipsStack.arrangedSubviews.compactMap { $0 as? ChipView }
-    guard chips.count > 1 else { return }
+  private func rebuildBadgeSeparators() {
+    // Collect badges in order as they appear
+    let badges = badgesStack.arrangedSubviews.compactMap { $0 as? BadgeView }
+    guard badges.count > 1 else { return }
     // Insert separators between each adjacent pair if not already present
-    for (index, chip) in chips.enumerated() where index > 0 {
-      let separator = ChipSeparatorView()
-      separator.identifier = chipSeparatorID
-      // Insert separator before this chip in the overall arrangedSubviews order
-      if let chipIndex = chipsStack.arrangedSubviews.firstIndex(of: chip) {
-        chipsStack.insertArrangedSubview(separator, at: chipIndex)
+    for (index, badge) in badges.enumerated() where index > 0 {
+      let separator = BadgeSeparatorView()
+      separator.identifier = badgeSeparatorID
+      // Insert separator before this badge in the overall arrangedSubviews order
+      if let idx = badgesStack.arrangedSubviews.firstIndex(of: badge) {
+        badgesStack.insertArrangedSubview(separator, at: idx)
       }
     }
   }
@@ -189,7 +189,7 @@ final class FamilyMenuItemView: NSView {
 
 }
 
-private final class ChipView: NSView {
+private final class BadgeView: NSView {
   private let check = NSImageView()
   private let label = NSTextField(labelWithString: "")
   private let innerStack = NSStackView()
@@ -205,8 +205,8 @@ private final class ChipView: NSView {
     wantsLayer = true
     check.translatesAutoresizingMaskIntoConstraints = false
     check.symbolConfiguration = .init(pointSize: 7, weight: .bold)
-    // Match new smaller chip font size
-    label.font = FamilyMenuItemView.Font.chip
+    // Match smaller badge font size
+    label.font = FamilyHeaderMenuItemView.Font.chip
     label.translatesAutoresizingMaskIntoConstraints = false
     innerStack.orientation = .horizontal
     innerStack.spacing = 2
@@ -284,8 +284,8 @@ private final class ChipView: NSView {
   }
 }
 
-// Simple 1px vertical hairline between chips
-private final class ChipSeparatorView: NSView {
+// Simple 1px vertical hairline between badges
+private final class BadgeSeparatorView: NSView {
   private var scale: CGFloat { window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
   private var widthConstraint: NSLayoutConstraint?
   override init(frame frameRect: NSRect) {
