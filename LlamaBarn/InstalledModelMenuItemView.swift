@@ -229,13 +229,14 @@ final class InstalledModelMenuItemView: MenuRowView {
         percent = 0
       }
       progressLabel.stringValue = "\(percent)%"
-      // Second line: show downloaded/total bytes
-      let formatter = ByteCountFormatter()
-      formatter.allowedUnits = [.useMB, .useGB]
-      formatter.countStyle = .decimal
-      let completedText = formatter.string(fromByteCount: progress.completedUnitCount)
+      // Second line: show downloaded/total in GB with two decimals
+      func formatGB(_ bytes: Int64) -> String {
+        let gb = Double(bytes) / 1_000_000_000.0
+        return String(format: "%.2f GB", gb)
+      }
+      let completedText = formatGB(progress.completedUnitCount)
       if progress.totalUnitCount > 0 {
-        let totalText = formatter.string(fromByteCount: progress.totalUnitCount)
+        let totalText = formatGB(progress.totalUnitCount)
         bytesLabel.stringValue = "\(completedText) / \(totalText)"
       } else {
         bytesLabel.stringValue = completedText
