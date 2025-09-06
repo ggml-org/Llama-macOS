@@ -6,7 +6,7 @@ import Foundation
 /// - Idle: circular icon (inactive) + label
 /// - Loading: circular icon (active) + spinner
 /// - Running: circular icon (active)
-final class InstalledModelMenuItemView: MenuRowView {
+final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate {
   private let model: ModelCatalogEntry
   private unowned let server: LlamaServer
   private unowned let modelManager: ModelManager
@@ -22,10 +22,16 @@ final class InstalledModelMenuItemView: MenuRowView {
   // Second-line label: used for progress during downloads and for
   // consistent two-line layout (size/badges) when idle/running.
   private let bytesLabel = NSTextField(labelWithString: "")
-  // Proper control for delete; avoids manual hit-testing.
+  // Trailing action controls
+  private let ellipsisContainer = NSView()
+  private let ellipsisButton = NSButton()
   private let deleteButton = NSButton()
+  private let revealButton = NSButton()
+  private var actionsExpanded = false
+  // No per-ellipsis hover state; keep things simple
 
   // Hover handling is provided by MenuRowView
+  private var rowClickRecognizer: NSClickGestureRecognizer?
 
   init(
     model: ModelCatalogEntry, server: LlamaServer, modelManager: ModelManager,
@@ -75,6 +81,21 @@ final class InstalledModelMenuItemView: MenuRowView {
     bytesLabel.translatesAutoresizingMaskIntoConstraints = false
     bytesLabel.isHidden = false
 
+    // Ellipsis shows on hover; on click it expands to inline actions
+    ellipsisContainer.translatesAutoresizingMaskIntoConstraints = false
+    ellipsisContainer.wantsLayer = false
+
+    ellipsisButton.translatesAutoresizingMaskIntoConstraints = false
+    ellipsisButton.isBordered = false
+    ellipsisButton.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: "More actions")
+    ellipsisButton.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+    ellipsisButton.contentTintColor = .tertiaryLabelColor
+    ellipsisButton.target = self
+    ellipsisButton.action = #selector(toggleActions)
+    ellipsisButton.toolTip = "More actions"
+    ellipsisButton.isHidden = true
+    ellipsisContainer.addSubview(ellipsisButton)
+
     deleteButton.translatesAutoresizingMaskIntoConstraints = false
     deleteButton.isBordered = false
     deleteButton.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete model")
@@ -83,6 +104,15 @@ final class InstalledModelMenuItemView: MenuRowView {
     deleteButton.action = #selector(handleDelete)
     deleteButton.toolTip = "Delete model"
     deleteButton.isHidden = true
+
+    revealButton.translatesAutoresizingMaskIntoConstraints = false
+    revealButton.isBordered = false
+    revealButton.image = NSImage(systemSymbolName: "folder", accessibilityDescription: "Show in Finder")
+    revealButton.contentTintColor = .tertiaryLabelColor
+    revealButton.target = self
+    revealButton.action = #selector(handleRevealInFinder)
+    revealButton.toolTip = "Show in Finder"
+    revealButton.isHidden = true
 
     // Order: icon | (label over bytes) | spacer | (state, progress, delete, action)
     // Spacer expands so trailing visuals sit flush right.
@@ -111,7 +141,7 @@ final class InstalledModelMenuItemView: MenuRowView {
     leading.spacing = 6
 
     // Right: status/progress/delete/action in a row
-    let rightStack = NSStackView(views: [stateContainer, progressLabel, deleteButton, indicatorImageView])
+    let rightStack = NSStackView(views: [stateContainer, progressLabel, ellipsisContainer, revealButton, deleteButton, indicatorImageView])
     rightStack.translatesAutoresizingMaskIntoConstraints = false
     rightStack.orientation = .horizontal
     rightStack.spacing = 6
@@ -134,8 +164,17 @@ final class InstalledModelMenuItemView: MenuRowView {
       stateContainer.heightAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
       indicatorImageView.widthAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
       indicatorImageView.heightAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
+      // Make the ellipsis hit target slightly larger while keeping the glyph aligned
+      ellipsisContainer.widthAnchor.constraint(equalToConstant: MenuMetrics.iconSize + 8),
+      ellipsisContainer.heightAnchor.constraint(equalToConstant: MenuMetrics.iconSize + 6),
+      ellipsisButton.centerXAnchor.constraint(equalTo: ellipsisContainer.centerXAnchor),
+      ellipsisButton.centerYAnchor.constraint(equalTo: ellipsisContainer.centerYAnchor),
+      ellipsisButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
+      ellipsisButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
       deleteButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
       deleteButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
+      revealButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
+      revealButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.progressWidth),
       rootStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       // Pin trailing controls to the backgroundView’s edge (hover highlight),
@@ -152,9 +191,11 @@ final class InstalledModelMenuItemView: MenuRowView {
   // Row click recognizer to toggle, letting the delete button handle its own action.
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
-    if gestureRecognizers.isEmpty {
+    if rowClickRecognizer == nil {
       let click = NSClickGestureRecognizer(target: self, action: #selector(didClickRow))
+      click.delegate = self
       addGestureRecognizer(click)
+      rowClickRecognizer = click
     }
   }
 
@@ -174,17 +215,29 @@ final class InstalledModelMenuItemView: MenuRowView {
     refresh()
   }
 
-  override func hoverHighlightDidChange(_ highlighted: Bool) {
-    // Show delete only when hovered & model is downloaded
-    let status = modelManager.getModelStatus(model)
-    if case .downloaded = status {
-      deleteButton.isHidden = !highlighted
-    } else {
-      deleteButton.isHidden = true
+  private func setEllipsisVisible(_ visible: Bool) {
+    ellipsisContainer.isHidden = !visible
+    ellipsisButton.isHidden = !visible
+  }
+
+  // Prevent row-level toggle when clicking inline action buttons.
+  func gestureRecognizer(_ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent) -> Bool {
+    let location = convert(event.locationInWindow, from: nil)
+    // If click is inside any of the action buttons, let the button handle it.
+    let actionViews: [NSView] = [ellipsisContainer, ellipsisButton, revealButton, deleteButton]
+    for v in actionViews where !v.isHidden {
+      let frame = v.convert(v.bounds, to: self)
+      if frame.contains(location) { return false }
     }
+    return true
+  }
+
+  override func hoverHighlightDidChange(_ highlighted: Bool) {
+    let status = modelManager.getModelStatus(model)
+    updateActionsVisibility(for: status, highlighted: highlighted)
     // Update icon tint when highlight changes.
     applyIconTint()
-    applyDeleteTint()
+    applyActionTints()
   }
 
   func refresh() {
@@ -231,7 +284,7 @@ final class InstalledModelMenuItemView: MenuRowView {
       indicatorImageView.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)
       indicatorImageView.contentTintColor = .systemRed
       indicatorImageView.isHidden = false
-      deleteButton.isHidden = true
+      updateActionsVisibility(for: .downloading(progress), highlighted: isHoverHighlighted)
     case .downloaded:
       // Memory usage now lives in the header; keep the right side empty when not downloading.
       progressLabel.stringValue = ""
@@ -240,22 +293,48 @@ final class InstalledModelMenuItemView: MenuRowView {
       // No play/stop affordance; active state is conveyed by circular icon.
       indicatorImageView.image = nil
       indicatorImageView.isHidden = true
-      // Only show on hover
-      deleteButton.isHidden = !isHoverHighlighted
+      updateActionsVisibility(for: .downloaded, highlighted: isHoverHighlighted)
     case .available:
       progressLabel.stringValue = ""
       bytesLabel.stringValue = defaultSecondary
       bytesLabel.isHidden = false
       indicatorImageView.image = nil
       indicatorImageView.isHidden = true
-      deleteButton.isHidden = true
+      updateActionsVisibility(for: .available, highlighted: isHoverHighlighted)
     }
     // Update leading circular badge state and tinting
     // Icon should become blue only after the model is done loading (running)
     circleIcon.isActive = isRunning
     applyIconTint(isActive: isRunning)
-    applyDeleteTint()
+    applyActionTints()
     needsDisplay = true
+  }
+
+  /// Centralizes which trailing actions are visible based on status + hover state.
+  private func updateActionsVisibility(for status: ModelStatus, highlighted: Bool) {
+    switch status {
+    case .downloading:
+      actionsExpanded = false
+      setEllipsisVisible(false)
+      revealButton.isHidden = true
+      deleteButton.isHidden = true
+    case .available:
+      actionsExpanded = false
+      setEllipsisVisible(false)
+      revealButton.isHidden = true
+      deleteButton.isHidden = true
+    case .downloaded:
+      if highlighted {
+        setEllipsisVisible(!actionsExpanded)
+        revealButton.isHidden = !actionsExpanded
+        deleteButton.isHidden = !actionsExpanded
+      } else {
+        actionsExpanded = false
+        setEllipsisVisible(false)
+        revealButton.isHidden = true
+        deleteButton.isHidden = true
+      }
+    }
   }
 
   /// Adjusts the icon tint to reduce excessive contrast of colorful brand logos vs text labels.
@@ -276,21 +355,30 @@ final class InstalledModelMenuItemView: MenuRowView {
     }
   }
 
-  // Neutral adaptive tint for the delete (trash) symbol; avoid semantic "destructive" red to reduce visual noise.
-  private func applyDeleteTint() {
-    guard !deleteButton.isHidden else { return }
+  // Neutral adaptive tint for action symbols; avoid strong destructive red by default.
+  private func applyActionTints() {
+    let buttons = [revealButton, deleteButton].filter { !$0.isHidden }
+    guard !buttons.isEmpty else { return }
     let increaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-    if isHoverHighlighted {
-      deleteButton.contentTintColor = increaseContrast ? .labelColor : .secondaryLabelColor
-    } else {
-      deleteButton.contentTintColor =
-        increaseContrast ? .secondaryLabelColor : .tertiaryLabelColor
-    }
+    let hoverTint: NSColor = increaseContrast ? .labelColor : .secondaryLabelColor
+    let idleTint: NSColor = increaseContrast ? .secondaryLabelColor : .tertiaryLabelColor
+    let tint = isHoverHighlighted ? hoverTint : idleTint
+    buttons.forEach { $0.contentTintColor = tint }
+    // Keep ellipsis same tinting rules as other action buttons
+    if !ellipsisContainer.isHidden { ellipsisButton.contentTintColor = tint }
   }
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    applyDeleteTint()
+    applyActionTints()
+  }
+
+  // No special tracking for the ellipsis area; the row keeps highlight itself.
+
+  @objc private func toggleActions() {
+    actionsExpanded.toggle()
+    // Re-evaluate hover state to flip the visible controls accordingly
+    hoverHighlightDidChange(isHoverHighlighted)
   }
 
   @objc private func handleDelete() {
@@ -298,5 +386,10 @@ final class InstalledModelMenuItemView: MenuRowView {
     guard case .downloaded = status else { return }
     modelManager.deleteDownloadedModel(model)
     membershipChanged()
+  }
+
+  @objc private func handleRevealInFinder() {
+    let url = URL(fileURLWithPath: model.modelFilePath)
+    NSWorkspace.shared.activateFileViewerSelecting([url])
   }
 }
