@@ -298,11 +298,11 @@ enum ModelCatalog {
         ),
       ]
     ),
-    // MARK: Gemma 3 QAT (migrated)
+    // MARK: Gemma 3 (QAT-trained variants) (migrated)
     ModelFamily(
-      name: "Gemma 3 QAT",
+      name: "Gemma 3",
       icon: "ModelLogos/Gemma",
-      blurb: "Gemma 3 models trained with quantization awareness for better quality at low‑bit quantizations and smaller footprints.",
+      blurb: "Gemma 3 variants trained with quantization‑aware training (QAT) for better quality at low‑bit quantizations and smaller footprints.",
       license: "Gemma License",
       serverArgs: nil,
       variants: [
