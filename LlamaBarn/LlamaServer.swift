@@ -310,27 +310,8 @@ class LlamaServer {
     )
   }
 
-  /// Convenience method to start server with maximum context length
-  func startWithMaxContext(model: ModelCatalogEntry) {
-    var maxContextArgs = model.serverArgs
-    maxContextArgs.append(contentsOf: ["--ctx-size", "0"])
-
-    start(
-      modelName: model.displayName,
-      modelPath: model.modelFilePath,
-      mmprojPath: model.visionFilePath,
-      extraArgs: maxContextArgs
-    )
-  }
-
-  /// Convenience method to toggle server state using a ModelCatalogEntry
-  func toggle(model: ModelCatalogEntry) {
-    if activeModelPath == model.modelFilePath {
-      stop()
-    } else {
-      start(model: model)
-    }
-  }
+  // Removed: startWithMaxContext(model:) — not used by current UI.
+  // Removed: toggle(model:) — UI calls start/stop explicitly.
 
   private func cleanUpPipes() {
     outputPipe?.fileHandleForReading.readabilityHandler = nil
@@ -459,16 +440,7 @@ class LlamaServer {
     }
   }
 
-  /// Gets the version of the bundled llama.cpp from stored version file
-  func getLlamaCppVersion() -> String {
-    guard let url = Bundle.main.url(forResource: "version", withExtension: "txt"),
-      let version = try? String(contentsOf: url, encoding: .utf8)
-    else {
-      return "unknown"
-    }
-
-    return version.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
+  // Removed: getLlamaCppVersion() — AppMenuController reads version directly.
 
   deinit {
     stop()
