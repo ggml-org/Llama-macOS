@@ -13,7 +13,6 @@ struct ModelCatalogEntry: Identifiable, Codable {
   /// Optional additional model shards. When present, the first shard in `downloadUrl`
   /// should be passed to `--model` and llama-server will discover the rest in the same directory.
   let additionalParts: [URL]?
-  let visionFile: URL?  // Optional multimodal projection file for vision
   let serverArgs: [String]  // Additional command line arguments for llama-server
   let icon: String  // Asset name for the model's brand logo
   let quantization: String  // Quantization method (e.g., "Q4_K_M", "Q8_0")
@@ -28,7 +27,6 @@ struct ModelCatalogEntry: Identifiable, Codable {
     fileSizeMB: Int,
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
-    visionFile: URL?,
     serverArgs: [String],
     icon: String,
     quantization: String
@@ -42,7 +40,6 @@ struct ModelCatalogEntry: Identifiable, Codable {
     self.fileSizeMB = fileSizeMB
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts
-    self.visionFile = visionFile
     self.serverArgs = serverArgs
     self.icon = icon
     self.quantization = quantization
@@ -79,13 +76,7 @@ struct ModelCatalogEntry: Identifiable, Codable {
       }
       return true
     }()
-    let visionFileExists: Bool
-    if let visionPath = visionFilePath {
-      visionFileExists = FileManager.default.fileExists(atPath: visionPath)
-    } else {
-      visionFileExists = true  // No vision file required
-    }
-    return modelFileExists && shardFilesExist && visionFileExists
+    return modelFileExists && shardFilesExist
   }
 
   /// The local file system path where the model file will be stored
@@ -105,11 +96,7 @@ struct ModelCatalogEntry: Identifiable, Codable {
     return paths
   }
 
-  /// The local file system path where the vision file will be stored
-  var visionFilePath: String? {
-    guard let visionFile = visionFile else { return nil }
-    return Self.getModelStorageDirectory().appendingPathComponent(visionFile.lastPathComponent).path
-  }
+  // Removed: visionFile and related local path; multimodal files are not tracked.
 
   /// Returns the directory where AI models are stored, creating it if necessary
   private static func getModelStorageDirectory() -> URL {

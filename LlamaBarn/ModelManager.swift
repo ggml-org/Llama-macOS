@@ -69,10 +69,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       }
     }
 
-    // Optional vision file
-    if let visionFile = model.visionFile, !FileManager.default.fileExists(atPath: model.visionFilePath!) {
-      files.append(visionFile)
-    }
+    // No separate vision file support.
 
     return files
   }
@@ -156,10 +153,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
           }
         }
 
-        // Safely remove vision file only if no other models depend on it
-        if let visionFilePath = model.visionFilePath, canDeleteVisionFile(model: model) {
-          try FileManager.default.removeItem(atPath: visionFilePath)
-        }
+        // No separate vision file to remove
 
         // Successfully deleted - remove from being deleted set
         _ = await MainActor.run {
@@ -181,18 +175,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
     }
   }
 
-  /// Determines if a vision file can be safely deleted by checking reference count
-  private func canDeleteVisionFile(model: ModelCatalogEntry) -> Bool {
-    guard let visionFilePath = model.visionFilePath else { return false }
-
-    // Count how many downloaded models use this vision file
-    let referenceCount = downloadedModels.count { downloadedModel in
-      downloadedModel.visionFilePath == visionFilePath
-    }
-
-    // Safe to delete if only this model uses it (reference count of 1)
-    return referenceCount <= 1
-  }
+  // Removed: vision file reference counting; no longer applicable.
 
   /// Scans the local models directory and updates the list of downloaded models
   func refreshDownloadedModels() {

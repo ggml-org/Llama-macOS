@@ -69,15 +69,10 @@ class LlamaServer {
   }
 
   /// Basic validation of required paths
-  private func validatePaths(modelPath: String, mmprojPath: String? = nil) throws {
+  private func validatePaths(modelPath: String) throws {
     guard FileManager.default.fileExists(atPath: modelPath) else {
       logger.error("Model file not found: \(modelPath)")
       throw LlamaServerError.invalidPath(modelPath)
-    }
-
-    if let mmprojPath = mmprojPath, !FileManager.default.fileExists(atPath: mmprojPath) {
-      logger.error("Vision file not found: \(mmprojPath)")
-      throw LlamaServerError.invalidPath(mmprojPath)
     }
 
     let llamaServerPath = libFolderPath + "/llama-server"
@@ -126,7 +121,6 @@ class LlamaServer {
   func start(
     modelName: String,
     modelPath: String,
-    mmprojPath: String? = nil,
     extraArgs: [String] = []
   ) {
     let port = Self.defaultPort
@@ -134,7 +128,7 @@ class LlamaServer {
 
     // Validate paths
     do {
-      try validatePaths(modelPath: modelPath, mmprojPath: mmprojPath)
+      try validatePaths(modelPath: modelPath)
     } catch let error as LlamaServerError {
       DispatchQueue.main.async {
         self.state = .error(error)
@@ -162,9 +156,6 @@ class LlamaServer {
       "--jinja",
     ]
 
-    if let mmprojPath = mmprojPath {
-      arguments.append(contentsOf: ["--mmproj", mmprojPath])
-    }
 
     // Add batch size optimization for devices with 32+ GB RAM
     let systemMemoryGB = Double(SystemMemory.getMemoryMB()) / 1024.0
@@ -305,7 +296,6 @@ class LlamaServer {
     start(
       modelName: model.displayName,
       modelPath: model.modelFilePath,
-      mmprojPath: model.visionFilePath,
       extraArgs: model.serverArgs
     )
   }

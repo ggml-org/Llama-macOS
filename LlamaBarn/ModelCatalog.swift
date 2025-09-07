@@ -22,7 +22,6 @@ enum ModelCatalog {
     let fileSizeMB: Int
     let downloadUrl: URL
     let additionalParts: [URL]?
-    let visionFile: URL?
     let serverArgs: [String]
 
     func asEntry(family: ModelFamily, variant: ModelVariant) -> ModelCatalogEntry {
@@ -37,7 +36,6 @@ enum ModelCatalog {
         fileSizeMB: fileSizeMB,
         downloadUrl: downloadUrl,
         additionalParts: additionalParts,
-        visionFile: visionFile,
         serverArgs: effectiveArgs,
         icon: family.icon,
         quantization: quantization
@@ -102,7 +100,6 @@ enum ModelCatalog {
               fileSizeMB: 256_000,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-235B-A22B-Instruct-2507-GGUF/resolve/main/Qwen3-235B-A22B-Instruct-2507-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -111,7 +108,6 @@ enum ModelCatalog {
               fileSizeMB: 114_688,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-235B-A22B-Instruct-2507-GGUF/resolve/main/Qwen3-235B-A22B-Instruct-2507-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -129,7 +125,6 @@ enum ModelCatalog {
               fileSizeMB: 32_768,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF/resolve/main/Qwen3-30B-A3B-Instruct-2507-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -138,7 +133,6 @@ enum ModelCatalog {
               fileSizeMB: 15_052,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF/resolve/main/Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -156,7 +150,6 @@ enum ModelCatalog {
               fileSizeMB: 4_384,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -165,7 +158,6 @@ enum ModelCatalog {
               fileSizeMB: 2_560,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -193,7 +185,6 @@ enum ModelCatalog {
               fileSizeMB: 12_390,
               downloadUrl: URL(string: "https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/main/gpt-oss-20b-mxfp4.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -214,7 +205,6 @@ enum ModelCatalog {
                 URL(string: "https://huggingface.co/ggml-org/gpt-oss-120b-GGUF/resolve/main/gpt-oss-120b-mxfp4-00002-of-00003.gguf")!,
                 URL(string: "https://huggingface.co/ggml-org/gpt-oss-120b-GGUF/resolve/main/gpt-oss-120b-mxfp4-00003-of-00003.gguf")!,
               ],
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -242,7 +232,6 @@ enum ModelCatalog {
               fileSizeMB: 33_280,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -251,7 +240,6 @@ enum ModelCatalog {
               fileSizeMB: 19_046,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -279,7 +267,6 @@ enum ModelCatalog {
               fileSizeMB: 7_526,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/gemma-3n-E4B-it-GGUF/resolve/main/gemma-3n-E4B-it-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -288,7 +275,6 @@ enum ModelCatalog {
               fileSizeMB: 4_505,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/gemma-3n-E4B-it-GGUF/resolve/main/gemma-3n-E4B-it-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -306,7 +292,6 @@ enum ModelCatalog {
               fileSizeMB: 3_103,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/gemma-3n-E2B-it-GGUF/resolve/main/gemma-3n-E2B-it-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -334,7 +319,6 @@ enum ModelCatalog {
               fileSizeMB: 15_909,
               downloadUrl: URL(string: "https://huggingface.co/ggml-org/gemma-3-27b-it-qat-GGUF/resolve/main/gemma-3-27b-it-qat-Q4_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -352,7 +336,6 @@ enum ModelCatalog {
               fileSizeMB: 7_131,
               downloadUrl: URL(string: "https://huggingface.co/ggml-org/gemma-3-12b-it-qat-GGUF/resolve/main/gemma-3-12b-it-qat-Q4_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -370,7 +353,6 @@ enum ModelCatalog {
               fileSizeMB: 2_526,
               downloadUrl: URL(string: "https://huggingface.co/ggml-org/gemma-3-4b-it-qat-GGUF/resolve/main/gemma-3-4b-it-qat-Q4_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -388,7 +370,6 @@ enum ModelCatalog {
               fileSizeMB: 720,
               downloadUrl: URL(string: "https://huggingface.co/ggml-org/gemma-3-1b-it-qat-GGUF/resolve/main/gemma-3-1b-it-qat-Q4_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -406,7 +387,6 @@ enum ModelCatalog {
               fileSizeMB: 241,
               downloadUrl: URL(string: "https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/resolve/main/gemma-3-270m-it-qat-Q4_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -434,7 +414,6 @@ enum ModelCatalog {
               fileSizeMB: 256_000,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-235B-A22B-Thinking-2507-GGUF/resolve/main/Qwen3-235B-A22B-Thinking-2507-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -443,7 +422,6 @@ enum ModelCatalog {
               fileSizeMB: 114_688,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-235B-A22B-Thinking-2507-GGUF/resolve/main/Qwen3-235B-A22B-Thinking-2507-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -461,7 +439,6 @@ enum ModelCatalog {
               fileSizeMB: 32_768,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-30B-A3B-Thinking-2507-GGUF/resolve/main/Qwen3-30B-A3B-Thinking-2507-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -470,7 +447,6 @@ enum ModelCatalog {
               fileSizeMB: 15_052,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-30B-A3B-Thinking-2507-GGUF/resolve/main/Qwen3-30B-A3B-Thinking-2507-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -488,7 +464,6 @@ enum ModelCatalog {
               fileSizeMB: 4_384,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-4B-Thinking-2507-GGUF/resolve/main/Qwen3-4B-Thinking-2507-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -497,7 +472,6 @@ enum ModelCatalog {
               fileSizeMB: 2_560,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/Qwen3-4B-Thinking-2507-GGUF/resolve/main/Qwen3-4B-Thinking-2507-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
@@ -525,7 +499,6 @@ enum ModelCatalog {
               fileSizeMB: 8_934,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF/resolve/main/DeepSeek-R1-0528-Qwen3-8B-Q8_0.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
             ModelBuild(
@@ -534,7 +507,6 @@ enum ModelCatalog {
               fileSizeMB: 5_151,
               downloadUrl: URL(string: "https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF/resolve/main/DeepSeek-R1-0528-Qwen3-8B-Q4_K_M.gguf")!,
               additionalParts: nil,
-              visionFile: nil,
               serverArgs: []
             ),
           ]
