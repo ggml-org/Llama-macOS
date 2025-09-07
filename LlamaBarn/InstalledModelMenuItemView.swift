@@ -16,6 +16,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   private let circleIcon = CircularIconView()
   private let labelField = NSTextField(labelWithString: "")
   private let stateContainer = NSView()
+  // Legacy right-side spinner no longer used for server loading; keep for layout compatibility.
   private let spinner = NSProgressIndicator()
   private let indicatorImageView = NSImageView()
   private let progressLabel = NSTextField(labelWithString: "")
@@ -251,14 +252,8 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     stateContainer.subviews.forEach { $0.removeFromSuperview() }
     spinner.stopAnimation(nil)
 
-    if isLoadingServer {
-      stateContainer.addSubview(spinner)
-      NSLayoutConstraint.activate([
-        spinner.centerXAnchor.constraint(equalTo: stateContainer.centerXAnchor),
-        spinner.centerYAnchor.constraint(equalTo: stateContainer.centerYAnchor),
-      ])
-      spinner.startAnimation(nil)
-    }
+    // Spinner is now displayed inside the circular icon instead of the right side.
+    circleIcon.setLoading(isLoadingServer)
     // Compose a default secondary line (size + capability badges) used when not downloading
     let defaultSecondary: String = model.totalSize
 

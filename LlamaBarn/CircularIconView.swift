@@ -5,8 +5,10 @@ import AppKit
 /// - Active: filled with `controlAccentColor`, no border, white glyph.
 final class CircularIconView: NSView {
   let imageView = NSImageView()
+  private let spinner = NSProgressIndicator()
 
   var isActive: Bool = false { didSet { refresh() } }
+  private var isLoading: Bool = false { didSet { refresh() } }
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
@@ -17,7 +19,14 @@ final class CircularIconView: NSView {
     imageView.symbolConfiguration = .init(pointSize: MenuMetrics.smallIconSize, weight: .regular)
     imageView.imageScaling = .scaleProportionallyDown
 
+    // Configure spinner but keep it hidden until used.
+    spinner.translatesAutoresizingMaskIntoConstraints = false
+    spinner.isDisplayedWhenStopped = false
+    spinner.controlSize = .small
+    spinner.style = .spinning
+
     addSubview(imageView)
+    addSubview(spinner)
     NSLayoutConstraint.activate([
       widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
@@ -25,6 +34,8 @@ final class CircularIconView: NSView {
       imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
       imageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.smallIconSize),
       imageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.smallIconSize),
+      spinner.centerXAnchor.constraint(equalTo: centerXAnchor),
+      spinner.centerYAnchor.constraint(equalTo: centerYAnchor),
     ])
     refresh()
   }
@@ -47,8 +58,22 @@ final class CircularIconView: NSView {
     refresh()
   }
 
+  /// Show or hide a spinner centered inside the circular badge.
+  func setLoading(_ loading: Bool) {
+    isLoading = loading
+    if loading {
+      spinner.startAnimation(nil)
+    } else {
+      spinner.stopAnimation(nil)
+    }
+  }
+
   private func refresh() {
     guard let layer else { return }
+    // Spinner appears in the center and the glyph hides while loading.
+    imageView.isHidden = isLoading
+    spinner.isHidden = !isLoading
+
     if isActive {
       layer.borderWidth = 0
       layer.backgroundColor = NSColor.cgColor(.controlAccentColor, in: self)
