@@ -110,8 +110,10 @@ final class FamilyHeaderMenuItemView: MenuRowView {
           badgesStack.addArrangedSubview(c)
           return c
         }()
+      // Badge text: append "*" for quantized builds; no marker for Q8 (parity)
+      let isQuantized = model.quantization.uppercased() != "Q8_0"
       badge.configure(
-        text: model.variant + (model.simplifiedQuantization == "Q8" ? "+" : ""),
+        text: model.variant + (isQuantized ? "*" : ""),
         showCheck: downloaded,
         downloaded: downloaded,
         compatible: compatible
