@@ -96,7 +96,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       ellipsisImageView.image = img
     }
     ellipsisImageView.translatesAutoresizingMaskIntoConstraints = false
-    ellipsisImageView.symbolConfiguration = .init(pointSize: 15, weight: .semibold)
+    ellipsisImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
     ellipsisImageView.imageScaling = .scaleProportionallyDown
     ellipsisImageView.contentTintColor = .secondaryLabelColor
     ellipsisButton.title = ""
@@ -121,7 +121,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       deleteImageView.image = img
     }
     deleteImageView.translatesAutoresizingMaskIntoConstraints = false
-    deleteImageView.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+    deleteImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
     deleteImageView.imageScaling = .scaleProportionallyDown
     deleteImageView.contentTintColor = .secondaryLabelColor
     deleteButton.title = ""
@@ -145,7 +145,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       revealImageView.image = img
     }
     revealImageView.translatesAutoresizingMaskIntoConstraints = false
-    revealImageView.symbolConfiguration = .init(pointSize: 14, weight: .regular)
+    revealImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
     revealImageView.imageScaling = .scaleProportionallyDown
     revealImageView.contentTintColor = .secondaryLabelColor
     revealButton.title = ""
