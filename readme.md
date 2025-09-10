@@ -44,10 +44,11 @@ Learn more at in the `llama-server` [docs](https://github.com/ggml-org/llama.cpp
 
 ## Roadmap
 
-- [ ] Run multiple models at once (e.g., chat + embeddings)
-- [ ] Embedding models support
-- [ ] Completion models support
-- [ ] Vision for models that support it
+- [ ] Support for running multiple models at once -- e.g., chat + embeddings
+- [ ] Support for Embedding models
+- [ ] Support for Completion models
+- [ ] Support for parallel requests 
+- [ ] Vision support for vision-capable models
 - [ ] Expose advanced settings like context length, temperature, etc.
 
 ## License and acknowledgements
