@@ -22,6 +22,8 @@ Download the latest version from [Releases ↗](https://github.com/ggml-org/Llam
 
 ## API Endpoints
 
+LlamaBarn uses `llama-server` from `llama.cpp` and therefore supports the same API endpoints. Here are some examples to get you started.
+
 Check server health:
 
 ```sh
@@ -40,7 +42,7 @@ curl http://localhost:2276/v1/chat/completions \
   -d '{"messages": [{"role": "user", "content": "Hi"}]}'
 ```
 
-Learn more at in the `llama-server` [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
+Find the full documentation for the API endpoints in the `llama.cpp` [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
 
 ## Roadmap
 
