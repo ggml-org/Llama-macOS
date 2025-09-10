@@ -15,24 +15,26 @@ Get the latest build from [Releases ↗](https://github.com/ggml-org/LlamaBarn/r
 - Built-in chat via llama.cpp's web UI
 - Compatible API
 
-## Using the API
+## API Endpoints
 
-Here are some basic examples using `curl`:
-
+Check server health
 ```sh
-# Health
 curl http://localhost:2276/v1/health
+```
 
-# List models
+List running models (right now, you can only run one at a time)
+```sh
 curl http://localhost:2276/v1/models
+```
 
-# Chat with the running model
+Chat with the running model
+```sh
 curl http://localhost:2276/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"messages": [{"role": "user", "content": "Hi"}]}'
 ```
 
-Learn more at in the [`llama-server` docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
+Learn more at in the `llama-server` [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
 
 ## How it works
 
