@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import LaunchAtLogin
 
 /// Controls the status bar item and its AppKit menu.
 /// First iteration: only an "Installed" section listing downloaded models.
@@ -21,21 +20,9 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     self.modelManager = modelManager
     self.server = server
-    self.llamaCppVersion = AppMenuController.readLlamaCppVersion()
+    self.llamaCppVersion = AppInfo.llamaCppVersion
     super.init()
     configureStatusItem()
-  }
-
-  private static func readLlamaCppVersion() -> String {
-    // Canonical location: bundle resource "version.txt". Fallback to "unknown".
-    if let path = Bundle.main.path(forResource: "version", ofType: "txt"),
-      let content = try? String(contentsOfFile: path, encoding: .utf8).trimmingCharacters(
-        in: .whitespacesAndNewlines),
-      !content.isEmpty
-    {
-      return content
-    }
-    return "unknown"
   }
 
   private func configureStatusItem() {
@@ -161,59 +148,12 @@ final class AppMenuController: NSObject, NSMenuDelegate {
 
   private func addSettings(to menu: NSMenu) {
     menu.addItem(.separator())
-    // Settings submenu container
-    let settingsItem = NSMenuItem(title: "Settings", action: nil, keyEquivalent: "")
-    let settingsMenu = NSMenu(title: "Settings")
-    settingsMenu.autoenablesItems = false
-
-    // Launch at Login toggle
-    let launchAtLogin = NSMenuItem(
-      title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
-    launchAtLogin.target = self
-    launchAtLogin.state = LaunchAtLogin.isEnabled ? .on : .off
-    settingsMenu.addItem(launchAtLogin)
-
-    // Sparkle updates
-    let updatesItem = NSMenuItem(
-      title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
-    updatesItem.target = self
-    settingsMenu.addItem(updatesItem)
-
-    // App and component versions (moved from header)
-    do {
-      let ver = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-      let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-      let versionsItem = NSMenuItem()
-      versionsItem.isEnabled = false
-      let versionsText = "v\(ver) · build \(build) · llama.cpp \(llamaCppVersion)"
-      versionsItem.attributedTitle = NSAttributedString(
-        string: versionsText,
-        attributes: [
-          .font: NSFont.systemFont(ofSize: 11),
-          .foregroundColor: NSColor.secondaryLabelColor,
-        ]
-      )
-      settingsMenu.addItem(.separator())
-      settingsMenu.addItem(versionsItem)
-    }
-
-    #if DEBUG
-      // Memory info (debug only), visually subdued
-      settingsMenu.addItem(.separator())
-      let memItem = NSMenuItem()
-      memItem.isEnabled = false
-      let memText = SystemMemory.formatMemory()
-      memItem.attributedTitle = NSAttributedString(
-        string: memText,
-        attributes: [
-          .font: NSFont.systemFont(ofSize: 11),
-          .foregroundColor: NSColor.secondaryLabelColor,
-        ]
-      )
-      settingsMenu.addItem(memItem)
-    #endif
-
-    settingsItem.submenu = settingsMenu
+    let settingsItem = NSMenuItem(
+      title: "Settings…",
+      action: #selector(openSettings),
+      keyEquivalent: ","
+    )
+    settingsItem.target = self
     menu.addItem(settingsItem)
   }
 
@@ -388,15 +328,8 @@ final class AppMenuController: NSObject, NSMenuDelegate {
 
   // MARK: - Settings Item Actions
 
-  @objc private func toggleLaunchAtLogin() {
-    // Use LaunchAtLogin package (wraps SMAppService on macOS 13+) to manage login item.
-    LaunchAtLogin.isEnabled = !LaunchAtLogin.isEnabled
-    if let menu = statusItem.menu { rebuildMenu(menu) }
-  }
-
-  @objc private func checkForUpdates() {
-    // Ask AppDelegate (which owns Sparkle) to present the updater UI.
-    NotificationCenter.default.post(name: .LBCheckForUpdates, object: nil)
+  @objc private func openSettings() {
+    SettingsWindowController.shared.show()
   }
 
 }

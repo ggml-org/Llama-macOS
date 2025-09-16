@@ -7,8 +7,9 @@ import os.log
 struct LlamaBarnApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
-  // App has no visible SwiftUI windows; only a Settings scene placeholder.
-  var body: some Scene { Settings { EmptyView() } }
+  var body: some Scene {
+    Settings { SettingsView() }
+  }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
