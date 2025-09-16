@@ -10,6 +10,7 @@ final class HeaderMenuItemView: NSView {
   private lazy var subtitleClickRecognizer = NSClickGestureRecognizer(target: self, action: #selector(openServerURL))
   private let backgroundView = NSView()
   private let quitButton = NSButton()
+  private let settingsButton = NSButton()
   private let appBaseTitle = "LlamaBarn"
   private let versionString: String
   private let buildString: String
@@ -58,7 +59,16 @@ final class HeaderMenuItemView: NSView {
     stack.spacing = 2
     stack.translatesAutoresizingMaskIntoConstraints = false
 
-    // Trailing Quit control (header button)
+    // Trailing Settings and Quit controls (header buttons)
+    settingsButton.bezelStyle = .texturedRounded
+    settingsButton.title = "Settings"
+    settingsButton.font = MenuTypography.secondary
+    settingsButton.translatesAutoresizingMaskIntoConstraints = false
+    settingsButton.setButtonType(.momentaryPushIn)
+    settingsButton.target = self
+    settingsButton.action = #selector(openSettings)
+    settingsButton.keyEquivalent = ","
+
     quitButton.bezelStyle = .texturedRounded
     quitButton.title = "Quit"
     quitButton.font = MenuTypography.secondary
@@ -68,7 +78,7 @@ final class HeaderMenuItemView: NSView {
     quitButton.action = #selector(quitApp)
     quitButton.keyEquivalent = "q"
 
-    // Horizontal container: [stack][spacer][quit]
+    // Horizontal container: [stack][spacer][settings][quit]
     let h = NSStackView()
     h.orientation = .horizontal
     h.alignment = .centerY
@@ -76,6 +86,7 @@ final class HeaderMenuItemView: NSView {
     h.translatesAutoresizingMaskIntoConstraints = false
     h.addArrangedSubview(stack)
     h.addArrangedSubview(NSView()) // flexible spacer
+    h.addArrangedSubview(settingsButton)
     h.addArrangedSubview(quitButton)
     (h.arrangedSubviews[1] as? NSView)?.setContentHuggingPriority(.defaultLow, for: .horizontal)
     (h.arrangedSubviews[1] as? NSView)?.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -96,6 +107,7 @@ final class HeaderMenuItemView: NSView {
         equalTo: backgroundView.trailingAnchor, constant: -MenuMetrics.innerHorizontalPadding),
       h.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 6),
       h.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -6),
+      settingsButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 22),
       quitButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 22),
     ])
   }
@@ -155,6 +167,10 @@ final class HeaderMenuItemView: NSView {
 
   @objc private func quitApp() {
     NSApplication.shared.terminate(nil)
+  }
+
+  @objc private func openSettings() {
+    SettingsWindowController.shared.show()
   }
 
 }

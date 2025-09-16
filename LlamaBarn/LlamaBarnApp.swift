@@ -9,6 +9,14 @@ struct LlamaBarnApp: App {
 
   var body: some Scene {
     Settings { SettingsView() }
+      .commands {
+        CommandGroup(replacing: .appSettings) {
+          Button("Settings…") {
+            SettingsWindowController.shared.show()
+          }
+          .keyboardShortcut(",", modifiers: [.command])
+        }
+      }
   }
 }
 
@@ -88,7 +96,9 @@ extension AppDelegate: SPUStandardUserDriverDelegate {
   // We use this to return the app to menu bar mode.
   func standardUserDriverWillFinishUpdateSession() {
     // Return to menu bar mode
-    NSApp.setActivationPolicy(.accessory)
+    if !SettingsWindowController.shared.isVisible {
+      NSApp.setActivationPolicy(.accessory)
+    }
   }
 }
 

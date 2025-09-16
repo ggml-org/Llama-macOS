@@ -63,7 +63,6 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     addHeader(to: menu)
     addInstalled(to: menu)
     addCatalog(to: menu)
-    addSettings(to: menu)
     addVersionFooter(to: menu)
   }
 
@@ -145,17 +144,6 @@ final class AppMenuController: NSObject, NSMenuDelegate {
   }
 
   // Server status is shown in the header now; dedicated server row removed.
-
-  private func addSettings(to menu: NSMenu) {
-    menu.addItem(.separator())
-    let settingsItem = NSMenuItem(
-      title: "Settings…",
-      action: #selector(openSettings),
-      keyEquivalent: ","
-    )
-    settingsItem.target = self
-    menu.addItem(settingsItem)
-  }
 
   private func addVersionFooter(to menu: NSMenu) {
     menu.addItem(.separator())
@@ -328,9 +316,5 @@ final class AppMenuController: NSObject, NSMenuDelegate {
   // quitApp moved to HeaderMenuItemView
 
   // MARK: - Settings Item Actions
-
-  @objc private func openSettings() {
-    SettingsWindowController.shared.show()
-  }
 
 }

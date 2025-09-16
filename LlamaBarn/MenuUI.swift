@@ -43,3 +43,5 @@ extension NSMenuItem {
     return item
   }
 }
+
+// (No longer used) TrackingProxy was removed in favor of a tiny local view in AppMenuController.
