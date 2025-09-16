@@ -56,7 +56,6 @@ enum ModelCatalog {
     let name: String             // e.g. "Qwen3 2507"
     let icon: String             // asset name
     let blurb: String            // short one- or two-sentence description
-    let license: String?         // optional license tidbit shown in UI
     let serverArgs: [String]?    // optional defaults for all variants/builds
     let variants: [ModelVariant]
 
@@ -64,14 +63,12 @@ enum ModelCatalog {
       name: String,
       icon: String,
       blurb: String,
-      license: String? = nil,
       serverArgs: [String]? = nil,
       variants: [ModelVariant]
     ) {
       self.name = name
       self.icon = icon
       self.blurb = blurb
-      self.license = license
       self.serverArgs = serverArgs
       self.variants = variants
     }
@@ -84,7 +81,6 @@ enum ModelCatalog {
       name: "Qwen3 2507",
       icon: "ModelLogos/Qwen",
       blurb: "Alibaba's latest Qwen3 refresh focused on instruction following, multilingual coverage, and long contexts across sizes.",
-      license: "Qwen License",
       serverArgs: nil,
       variants: [
         ModelVariant(
@@ -169,7 +165,6 @@ enum ModelCatalog {
       name: "GPT-OSS",
       icon: "ModelLogos/OpenAI",
       blurb: "An open, GPT-style instruction-tuned family aimed at general-purpose assistance on local hardware.",
-      license: "Open license",
       // Sliding-window family: use max context by default
       serverArgs: ["-c", "0"],
       variants: [
@@ -217,7 +212,6 @@ enum ModelCatalog {
       name: "Qwen 3 Coder",
       icon: "ModelLogos/Qwen",
       blurb: "Qwen3 optimized for software tasks: strong code completion, instruction following, and long-context coding.",
-      license: "Qwen License",
       serverArgs: nil,
       variants: [
         ModelVariant(
@@ -252,7 +246,6 @@ enum ModelCatalog {
       name: "Gemma 3n",
       icon: "ModelLogos/Gemma",
       blurb: "Google's efficient Gemma 3n line tuned for on‑device performance with solid instruction following at small scales.",
-      license: "Gemma License",
       // Sliding-window family: force max context and keep Gemma-specific overrides
       serverArgs: ["-c", "0", "-ot", "per_layer_token_embd.weight=CPU", "--no-mmap"],
       variants: [
@@ -305,7 +298,6 @@ enum ModelCatalog {
       name: "Gemma 3",
       icon: "ModelLogos/Gemma",
       blurb: "Gemma 3 models trained with quantization‑aware training (QAT) for better quality at low‑bit quantizations and smaller footprints.",
-      license: "Gemma License",
       serverArgs: nil,
       variants: [
         ModelVariant(
@@ -400,7 +392,6 @@ enum ModelCatalog {
       name: "Qwen3 2507 Thinking",
       icon: "ModelLogos/Qwen",
       blurb: "Qwen3 models biased toward deliberate reasoning and step‑by‑step answers; useful for analysis and planning tasks.",
-      license: "Qwen License",
       serverArgs: nil,
       variants: [
         ModelVariant(
@@ -485,7 +476,6 @@ enum ModelCatalog {
       name: "DeepSeek R1 0528",
       icon: "ModelLogos/DeepSeek",
       blurb: "Reasoning‑forward DeepSeek R1 models distilled onto Qwen3 backbones; persuasive step‑by‑step behavior within local limits.",
-      license: "DeepSeek License",
       serverArgs: nil,
       variants: [
         ModelVariant(
