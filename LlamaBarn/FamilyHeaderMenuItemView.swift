@@ -12,9 +12,7 @@ final class FamilyHeaderMenuItemView: MenuRowView {
   private let badgesStack = NSStackView()
   private let chevron = NSImageView()
   // Background is provided by MenuRowView
-  private var badgesMap: [String: BadgeView] = [:]
-  // Identifier for ephemeral separator views between chips
-  private let badgeSeparatorID = NSUserInterfaceItemIdentifier("badge-separator")
+  // No stateful map needed; we rebuild badges each refresh for clarity.
 
   // Hover handling provided by MenuRowView
 
@@ -90,72 +88,35 @@ final class FamilyHeaderMenuItemView: MenuRowView {
       hStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
     ])
   }
-  override func hoverHighlightDidChange(_ highlighted: Bool) { applyIconTint() }
+  // No hover tint change for the header icon; keep consistent.
 
   func refresh() {
-    let sortedModels = models.sorted(by: ModelCatalogEntry.displayOrder(_:_:))
-    var seen: Set<String> = []
-    // Remove any existing separators before rebuilding
-    removeBadgeSeparators()
-    for model in sortedModels {
-      let key = model.id
-      seen.insert(key)
+    // Build one chip per variant label (e.g., "27B"), not per quantization/build.
+    let sorted = models.sorted(by: ModelCatalogEntry.displayOrder(_:_:))
+    var used: Set<String> = []
+    var views: [NSView] = []
+    for model in sorted {
+      let key = groupKey(for: model)
+      if used.contains(key) { continue }
+      used.insert(key)
       let status = modelManager.getModelStatus(model)
       let downloaded = (status == .downloaded)
       let compatible = ModelCatalog.isModelCompatible(model)
-      let badge =
-        badgesMap[key]
-        ?? {
-          let c = BadgeView()
-          badgesMap[key] = c
-          badgesStack.addArrangedSubview(c)
-          return c
-        }()
-      // Badge text: append "*" for quantized builds; no marker for Q8 (parity)
-      let isQuantized = model.quantization.uppercased() != "Q8_0"
-      badge.configure(
-        text: model.variant + (isQuantized ? "*" : ""),
+      let chip = BadgeView()
+      chip.configure(
+        text: key,
         showCheck: downloaded,
         downloaded: downloaded,
         compatible: compatible
       )
+      if !views.isEmpty { views.append(BadgeSeparatorView()) }
+      views.append(chip)
     }
-    for (key, badge) in badgesMap where !seen.contains(key) {
-      badgesStack.removeArrangedSubview(badge)
-      badge.removeFromSuperview()
-      badgesMap.removeValue(forKey: key)
-    }
-    // Ensure separators exist between all remaining badges
-    rebuildBadgeSeparators()
+    badgesStack.setViews(views, in: .leading)
     needsDisplay = true
   }
 
-  private func removeBadgeSeparators() {
-    for view in badgesStack.arrangedSubviews where view.identifier == badgeSeparatorID {
-      badgesStack.removeArrangedSubview(view)
-      view.removeFromSuperview()
-    }
-  }
-
-  private func rebuildBadgeSeparators() {
-    // Collect badges in order as they appear
-    let badges = badgesStack.arrangedSubviews.compactMap { $0 as? BadgeView }
-    guard badges.count > 1 else { return }
-    // Insert separators between each adjacent pair if not already present
-    for (index, badge) in badges.enumerated() where index > 0 {
-      let separator = BadgeSeparatorView()
-      separator.identifier = badgeSeparatorID
-      // Insert separator before this badge in the overall arrangedSubviews order
-      if let idx = badgesStack.arrangedSubviews.firstIndex(of: badge) {
-        badgesStack.insertArrangedSubview(separator, at: idx)
-      }
-    }
-  }
-
-  private func applyIconTint() {
-    // Keep neutral rounded-rect background; emphasize glyph tint on hover.
-    iconView.imageView.contentTintColor = .labelColor
-  }
+  private func groupKey(for model: ModelCatalogEntry) -> String { model.variant }
 
 }
 
