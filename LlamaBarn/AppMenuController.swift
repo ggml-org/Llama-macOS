@@ -149,7 +149,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     menu.addItem(.separator())
     let item = NSMenuItem()
     item.isEnabled = false
-    item.title = "v\(AppInfo.shortVersion) · build \(AppInfo.buildNumber) · llama.cpp \(AppInfo.llamaCppVersion)"
+    item.title = "\(AppInfo.shortVersion) · build \(AppInfo.buildNumber) · llama.cpp \(AppInfo.llamaCppVersion)"
     menu.addItem(item)
   }
 
