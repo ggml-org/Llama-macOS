@@ -28,6 +28,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   private let ellipsisButton = NSButton()
   private let ellipsisImageView = NSImageView()
   private let deleteButton = NSButton()
+  private let stopButton = NSButton()
   private let deleteImageView = NSImageView()
   private let revealButton = NSButton()
   private let revealImageView = NSImageView()
@@ -138,6 +139,40 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     deleteButton.addSubview(deleteImageView)
     deleteButton.setAccessibilityLabel("Delete model")
 
+    // Stop button (shown when this model is running)
+    stopButton.translatesAutoresizingMaskIntoConstraints = false
+    stopButton.isBordered = false
+    stopButton.imagePosition = .imageOnly
+    stopButton.setButtonType(.momentaryChange)
+    if let img = NSImage(systemSymbolName: "stop", accessibilityDescription: "Stop model") {
+      img.isTemplate = true
+      // Use a thin configuration similar to other trailing icons
+      let imageView = NSImageView()
+      imageView.translatesAutoresizingMaskIntoConstraints = false
+      imageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
+      imageView.imageScaling = .scaleProportionallyDown
+      // Default to red tint; emphasize to full label contrast on hover
+      imageView.contentTintColor = .systemRed
+      imageView.image = img
+      stopButton.addSubview(imageView)
+      // Constrain inner image
+      NSLayoutConstraint.activate([
+        imageView.centerXAnchor.constraint(equalTo: stopButton.centerXAnchor),
+        imageView.centerYAnchor.constraint(equalTo: stopButton.centerYAnchor),
+        imageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+        imageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+      ])
+    }
+    stopButton.title = ""
+    stopButton.alternateTitle = ""
+    stopButton.attributedTitle = NSAttributedString(string: "")
+    stopButton.target = self
+    stopButton.action = #selector(handleStop)
+    stopButton.toolTip = "Stop"
+    stopButton.isHidden = true
+    (stopButton.cell as? NSButtonCell)?.highlightsBy = []
+    stopButton.setAccessibilityLabel("Stop model")
+
     revealButton.translatesAutoresizingMaskIntoConstraints = false
     revealButton.isBordered = false
     revealButton.imagePosition = .imageOnly
@@ -214,7 +249,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
 
     // Right: status/progress/delete/action in a row
     let rightStack = NSStackView(views: [
-      stateContainer, progressLabel, ellipsisContainer, deleteButton, revealButton, maxContextButton,
+      stateContainer, progressLabel, ellipsisContainer, stopButton, deleteButton, revealButton, maxContextButton,
     ])
     rightStack.translatesAutoresizingMaskIntoConstraints = false
     rightStack.orientation = .horizontal
@@ -251,6 +286,8 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       ellipsisImageView.centerYAnchor.constraint(equalTo: ellipsisButton.centerYAnchor),
       ellipsisImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
       ellipsisImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+      stopButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
+      stopButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       deleteButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       deleteButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       deleteImageView.centerXAnchor.constraint(equalTo: deleteButton.centerXAnchor),
@@ -320,7 +357,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   ) -> Bool {
     let location = convert(event.locationInWindow, from: nil)
     // If click is inside any of the action buttons, let the button handle it.
-    let actionViews: [NSView] = [ellipsisContainer, ellipsisButton, revealButton, deleteButton, maxContextButton]
+    let actionViews: [NSView] = [ellipsisContainer, ellipsisButton, stopButton, revealButton, deleteButton, maxContextButton]
     for v in actionViews where !v.isHidden {
       let frame = v.convert(v.bounds, to: self)
       if frame.contains(location) { return false }
@@ -424,26 +461,42 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
 
   /// Centralizes which trailing actions are visible based on status + hover state.
   private func updateActionsVisibility(for status: ModelStatus, highlighted: Bool) {
+    // Show a stop trailing visual instead of ellipsis when this model is running.
+    let isActive = server.isActive(model: model)
+    let isRunning = isActive && server.isRunning
     switch status {
     case .downloading:
       actionsExpanded = false
       setEllipsisVisible(false)
+      stopButton.isHidden = true
       revealButton.isHidden = true
       deleteButton.isHidden = true
       maxContextButton.isHidden = true
     case .available:
       actionsExpanded = false
       setEllipsisVisible(false)
+      stopButton.isHidden = true
       revealButton.isHidden = true
       deleteButton.isHidden = true
       maxContextButton.isHidden = true
     case .downloaded:
-      if highlighted {
+      if isRunning {
+        // When running, no ellipsis; show stop glyph on hover and when not hovered too?
+        // Requirement: when a model is running, it should not show an ellipsis button on hover.
+        // We show a stop symbol as trailing visual. Keep it visible to indicate selectable stop.
+        setEllipsisVisible(false)
+        stopButton.isHidden = false
+        revealButton.isHidden = true
+        deleteButton.isHidden = true
+        maxContextButton.isHidden = true
+      } else if highlighted {
+        stopButton.isHidden = true
         setEllipsisVisible(!actionsExpanded)
         revealButton.isHidden = !actionsExpanded
         deleteButton.isHidden = !actionsExpanded
         maxContextButton.isHidden = !actionsExpanded
       } else {
+        stopButton.isHidden = true
         actionsExpanded = false
         setEllipsisVisible(false)
         revealButton.isHidden = true
@@ -474,6 +527,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   private func applyActionTints() {
     // Determine which action buttons are visible, then tint their image views
     let visibleImageViews: [NSImageView] = [
+      // stopButton has its own inner image view; tint via its subviews
       !revealButton.isHidden ? revealImageView : nil,
       !deleteButton.isHidden ? deleteImageView : nil,
       !maxContextButton.isHidden ? maxContextImageView : nil,
@@ -483,12 +537,17 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       if !ellipsisContainer.isHidden {
         ellipsisImageView.contentTintColor = isHoverHighlighted ? .labelColor : .secondaryLabelColor
       }
+      // Also tint stopButton inner image if visible
+      if !stopButton.isHidden, let iv = stopButton.subviews.compactMap({ $0 as? NSImageView }).first {
+        iv.contentTintColor = isHoverHighlighted ? .systemRed : .systemRed
+      }
       return
     }
     let tint = isHoverHighlighted ? NSColor.labelColor : NSColor.secondaryLabelColor
     visibleImageViews.forEach { $0.contentTintColor = tint }
     // Keep ellipsis same tinting rules as other action buttons
     if !ellipsisContainer.isHidden { ellipsisImageView.contentTintColor = tint }
+    if !stopButton.isHidden, let iv = stopButton.subviews.compactMap({ $0 as? NSImageView }).first { iv.contentTintColor = .systemRed }
   }
 
   override func viewDidChangeEffectiveAppearance() {
@@ -497,6 +556,9 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     // Tints auto-update using dynamic NSColors
     if !ellipsisContainer.isHidden {
       ellipsisImageView.contentTintColor = isHoverHighlighted ? .labelColor : .secondaryLabelColor
+    }
+    if !stopButton.isHidden, let iv = stopButton.subviews.compactMap({ $0 as? NSImageView }).first {
+      iv.contentTintColor = .systemRed
     }
   }
 
@@ -513,6 +575,13 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     guard case .downloaded = status else { return }
     modelManager.deleteDownloadedModel(model)
     membershipChanged()
+  }
+
+  @objc private func handleStop() {
+    let isActive = server.isActive(model: model)
+    guard isActive else { return }
+    server.stop()
+    refresh()
   }
 
   @objc private func handleRevealInFinder() {
