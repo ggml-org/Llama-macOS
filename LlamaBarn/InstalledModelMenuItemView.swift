@@ -369,7 +369,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
             return String(format: " · %.0f MB", memMB)
           }
         }()
-        return "\(model.totalSize) | \(runningContext)\(secondaryMem)"
+        return "\(model.totalSize) · \(runningContext)\(secondaryMem)"
       }
       return model.totalSize
     }()
