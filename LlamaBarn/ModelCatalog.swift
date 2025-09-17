@@ -333,6 +333,17 @@ enum ModelCatalog {
           serverArgs: nil,
           builds: [
             ModelBuild(
+              id: "gemma-3n-e2b-q8",
+              quantization: "Q8_0",
+              fileSizeMB: 4_909,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/unsloth/gemma-3n-E2B-it-GGUF/resolve/main/gemma-3n-E2B-it-Q8_0.gguf"
+              )!,
+              additionalParts: nil,
+              serverArgs: []
+            ),
+            ModelBuild(
               id: "gemma-3n-e2b",
               quantization: "Q4_K_M",
               fileSizeMB: 3_103,
