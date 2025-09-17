@@ -74,7 +74,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
   }
 
   private func addInstalled(to menu: NSMenu) {
-    let header = makeSectionHeaderItem("Installed models")
+  let header = makeSectionHeaderItem("Installed")
     // Tag the Installed header so we can locate this section reliably later.
     header.representedObject = "installed-header"
     menu.addItem(header)
@@ -106,7 +106,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     let families = ModelCatalog.uiFamilies
     guard !families.isEmpty else { return }
     menu.addItem(.separator())
-    menu.addItem(makeSectionHeaderItem("Catalog"))
+  menu.addItem(makeSectionHeaderItem("Available"))
 
     for family in families.sorted(by: { $0.name < $1.name }) {
       let models = family.variants.flatMap { variant in
