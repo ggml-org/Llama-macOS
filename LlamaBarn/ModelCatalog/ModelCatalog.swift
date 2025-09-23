@@ -494,7 +494,7 @@ enum ModelCatalog {
               ctxFootprint: 100_663_296,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF/resolve/main/Qwen3-30B-A3B-Instruct-2507-Q8_0.gguf"
+                  "https://huggingface.co/ggml-org/Qwen3-30B-A3B-Instruct-2507-Q8_0-GGUF/resolve/main/qwen3-30b-a3b-instruct-2507-q8_0.gguf"
               )!,
               additionalParts: nil,
               serverArgs: []
@@ -526,7 +526,7 @@ enum ModelCatalog {
               ctxFootprint: 150_994_944,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q8_0.gguf"
+                  "https://huggingface.co/ggml-org/Qwen3-4B-Instruct-2507-Q8_0-GGUF/resolve/main/qwen3-4b-instruct-2507-q8_0.gguf"
               )!,
               additionalParts: nil,
               serverArgs: []
@@ -630,7 +630,7 @@ enum ModelCatalog {
               ctxFootprint: 100_663_296,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/unsloth/Qwen3-30B-A3B-Thinking-2507-GGUF/resolve/main/Qwen3-30B-A3B-Thinking-2507-Q8_0.gguf"
+                  "https://huggingface.co/ggml-org/Qwen3-30B-A3B-Thinking-2507-Q8_0-GGUF/resolve/main/qwen3-30b-a3b-thinking-2507-q8_0.gguf"
               )!,
               additionalParts: nil,
               serverArgs: []
@@ -662,7 +662,7 @@ enum ModelCatalog {
               ctxFootprint: 150_994_944,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/unsloth/Qwen3-4B-Thinking-2507-GGUF/resolve/main/Qwen3-4B-Thinking-2507-Q8_0.gguf"
+                  "https://huggingface.co/ggml-org/Qwen3-4B-Thinking-2507-Q8_0-GGUF/resolve/main/qwen3-4b-thinking-2507-q8_0.gguf"
               )!,
               additionalParts: nil,
               serverArgs: []
