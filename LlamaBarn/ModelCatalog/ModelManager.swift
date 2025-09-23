@@ -84,7 +84,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
 
     // Before starting, ensure there's enough free disk space on the models volume.
     // Estimate remaining bytes needed as catalog total minus already-present files.
-    let totalBytes = Int64(model.fileSizeMB) * 1_000_000
+    let totalBytes = model.fileSize
     let existingBytes: Int64 = model.allLocalModelPaths.reduce(0) { sum, path in
       guard FileManager.default.fileExists(atPath: path),
         let attrs = try? FileManager.default.attributesOfItem(atPath: path),

@@ -7,10 +7,10 @@ struct ModelCatalogEntry: Identifiable, Codable {
   let variant: String  // Size/variant identifier (e.g., "8B", "E4B")
   let releaseDate: Date  // Model release date
   let contextLength: Int  // Maximum context length in tokens
-  let fileSizeMB: Int  // File size for progress tracking and display
+  let fileSize: Int64  // File size in bytes for progress tracking and display
   /// Estimated KV-cache footprint for a 1k-token context, in bytes.
   /// This helps us preflight memory requirements before launching llama-server.
-  let ctxFootprintBytes: Int
+  let ctxFootprint: Int
   let downloadUrl: URL  // Remote download URL
   /// Optional additional model shards. When present, the first shard in `downloadUrl`
   /// should be passed to `--model` and llama-server will discover the rest in the same directory.
@@ -25,8 +25,8 @@ struct ModelCatalogEntry: Identifiable, Codable {
     variant: String,
     releaseDate: Date,
     contextLength: Int,
-    fileSizeMB: Int,
-    ctxFootprintBytes: Int,
+    fileSize: Int64,
+    ctxFootprint: Int,
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
     serverArgs: [String],
@@ -38,8 +38,8 @@ struct ModelCatalogEntry: Identifiable, Codable {
     self.variant = variant
     self.releaseDate = releaseDate
     self.contextLength = contextLength
-    self.fileSizeMB = fileSizeMB
-    self.ctxFootprintBytes = ctxFootprintBytes
+    self.fileSize = fileSize
+    self.ctxFootprint = ctxFootprint
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts
     self.serverArgs = serverArgs
@@ -59,8 +59,7 @@ struct ModelCatalogEntry: Identifiable, Codable {
     let formatter = ByteCountFormatter()
     formatter.allowedUnits = [.useGB]
     formatter.countStyle = .decimal
-    let bytes = Int64(fileSizeMB * 1_000_000)
-    return formatter.string(fromByteCount: bytes)
+    return formatter.string(fromByteCount: fileSize)
   }
 
   /// Simplified quantization display (e.g., "Q4" from "Q4_K_M")

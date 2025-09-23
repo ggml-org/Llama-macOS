@@ -434,8 +434,8 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
         if progress.totalUnitCount > 0 {
           return progress.totalUnitCount
         } else {
-          // fileSizeMB is our catalog estimate for the full model (all parts).
-          return Int64(model.fileSizeMB) * 1_000_000
+          // fileSize is our catalog estimate for the full model (all parts).
+          return model.fileSize
         }
       }()
       let totalText = ByteFormatters.gbTwoDecimals(totalBytes)
