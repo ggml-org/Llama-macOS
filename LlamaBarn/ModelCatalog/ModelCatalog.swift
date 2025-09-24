@@ -10,9 +10,9 @@ enum ModelCatalog {
   /// Fraction of system memory available for models (75% - macOS reserves ~25%)
   static let availableMemoryFraction: Double = 0.75
 
-  /// Multiplier to estimate runtime memory usage from model file size
-  /// Models typically use ~25% more memory at runtime than their file size
-  static let memoryUsageMultiplier: Double = 1.25
+  /// We evaluate compatibility assuming a 4k-token context, which is the
+  /// default llama.cpp launches with when no explicit value is provided.
+  static let compatibilityContextLengthTokens: Double = 4_096
 
   // MARK: - New hierarchical catalog
 
@@ -805,21 +805,27 @@ enum ModelCatalog {
   }
 
   /// Checks if a model can fit within system memory constraints
-  static func isModelCompatible(_ model: ModelCatalogEntry) -> Bool {
+  static func isModelCompatible(
+    _ model: ModelCatalogEntry,
+    contextLengthTokens: Double = compatibilityContextLengthTokens
+  ) -> Bool {
     let systemMemoryMB = getSystemMemoryMB()
     let availableMemoryMB = UInt64(Double(systemMemoryMB) * availableMemoryFraction)
-    let fileSizeMB = Double(model.fileSize) / 1_000_000.0
-    let estimatedMemoryUsageMB = UInt64(fileSizeMB * memoryUsageMultiplier)
+    let estimatedMemoryUsageMB = runtimeMemoryUsageMB(
+      for: model, contextLengthTokens: contextLengthTokens)
     return estimatedMemoryUsageMB <= availableMemoryMB
   }
 
   /// If incompatible, returns a short human-readable reason showing
   /// estimated memory needed (rounded to whole GB).
   /// Example: "needs ~12 GB of mem". Returns nil if compatible.
-  static func incompatibilitySummary(_ model: ModelCatalogEntry) -> String? {
+  static func incompatibilitySummary(
+    _ model: ModelCatalogEntry,
+    contextLengthTokens: Double = compatibilityContextLengthTokens
+  ) -> String? {
     let systemMemoryMB = getSystemMemoryMB()
-    let fileSizeMB = Double(model.fileSize) / 1_000_000.0
-    let estimatedMemoryUsageMB = UInt64(fileSizeMB * memoryUsageMultiplier)
+    let estimatedMemoryUsageMB = runtimeMemoryUsageMB(
+      for: model, contextLengthTokens: contextLengthTokens)
     // Compute total RAM required so that our available fraction would fit the model.
     // Round up to avoid under‑specing.
     let requiredTotalMB = UInt64(ceil(Double(estimatedMemoryUsageMB) / availableMemoryFraction))
@@ -837,6 +843,18 @@ enum ModelCatalog {
     if estimatedMemoryUsageMB <= availableMemoryMB { return nil }
 
     return "requires \(gbStringCeilPlus(requiredTotalMB)) of memory"
+  }
+
+  static func runtimeMemoryUsageMB(
+    for model: ModelCatalogEntry,
+    contextLengthTokens: Double = compatibilityContextLengthTokens
+  ) -> UInt64 {
+    let fileSizeMB = Double(model.fileSize) / 1_000_000.0
+    let contextMultiplier = contextLengthTokens / 1_000.0
+    let ctxBytes = Double(model.ctxFootprint) * contextMultiplier
+    let ctxMB = ctxBytes / 1_000_000.0
+    let totalMB = fileSizeMB + ctxMB
+    return UInt64(ceil(totalMB))
   }
 
 }

@@ -21,6 +21,16 @@ final class VariantMenuItemView: MenuRowView {
     return image
   }()
 
+  private static let warningSymbol: NSImage? = {
+    guard
+      let image = NSImage(
+        systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)?
+        .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
+    else { return nil }
+    image.isTemplate = true
+    return image
+  }()
+
   private let model: ModelCatalogEntry
   private unowned let modelManager: ModelManager
   private let membershipChanged: () -> Void
@@ -33,6 +43,8 @@ final class VariantMenuItemView: MenuRowView {
   private let ctxLabel = NSTextField(labelWithString: "")
   private let memorySeparatorLabel = NSTextField(labelWithString: "•")
   private let memoryLabel = NSTextField(labelWithString: "")
+  private let warningSeparatorLabel = NSTextField(labelWithString: "•")
+  private let warningImageView = NSImageView()
   private let progressLabel = NSTextField(labelWithString: "")
   private let installedChip = ChipView(text: "Installed")
   // Background handled by MenuRowView
@@ -79,6 +91,10 @@ final class VariantMenuItemView: MenuRowView {
     labelField.font = MenuTypography.primary
     labelField.lineBreakMode = .byTruncatingTail
     labelField.translatesAutoresizingMaskIntoConstraints = false
+    labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+    installedChip.setContentHuggingPriority(.required, for: .horizontal)
+    installedChip.setContentCompressionResistancePriority(.required, for: .horizontal)
 
     let labels = [sizeLabel, ctxLabel, memoryLabel]
     for label in labels {
@@ -88,12 +104,18 @@ final class VariantMenuItemView: MenuRowView {
       label.translatesAutoresizingMaskIntoConstraints = false
     }
 
-    let separators = [separatorLabel, memorySeparatorLabel]
+    let separators = [separatorLabel, memorySeparatorLabel, warningSeparatorLabel]
     for separator in separators {
       separator.font = MenuTypography.secondary
       separator.textColor = .tertiaryLabelColor
       separator.translatesAutoresizingMaskIntoConstraints = false
     }
+    warningSeparatorLabel.isHidden = true
+
+    warningImageView.translatesAutoresizingMaskIntoConstraints = false
+    warningImageView.symbolConfiguration = .init(pointSize: 11, weight: .regular)
+    warningImageView.image = Self.warningSymbol
+    warningImageView.isHidden = true
 
     infoRow.orientation = .horizontal
     infoRow.spacing = 4
@@ -104,14 +126,22 @@ final class VariantMenuItemView: MenuRowView {
     infoRow.addArrangedSubview(memoryLabel)
     infoRow.addArrangedSubview(separatorLabel)
     infoRow.addArrangedSubview(ctxLabel)
+    infoRow.addArrangedSubview(warningSeparatorLabel)
+    infoRow.addArrangedSubview(warningImageView)
 
     progressLabel.font = MenuTypography.secondary
     progressLabel.textColor = .secondaryLabelColor
     progressLabel.alignment = .right
     progressLabel.translatesAutoresizingMaskIntoConstraints = false
 
+    let titleRow = NSStackView(views: [labelField, installedChip])
+    titleRow.translatesAutoresizingMaskIntoConstraints = false
+    titleRow.orientation = .horizontal
+    titleRow.alignment = .centerY
+    titleRow.spacing = 6
+
     // Two-line text column (title + size)
-    let textColumn = NSStackView(views: [labelField, infoRow])
+    let textColumn = NSStackView(views: [titleRow, infoRow])
     textColumn.translatesAutoresizingMaskIntoConstraints = false
     textColumn.orientation = .vertical
     textColumn.alignment = .leading
@@ -124,8 +154,8 @@ final class VariantMenuItemView: MenuRowView {
     leading.alignment = .top
     leading.spacing = 6
 
-    // Main horizontal row with flexible space and trailing visuals (Installed chip, progress)
-    let trailing = NSStackView(views: [installedChip, progressLabel])
+    // Main horizontal row with flexible space and trailing visuals (progress only)
+    let trailing = NSStackView(views: [progressLabel])
     trailing.translatesAutoresizingMaskIntoConstraints = false
     trailing.orientation = .horizontal
     trailing.alignment = .centerY
@@ -187,10 +217,24 @@ final class VariantMenuItemView: MenuRowView {
     ctxLabel.stringValue = "Ctx \(TokenFormatters.shortTokens(model.contextLength))"
     let memoryEstimate = makeMemoryEstimateString(for: model)
 
+    infoRow.toolTip = nil
     if !compatible {
       let reason = ModelCatalog.incompatibilitySummary(model) ?? "not compatible"
       infoRow.toolTip = reason
     }
+
+    let maxContextCompatible: Bool = {
+      guard model.contextLength > 0 else { return compatible }
+      let maxTokens = Double(model.contextLength)
+      if maxTokens <= ModelCatalog.compatibilityContextLengthTokens { return compatible }
+      return ModelCatalog.isModelCompatible(model, contextLengthTokens: maxTokens)
+    }()
+    let needsMaxContextWarning = compatible && !maxContextCompatible
+    let maxContextReason: String? =
+      needsMaxContextWarning
+      ? ModelCatalog.incompatibilitySummary(
+        model, contextLengthTokens: Double(model.contextLength))
+      : nil
 
     // Visual affordances:
     // - Incompatible: tertiary (disabled) coloring
@@ -213,6 +257,8 @@ final class VariantMenuItemView: MenuRowView {
     ctxLabel.textColor = infoColor
     memorySeparatorLabel.textColor = infoColor
     memoryLabel.textColor = infoColor
+    warningSeparatorLabel.textColor = infoColor
+    warningImageView.contentTintColor = infoColor
 
     if let memoryEstimate {
       memoryLabel.attributedStringValue = makeMemoryAttributedString(
@@ -223,6 +269,21 @@ final class VariantMenuItemView: MenuRowView {
       memoryLabel.stringValue = ""
       memoryLabel.isHidden = true
       memorySeparatorLabel.isHidden = true
+    }
+
+    if needsMaxContextWarning {
+      warningSeparatorLabel.isHidden = false
+      warningImageView.isHidden = false
+      if let reason = maxContextReason, model.contextLength > 0 {
+        let ctxString = TokenFormatters.shortTokens(model.contextLength)
+        warningImageView.toolTip = "\(reason) for full \(ctxString) context"
+      } else {
+        warningImageView.toolTip = "Cannot run at maximum context"
+      }
+    } else {
+      warningSeparatorLabel.isHidden = true
+      warningImageView.isHidden = true
+      warningImageView.toolTip = nil
     }
 
     progressLabel.stringValue = ""
@@ -287,22 +348,16 @@ final class VariantMenuItemView: MenuRowView {
   }
 
   private func makeMemoryEstimateString(for model: ModelCatalogEntry) -> String? {
-    guard model.ctxFootprint > 0, model.contextLength > 0 else { return nil }
+    guard model.ctxFootprint > 0 else { return nil }
 
-    let baseBytes = Double(model.fileSize)
-    let ctxScale = Double(model.contextLength) / 1_000.0
-    let ctxBytes = Double(model.ctxFootprint) * ctxScale
-    let totalBytes = baseBytes + ctxBytes
-    guard totalBytes.isFinite, totalBytes > 0 else { return nil }
+    let maxMB = model.estimatedRuntimeMemoryMBAtMaxContext
+    guard maxMB > 0 else { return nil }
 
-    let totalGB = totalBytes / 1_000_000_000.0
-    let formatted: String
-    if totalGB >= 10 {
-      formatted = String(format: "%.0f GB", totalGB)
-    } else {
-      formatted = String(format: "%.1f GB", totalGB)
-    }
-    return formatted
+    let formatter = ByteCountFormatter()
+    formatter.allowedUnits = [.useGB]
+    formatter.countStyle = .decimal
+    let bytes = Int64(maxMB) * 1_000_000
+    return formatter.string(fromByteCount: bytes)
   }
 
   private func makeMemoryAttributedString(memoryString: String, color: NSColor)

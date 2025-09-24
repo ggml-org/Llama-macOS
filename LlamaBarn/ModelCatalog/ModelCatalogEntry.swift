@@ -67,6 +67,16 @@ struct ModelCatalogEntry: Identifiable, Codable {
     String(quantization.prefix(2))
   }
 
+  /// Estimated runtime memory (in MB) when running at the model's maximum context length.
+  var estimatedRuntimeMemoryMBAtMaxContext: UInt64 {
+    let maxTokens =
+      contextLength > 0
+      ? Double(contextLength)
+      : ModelCatalog.compatibilityContextLengthTokens
+    return ModelCatalog.runtimeMemoryUsageMB(
+      for: self, contextLengthTokens: maxTokens)
+  }
+
   /// Check if all required files exist locally
   var isDownloaded: Bool {
     let modelFileExists = FileManager.default.fileExists(atPath: modelFilePath)
