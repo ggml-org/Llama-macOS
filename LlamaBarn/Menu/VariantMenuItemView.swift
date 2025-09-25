@@ -17,7 +17,7 @@ final class VariantMenuItemView: MenuRowView {
 
   private static let contextSymbol: NSImage? = {
     guard
-      let image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: nil)?
+      let image = NSImage(systemSymbolName: "text.word.spacing", accessibilityDescription: nil)?
         .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
     else { return nil }
     image.isTemplate = true
