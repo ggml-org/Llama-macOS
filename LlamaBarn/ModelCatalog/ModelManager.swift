@@ -82,6 +82,20 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       return
     }
 
+    guard ModelCatalog.isModelCompatible(model) else {
+      let alert = NSAlert()
+      alert.alertStyle = .warning
+      alert.messageText = "Model not compatible"
+      let reason =
+        ModelCatalog.incompatibilitySummary(model)
+        ?? "isn't compatible with this Mac's memory."
+      alert.informativeText =
+        "\(model.displayName) \(reason). Choose a smaller model or upgrade memory."
+      alert.addButton(withTitle: "OK")
+      alert.runModal()
+      return
+    }
+
     // Before starting, ensure there's enough free disk space on the models volume.
     // Estimate remaining bytes needed as catalog total minus already-present files.
     let totalBytes = model.fileSize

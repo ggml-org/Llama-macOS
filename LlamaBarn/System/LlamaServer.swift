@@ -300,54 +300,80 @@ class LlamaServer {
 
   /// Convenience method to start server using a ModelCatalogEntry
   func start(model: ModelCatalogEntry) {
-    // If the catalog already dictates a ctx-size, respect it.
-    let hasCtxArg: Bool = {
-      let lower = model.serverArgs.map { $0.lowercased() }
-      return lower.contains("-c") || lower.contains("--ctx-size")
-    }()
-
-    var args = model.serverArgs
-    var appliedContext: Int
-    if !hasCtxArg {
-      // Auto-calculate ctx only when not explicitly provided by the catalog
-      // Heuristic: ctx tokens ~= 0.5 * RAM(GB) * 1024, bounded by model max and never below 4k
-      let memGB = Double(SystemMemory.getMemoryMB()) / 1024.0
-      let desired = Int((memGB / 2.0) * 1024.0)
-      let clamped = max(4096, min(model.contextLength, desired))
-      // Round down to nearest 1024 to avoid odd sizes
-      let rounded = (clamped / 1024) * 1024
-      args = ["-c", String(rounded)] + args
-      appliedContext = rounded
-    } else {
-      appliedContext = model.contextLength
+    guard let launch = makeLaunchConfiguration(for: model, requestedContext: nil) else {
+      let reason =
+        ModelCatalog.incompatibilitySummary(model)
+        ?? "insufficient memory for required context"
+      DispatchQueue.main.async {
+        self.state = .error(.launchFailed(reason))
+      }
+      return
     }
 
     start(
       modelName: model.displayName,
       modelPath: model.modelFilePath,
-      appliedContextLength: appliedContext,
-      extraArgs: args
+      appliedContextLength: launch.applied,
+      extraArgs: launch.args
     )
   }
 
   /// Convenience method to start server using a ModelCatalogEntry and a specific context length
   func start(model: ModelCatalogEntry, contextLength: Int) {
-    var args = model.serverArgs
-    let applied: Int
-    if contextLength == 0 {
-      applied = model.contextLength
-      args.append(contentsOf: ["-c", String(model.contextLength)])
-    } else {
-      applied = contextLength
-      args.append(contentsOf: ["-c", String(contextLength)])
+    let desired = contextLength <= 0 ? model.contextLength : contextLength
+    guard let launch = makeLaunchConfiguration(for: model, requestedContext: desired) else {
+      let reason =
+        ModelCatalog.incompatibilitySummary(
+          model, contextLengthTokens: Double(model.contextLength))
+        ?? "insufficient memory for requested context"
+      DispatchQueue.main.async {
+        self.state = .error(.launchFailed(reason))
+      }
+      return
     }
 
     start(
       modelName: model.displayName,
       modelPath: model.modelFilePath,
-      appliedContextLength: applied,
-      extraArgs: args
+      appliedContextLength: launch.applied,
+      extraArgs: launch.args
     )
+  }
+
+  private func makeLaunchConfiguration(
+    for model: ModelCatalogEntry,
+    requestedContext: Int?
+  ) -> (applied: Int, args: [String])? {
+    let sanitizedArgs = Self.removeContextArguments(from: model.serverArgs)
+    guard
+      let safeContext = ModelCatalog.safeContextLength(
+        for: model, desiredTokens: requestedContext)
+    else {
+      logger.error("No safe context length for model \(model.displayName, privacy: .public)")
+      return nil
+    }
+    let args = ["-c", String(safeContext)] + sanitizedArgs
+    return (safeContext, args)
+  }
+
+  private static func removeContextArguments(from args: [String]) -> [String] {
+    var result: [String] = []
+    var skipNext = false
+    for arg in args {
+      if skipNext {
+        skipNext = false
+        continue
+      }
+      if arg == "-c" || arg == "--ctx-size" {
+        skipNext = true
+        continue
+      }
+      if arg.hasPrefix("--ctx-size=") {
+        continue
+      }
+      result.append(arg)
+    }
+    return result
   }
 
   // Removed: startWithMaxContext(model:) — not used by current UI.

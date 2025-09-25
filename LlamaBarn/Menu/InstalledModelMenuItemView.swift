@@ -28,8 +28,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   private let deleteImageView = NSImageView()
   private let revealButton = NSButton()
   private let revealImageView = NSImageView()
-  private let maxContextButton = NSButton()
-  private let maxContextImageView = NSImageView()
   private let cancelImageView = NSImageView()
   private var actionsExpanded = false
   // No per-ellipsis hover state; keep things simple
@@ -197,33 +195,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     revealButton.addSubview(revealImageView)
     revealButton.setAccessibilityLabel("Show in Finder")
 
-    maxContextButton.translatesAutoresizingMaskIntoConstraints = false
-    maxContextButton.isBordered = false
-    maxContextButton.imagePosition = .imageOnly
-    maxContextButton.setButtonType(.momentaryChange)
-    if let img = NSImage(
-      systemSymbolName: "gauge.with.dots.needle.100percent",
-      accessibilityDescription: "Run at Max Context")
-    {
-      img.isTemplate = true
-      maxContextImageView.image = img
-    }
-    maxContextImageView.translatesAutoresizingMaskIntoConstraints = false
-    maxContextImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-    maxContextImageView.imageScaling = .scaleProportionallyDown
-    maxContextImageView.contentTintColor = .secondaryLabelColor
-    maxContextButton.title = ""
-    maxContextButton.alternateTitle = ""
-    maxContextButton.attributedTitle = NSAttributedString(string: "")
-    maxContextButton.target = self
-    maxContextButton.action = #selector(handleRunAtMaxContext)
-    maxContextButton.toolTip = "Run at Max Context"
-    maxContextButton.isHidden = true
-    // Avoid AppKit dimming/removing templated image on mouse down
-    (maxContextButton.cell as? NSButtonCell)?.highlightsBy = []
-    maxContextButton.addSubview(maxContextImageView)
-    maxContextButton.setAccessibilityLabel("Run at Max Context")
-
     // Order: icon | (label over bytes) | spacer | (state, progress, delete, action)
     // Spacer expands so trailing visuals sit flush right.
     let spacer = NSView()
@@ -256,7 +227,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
 
     let rightStack = NSStackView(views: [
       progressLabel, cancelImageView, ellipsisContainer, stopButton, deleteButton, revealButton,
-      maxContextButton,
     ])
     rightStack.translatesAutoresizingMaskIntoConstraints = false
     rightStack.orientation = .horizontal
@@ -307,12 +277,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       revealImageView.centerYAnchor.constraint(equalTo: revealButton.centerYAnchor),
       revealImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
       revealImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      maxContextButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      maxContextButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      maxContextImageView.centerXAnchor.constraint(equalTo: maxContextButton.centerXAnchor),
-      maxContextImageView.centerYAnchor.constraint(equalTo: maxContextButton.centerYAnchor),
-      maxContextImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      maxContextImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.progressWidth),
       rootStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       // Pin trailing controls to the backgroundView’s edge (hover highlight),
@@ -365,7 +329,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     let location = convert(event.locationInWindow, from: nil)
     // If click is inside any of the action buttons, let the button handle it.
     let actionViews: [NSView] = [
-      ellipsisContainer, ellipsisButton, stopButton, revealButton, deleteButton, maxContextButton,
+      ellipsisContainer, ellipsisButton, stopButton, revealButton, deleteButton,
     ]
     for v in actionViews where !v.isHidden {
       let frame = v.convert(v.bounds, to: self)
@@ -388,7 +352,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     let isActive = server.isActive(model: model)
     let isLoadingServer = isActive && server.isLoading
     let isRunning = isActive && server.isRunning
-
+    let recommendedContext = ModelCatalog.recommendedContextLength(for: model)
     // Reset trailing visuals before applying current status
     cancelImageView.isHidden = true
 
@@ -415,6 +379,10 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
           }
         }()
         return "\(model.totalSize) · \(runningContext)\(secondaryMem)"
+      }
+      if let recommendedContext {
+        let ctxLabel = TokenFormatters.shortTokens(recommendedContext)
+        return "\(model.totalSize) · Ctx \(ctxLabel)"
       }
       return model.totalSize
     }()
@@ -480,14 +448,12 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       stopButton.isHidden = true
       revealButton.isHidden = true
       deleteButton.isHidden = true
-      maxContextButton.isHidden = true
     case .available:
       actionsExpanded = false
       setEllipsisVisible(false)
       stopButton.isHidden = true
       revealButton.isHidden = true
       deleteButton.isHidden = true
-      maxContextButton.isHidden = true
     case .downloaded:
       if isRunning {
         // When running, no ellipsis; show stop glyph on hover and when not hovered too?
@@ -497,20 +463,17 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
         stopButton.isHidden = false
         revealButton.isHidden = true
         deleteButton.isHidden = true
-        maxContextButton.isHidden = true
       } else if highlighted {
         stopButton.isHidden = true
         setEllipsisVisible(!actionsExpanded)
         revealButton.isHidden = !actionsExpanded
         deleteButton.isHidden = !actionsExpanded
-        maxContextButton.isHidden = !actionsExpanded
       } else {
         stopButton.isHidden = true
         actionsExpanded = false
         setEllipsisVisible(false)
         revealButton.isHidden = true
         deleteButton.isHidden = true
-        maxContextButton.isHidden = true
       }
     }
   }
@@ -540,7 +503,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       // stopButton has its own inner image view; tint via its subviews
       !revealButton.isHidden ? revealImageView : nil,
       !deleteButton.isHidden ? deleteImageView : nil,
-      !maxContextButton.isHidden ? maxContextImageView : nil,
     ].compactMap { $0 }
     guard !visibleImageViews.isEmpty else {
       // Still update ellipsis tint if it's visible
@@ -602,9 +564,4 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     NSWorkspace.shared.activateFileViewerSelecting([url])
   }
 
-  @objc private func handleRunAtMaxContext() {
-    actionsExpanded = false
-    server.start(model: model, contextLength: 0)
-    refresh()
-  }
 }

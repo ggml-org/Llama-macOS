@@ -14,6 +14,9 @@ enum ModelCatalog {
   /// default llama.cpp launches with when no explicit value is provided.
   static let compatibilityContextLengthTokens: Double = 4_096
 
+  /// Models must support at least this context length to launch.
+  static let minimumContextLengthTokens: Double = compatibilityContextLengthTokens
+
   // MARK: - New hierarchical catalog
 
   struct ModelBuild {
@@ -804,15 +807,70 @@ enum ModelCatalog {
     return SystemMemory.getMemoryMB()
   }
 
+  /// Computes the maximum context length (in tokens) that fits within the allowed memory budget.
+  /// - Parameters:
+  ///   - model: Catalog entry under evaluation.
+  ///   - desiredTokens: Upper bound requested by the caller. When nil, defaults to the model's max.
+  /// - Returns: Rounded context length (multiple of 1024) or nil when the model cannot satisfy the
+  ///            minimum requirements.
+  static func safeContextLength(
+    for model: ModelCatalogEntry,
+    desiredTokens: Int? = nil
+  ) -> Int? {
+    let minimumTokens = Int(minimumContextLengthTokens)
+    guard model.contextLength >= minimumTokens else { return nil }
+
+    let systemMemoryMB = getSystemMemoryMB()
+    guard systemMemoryMB > 0 else { return nil }
+
+    let availableMemoryMB = Double(systemMemoryMB) * availableMemoryFraction
+    let fileSizeMB = Double(model.fileSize) / 1_048_576.0
+    if fileSizeMB > availableMemoryMB { return nil }
+
+    let effectiveDesired = desiredTokens.flatMap { $0 > 0 ? $0 : nil } ?? model.contextLength
+    let desiredTokensDouble = Double(effectiveDesired)
+
+    let ctxBytesPerToken = Double(model.ctxFootprint) / 1_000.0
+    let maxTokensFromMemory: Double = {
+      if ctxBytesPerToken <= 0 {
+        return Double(model.contextLength)
+      }
+      let remainingMB = availableMemoryMB - fileSizeMB
+      if remainingMB <= 0 { return 0 }
+      let remainingBytes = remainingMB * 1_048_576.0
+      return remainingBytes / ctxBytesPerToken
+    }()
+
+    let cappedTokens = min(Double(model.contextLength), desiredTokensDouble, maxTokensFromMemory)
+    if cappedTokens < minimumContextLengthTokens { return nil }
+
+    let floored = Int(cappedTokens)
+    var rounded = (floored / 1_024) * 1_024
+    if rounded < minimumTokens { rounded = minimumTokens }
+    if rounded > model.contextLength { rounded = model.contextLength }
+    return rounded
+  }
+
+  /// Recommended context length to launch the model with, honoring memory constraints.
+  static func recommendedContextLength(for model: ModelCatalogEntry) -> Int? {
+    safeContextLength(for: model)
+  }
+
   /// Checks if a model can fit within system memory constraints
   static func isModelCompatible(
     _ model: ModelCatalogEntry,
     contextLengthTokens: Double = compatibilityContextLengthTokens
   ) -> Bool {
+    let minimumTokens = minimumContextLengthTokens
+    if Double(model.contextLength) < minimumTokens { return false }
+    if contextLengthTokens > 0 && contextLengthTokens > Double(model.contextLength) { return false }
+
     let systemMemoryMB = getSystemMemoryMB()
-    let availableMemoryMB = UInt64(Double(systemMemoryMB) * availableMemoryFraction)
-    let estimatedMemoryUsageMB = runtimeMemoryUsageMB(
-      for: model, contextLengthTokens: contextLengthTokens)
+    guard systemMemoryMB > 0 else { return false }
+
+    let availableMemoryMB = Double(systemMemoryMB) * availableMemoryFraction
+    let estimatedMemoryUsageMB = Double(
+      runtimeMemoryUsageMB(for: model, contextLengthTokens: contextLengthTokens))
     return estimatedMemoryUsageMB <= availableMemoryMB
   }
 
@@ -823,6 +881,10 @@ enum ModelCatalog {
     _ model: ModelCatalogEntry,
     contextLengthTokens: Double = compatibilityContextLengthTokens
   ) -> String? {
+    if Double(model.contextLength) < minimumContextLengthTokens {
+      return "requires models with ≥4k context"
+    }
+
     let systemMemoryMB = getSystemMemoryMB()
     let estimatedMemoryUsageMB = runtimeMemoryUsageMB(
       for: model, contextLengthTokens: contextLengthTokens)
