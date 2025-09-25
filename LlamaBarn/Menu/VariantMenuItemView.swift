@@ -355,8 +355,8 @@ final class VariantMenuItemView: MenuRowView {
 
     let formatter = ByteCountFormatter()
     formatter.allowedUnits = [.useGB]
-    formatter.countStyle = .decimal
-    let bytes = Int64(maxMB) * 1_000_000
+    formatter.countStyle = .binary
+    let bytes = Int64(maxMB) * 1_048_576
     return formatter.string(fromByteCount: bytes)
   }
 

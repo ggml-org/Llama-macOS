@@ -849,10 +849,11 @@ enum ModelCatalog {
     for model: ModelCatalogEntry,
     contextLengthTokens: Double = compatibilityContextLengthTokens
   ) -> UInt64 {
-    let fileSizeMB = Double(model.fileSize) / 1_000_000.0
+    // Memory calculations use binary units so they line up with Activity Monitor.
+    let fileSizeMB = Double(model.fileSize) / 1_048_576.0
     let contextMultiplier = contextLengthTokens / 1_000.0
     let ctxBytes = Double(model.ctxFootprint) * contextMultiplier
-    let ctxMB = ctxBytes / 1_000_000.0
+    let ctxMB = ctxBytes / 1_048_576.0
     let totalMB = fileSizeMB + ctxMB
     return UInt64(ceil(totalMB))
   }

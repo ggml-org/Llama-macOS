@@ -284,9 +284,9 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       let fileSize =
         (try? FileManager.default.attributesOfItem(
           atPath: destinationURL.path)[.size] as? NSNumber)?.int64Value ?? 0
-      let tenMB: Int64 = 10 * 1_048_576
+      let tenMB: Int64 = 10 * 1_000_000
       let minAcceptableBytes = min(model.fileSize / 2, tenMB)  // cap safeguard at ~10 MB
-      let minThreshold = max(Int64(1_048_576), minAcceptableBytes)  // require at least ~1 MB
+      let minThreshold = max(Int64(1_000_000), minAcceptableBytes)  // require at least ~1 MB
       if fileSize <= minThreshold {
         try? fileManager.removeItem(at: destinationURL)
         handleDownloadFailure(
