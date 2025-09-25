@@ -307,10 +307,10 @@ final class VariantMenuItemView: MenuRowView {
     progressLabel.stringValue = ""
     switch status {
     case .downloaded:
-      // Installed variants are not clickable in this submenu; show a neutral check and dim colors.
+      // Installed variants are not clickable in this submenu; show the green check used in family badges.
       statusIndicator.image = NSImage(
         systemSymbolName: "checkmark.circle", accessibilityDescription: nil)
-      statusIndicator.contentTintColor = .tertiaryLabelColor
+      statusIndicator.contentTintColor = .llamaGreen
       toolTip = "Already installed"
       installedChip.isHidden = false
     case .downloading(let progress):
