@@ -21,13 +21,13 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   private let bytesLabel = NSTextField(labelWithString: "")
   // Trailing action controls
   private let ellipsisContainer = NSView()
-  private let ellipsisButton = NSButton()
-  private let ellipsisImageView = NSImageView()
-  private let deleteButton = NSButton()
-  private let stopButton = NSButton()
-  private let deleteImageView = NSImageView()
-  private let revealButton = NSButton()
-  private let revealImageView = NSImageView()
+  private var ellipsisButton: NSButton!
+  private var ellipsisImageView: NSImageView!
+  private var deleteButton: NSButton!
+  private var stopButton: NSButton!
+  private var deleteImageView: NSImageView!
+  private var revealButton: NSButton!
+  private var revealImageView: NSImageView!
   private let cancelImageView = NSImageView()
   private var actionsExpanded = false
   // No per-ellipsis hover state; keep things simple
@@ -52,6 +52,51 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
   override var intrinsicContentSize: NSSize { NSSize(width: 260, height: 40) }
+
+  private func makeActionButton(
+    symbolName: String,
+    accessibilityLabel: String,
+    toolTip: String,
+    action: Selector,
+    tint: NSColor = .secondaryLabelColor
+  ) -> (NSButton, NSImageView) {
+    let button = NSButton()
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.isBordered = false
+    button.imagePosition = .imageOnly
+    button.setButtonType(.momentaryChange)
+    button.title = ""
+    button.alternateTitle = ""
+    button.attributedTitle = NSAttributedString(string: "")
+    button.target = self
+    button.action = action
+    button.toolTip = toolTip
+    button.isHidden = true
+    (button.cell as? NSButtonCell)?.highlightsBy = []
+    button.setAccessibilityLabel(accessibilityLabel)
+
+    let imageView = NSImageView()
+    if let img = NSImage(
+      systemSymbolName: symbolName, accessibilityDescription: accessibilityLabel
+    ) {
+      img.isTemplate = true
+      imageView.image = img
+    }
+    imageView.translatesAutoresizingMaskIntoConstraints = false
+    imageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
+    imageView.imageScaling = .scaleProportionallyDown
+    imageView.contentTintColor = tint
+    button.addSubview(imageView)
+
+    NSLayoutConstraint.activate([
+      imageView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+      imageView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+      imageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+      imageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+    ])
+
+    return (button, imageView)
+  }
 
   private func setup() {
     wantsLayer = true
@@ -87,113 +132,36 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     ellipsisContainer.translatesAutoresizingMaskIntoConstraints = false
     ellipsisContainer.wantsLayer = false
 
-    ellipsisButton.translatesAutoresizingMaskIntoConstraints = false
-    ellipsisButton.isBordered = false
-    ellipsisButton.imagePosition = .imageOnly
-    ellipsisButton.setButtonType(.momentaryChange)
-    // Render symbol via imageView to avoid NSButton coloring quirks in dark/vibrant menus
-    if let img = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: "More actions") {
-      img.isTemplate = true
-      ellipsisImageView.image = img
-    }
-    ellipsisImageView.translatesAutoresizingMaskIntoConstraints = false
-    ellipsisImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-    ellipsisImageView.imageScaling = .scaleProportionallyDown
-    ellipsisImageView.contentTintColor = .secondaryLabelColor
-    ellipsisButton.title = ""
-    ellipsisButton.alternateTitle = ""
-    ellipsisButton.attributedTitle = NSAttributedString(string: "")
-    ellipsisButton.target = self
-    ellipsisButton.action = #selector(toggleActions)
-    ellipsisButton.toolTip = "More actions"
-    ellipsisButton.isHidden = true
-    // Avoid AppKit dimming/removing templated image on mouse down
-    (ellipsisButton.cell as? NSButtonCell)?.highlightsBy = []
+    (ellipsisButton, ellipsisImageView) = makeActionButton(
+      symbolName: "ellipsis",
+      accessibilityLabel: "More actions",
+      toolTip: "More actions",
+      action: #selector(toggleActions)
+    )
     ellipsisContainer.addSubview(ellipsisButton)
-    ellipsisButton.addSubview(ellipsisImageView)
-    ellipsisButton.setAccessibilityLabel("More actions")
 
-    deleteButton.translatesAutoresizingMaskIntoConstraints = false
-    deleteButton.isBordered = false
-    deleteButton.imagePosition = .imageOnly
-    deleteButton.setButtonType(.momentaryChange)
-    if let img = NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete model") {
-      img.isTemplate = true
-      deleteImageView.image = img
-    }
-    deleteImageView.translatesAutoresizingMaskIntoConstraints = false
-    deleteImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-    deleteImageView.imageScaling = .scaleProportionallyDown
-    deleteImageView.contentTintColor = .secondaryLabelColor
-    deleteButton.title = ""
-    deleteButton.alternateTitle = ""
-    deleteButton.attributedTitle = NSAttributedString(string: "")
-    deleteButton.target = self
-    deleteButton.action = #selector(handleDelete)
-    deleteButton.toolTip = "Delete model"
-    deleteButton.isHidden = true
-    // Avoid AppKit dimming/removing templated image on mouse down
-    (deleteButton.cell as? NSButtonCell)?.highlightsBy = []
-    deleteButton.addSubview(deleteImageView)
-    deleteButton.setAccessibilityLabel("Delete model")
+    (deleteButton, deleteImageView) = makeActionButton(
+      symbolName: "trash",
+      accessibilityLabel: "Delete model",
+      toolTip: "Delete model",
+      action: #selector(handleDelete)
+    )
 
     // Stop button (shown when this model is running)
-    stopButton.translatesAutoresizingMaskIntoConstraints = false
-    stopButton.isBordered = false
-    stopButton.imagePosition = .imageOnly
-    stopButton.setButtonType(.momentaryChange)
-    if let img = NSImage(systemSymbolName: "stop", accessibilityDescription: "Stop model") {
-      img.isTemplate = true
-      // Use a thin configuration similar to other trailing icons
-      let imageView = NSImageView()
-      imageView.translatesAutoresizingMaskIntoConstraints = false
-      imageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-      imageView.imageScaling = .scaleProportionallyDown
-      // Default to red tint; emphasize to full label contrast on hover
-      imageView.contentTintColor = .systemRed
-      imageView.image = img
-      stopButton.addSubview(imageView)
-      // Constrain inner image
-      NSLayoutConstraint.activate([
-        imageView.centerXAnchor.constraint(equalTo: stopButton.centerXAnchor),
-        imageView.centerYAnchor.constraint(equalTo: stopButton.centerYAnchor),
-        imageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-        imageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      ])
-    }
-    stopButton.title = ""
-    stopButton.alternateTitle = ""
-    stopButton.attributedTitle = NSAttributedString(string: "")
-    stopButton.target = self
-    stopButton.action = #selector(handleStop)
-    stopButton.toolTip = "Stop"
-    stopButton.isHidden = true
-    (stopButton.cell as? NSButtonCell)?.highlightsBy = []
-    stopButton.setAccessibilityLabel("Stop model")
+    (stopButton, _) = makeActionButton(
+      symbolName: "stop",
+      accessibilityLabel: "Stop model",
+      toolTip: "Stop",
+      action: #selector(handleStop),
+      tint: .systemRed
+    )
 
-    revealButton.translatesAutoresizingMaskIntoConstraints = false
-    revealButton.isBordered = false
-    revealButton.imagePosition = .imageOnly
-    revealButton.setButtonType(.momentaryChange)
-    if let img = NSImage(systemSymbolName: "folder", accessibilityDescription: "Show in Finder") {
-      img.isTemplate = true
-      revealImageView.image = img
-    }
-    revealImageView.translatesAutoresizingMaskIntoConstraints = false
-    revealImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-    revealImageView.imageScaling = .scaleProportionallyDown
-    revealImageView.contentTintColor = .secondaryLabelColor
-    revealButton.title = ""
-    revealButton.alternateTitle = ""
-    revealButton.attributedTitle = NSAttributedString(string: "")
-    revealButton.target = self
-    revealButton.action = #selector(handleRevealInFinder)
-    revealButton.toolTip = "Show in Finder"
-    revealButton.isHidden = true
-    // Avoid AppKit dimming/removing templated image on mouse down
-    (revealButton.cell as? NSButtonCell)?.highlightsBy = []
-    revealButton.addSubview(revealImageView)
-    revealButton.setAccessibilityLabel("Show in Finder")
+    (revealButton, revealImageView) = makeActionButton(
+      symbolName: "folder",
+      accessibilityLabel: "Show in Finder",
+      toolTip: "Show in Finder",
+      action: #selector(handleRevealInFinder)
+    )
 
     // Order: icon | (label over bytes) | spacer | (state, progress, delete, action)
     // Spacer expands so trailing visuals sit flush right.
@@ -259,24 +227,15 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       ellipsisButton.trailingAnchor.constraint(equalTo: ellipsisContainer.trailingAnchor),
       ellipsisButton.topAnchor.constraint(equalTo: ellipsisContainer.topAnchor),
       ellipsisButton.bottomAnchor.constraint(equalTo: ellipsisContainer.bottomAnchor),
-      ellipsisImageView.centerXAnchor.constraint(equalTo: ellipsisButton.centerXAnchor),
-      ellipsisImageView.centerYAnchor.constraint(equalTo: ellipsisButton.centerYAnchor),
-      ellipsisImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      ellipsisImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+
       stopButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       stopButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       deleteButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       deleteButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      deleteImageView.centerXAnchor.constraint(equalTo: deleteButton.centerXAnchor),
-      deleteImageView.centerYAnchor.constraint(equalTo: deleteButton.centerYAnchor),
-      deleteImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      deleteImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+
       revealButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       revealButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      revealImageView.centerXAnchor.constraint(equalTo: revealButton.centerXAnchor),
-      revealImageView.centerYAnchor.constraint(equalTo: revealButton.centerYAnchor),
-      revealImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      revealImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.progressWidth),
       rootStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       // Pin trailing controls to the backgroundView’s edge (hover highlight),
