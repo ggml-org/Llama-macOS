@@ -7,8 +7,16 @@ import Foundation
 /// Static catalog of available AI models with their configurations and metadata
 enum ModelCatalog {
 
-  /// Fraction of system memory available for models (75% - macOS reserves ~25%)
-  static let availableMemoryFraction: Double = 0.75
+  /// Fraction of system memory available for models on standard configurations.
+  /// Macs with ≥128 GB of RAM can safely allocate 75% to the model since they retain ample headroom.
+  private static let defaultAvailableMemoryFraction: Double = 0.5
+  private static let highMemoryAvailableFraction: Double = 0.75
+  private static let highMemoryThresholdMB: UInt64 = 128 * 1024  // binary units to match SystemMemory
+
+  static func availableMemoryFraction(forSystemMemoryMB systemMemoryMB: UInt64) -> Double {
+    guard systemMemoryMB >= highMemoryThresholdMB else { return defaultAvailableMemoryFraction }
+    return highMemoryAvailableFraction
+  }
 
   /// We evaluate compatibility assuming a 4k-token context, which is the
   /// default llama.cpp launches with when no explicit value is provided.
@@ -823,7 +831,8 @@ enum ModelCatalog {
     let systemMemoryMB = getSystemMemoryMB()
     guard systemMemoryMB > 0 else { return nil }
 
-    let availableMemoryMB = Double(systemMemoryMB) * availableMemoryFraction
+    let memoryFraction = availableMemoryFraction(forSystemMemoryMB: systemMemoryMB)
+    let availableMemoryMB = Double(systemMemoryMB) * memoryFraction
     let fileSizeMB = Double(model.fileSize) / 1_048_576.0
     if fileSizeMB > availableMemoryMB { return nil }
 
@@ -868,7 +877,8 @@ enum ModelCatalog {
     let systemMemoryMB = getSystemMemoryMB()
     guard systemMemoryMB > 0 else { return false }
 
-    let availableMemoryMB = Double(systemMemoryMB) * availableMemoryFraction
+    let memoryFraction = availableMemoryFraction(forSystemMemoryMB: systemMemoryMB)
+    let availableMemoryMB = Double(systemMemoryMB) * memoryFraction
     let estimatedMemoryUsageMB = Double(
       runtimeMemoryUsageMB(for: model, contextLengthTokens: contextLengthTokens))
     return estimatedMemoryUsageMB <= availableMemoryMB
@@ -886,11 +896,12 @@ enum ModelCatalog {
     }
 
     let systemMemoryMB = getSystemMemoryMB()
+    let memoryFraction = availableMemoryFraction(forSystemMemoryMB: systemMemoryMB)
     let estimatedMemoryUsageMB = runtimeMemoryUsageMB(
       for: model, contextLengthTokens: contextLengthTokens)
     // Compute total RAM required so that our available fraction would fit the model.
     // Round up to avoid under‑specing.
-    let requiredTotalMB = UInt64(ceil(Double(estimatedMemoryUsageMB) / availableMemoryFraction))
+    let requiredTotalMB = UInt64(ceil(Double(estimatedMemoryUsageMB) / memoryFraction))
     func gbStringCeilPlus(_ mb: UInt64) -> String {
       let gb = ceil(Double(mb) / 1024.0)
       return String(format: "%.0f GB+", gb)
@@ -901,7 +912,7 @@ enum ModelCatalog {
       return "requires \(gbStringCeilPlus(requiredTotalMB)) of memory"
     }
 
-    let availableMemoryMB = UInt64(Double(systemMemoryMB) * availableMemoryFraction)
+    let availableMemoryMB = UInt64(Double(systemMemoryMB) * memoryFraction)
     if estimatedMemoryUsageMB <= availableMemoryMB { return nil }
 
     return "requires \(gbStringCeilPlus(requiredTotalMB)) of memory"
