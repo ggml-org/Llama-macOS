@@ -172,8 +172,6 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     menu.addItem(item)
   }
 
-  // Server status is shown in the header now; dedicated server row removed.
-
   private func addVersionFooter(to menu: NSMenu) {
     menu.addItem(.separator())
     let container = NSView()
@@ -220,8 +218,6 @@ final class AppMenuController: NSObject, NSMenuDelegate {
     item.isEnabled = true
     menu.addItem(item)
   }
-
-  // Footer Quit item removed; Quit is now a header button.
 
   // MARK: - Live updates without closing submenus
 
@@ -295,10 +291,6 @@ final class AppMenuController: NSObject, NSMenuDelegate {
         }
       }
     }
-  }
-
-  @objc private func checkForUpdates() {
-    NotificationCenter.default.post(name: .LBCheckForUpdates, object: nil)
   }
 
   @objc private func quitApp() {
@@ -427,15 +419,5 @@ final class AppMenuController: NSObject, NSMenuDelegate {
   private static func isInstalledPlaceholder(_ item: NSMenuItem) -> Bool {
     item.title == installedPlaceholderTitle
   }
-
-  // Legacy updateTitleItem removed (replaced by HeaderMenuItemView)
-
-  // MARK: - Catalog Helpers
-
-  // Old catalog item update/action logic removed (replaced with custom view implementation).
-
-  // quitApp moved to HeaderMenuItemView
-
-  // MARK: - Settings Item Actions
 
 }

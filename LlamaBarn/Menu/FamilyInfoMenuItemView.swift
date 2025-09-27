@@ -6,9 +6,7 @@ import Foundation
 final class FamilyInfoMenuItemView: NSView {
   private let iconView = RoundedRectIconView()
   private let titleLabel = NSTextField(labelWithString: "")
-  private let metaLabel = NSTextField(labelWithString: "")
   private let descriptionLabel = NSTextField(labelWithString: "")
-  private let chipsStack = NSStackView()
   private let container = NSView()
 
   init(familyName: String, iconName: String, blurb: String) {
@@ -39,24 +37,13 @@ final class FamilyInfoMenuItemView: NSView {
     titleLabel.stringValue = familyName
     titleLabel.lineBreakMode = .byTruncatingTail
 
-    metaLabel.translatesAutoresizingMaskIntoConstraints = false
-    metaLabel.font = MenuTypography.secondary
-    metaLabel.textColor = .tertiaryLabelColor
-    metaLabel.stringValue = ""  // We now use chips for metadata; keep this for future copy if needed.
-    metaLabel.isHidden = true
-
     descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
     descriptionLabel.font = MenuTypography.secondary
     descriptionLabel.textColor = .secondaryLabelColor
     descriptionLabel.stringValue = blurb
     descriptionLabel.lineBreakMode = .byWordWrapping
 
-    chipsStack.orientation = .horizontal
-    chipsStack.alignment = .centerY
-    chipsStack.spacing = 6
-    chipsStack.translatesAutoresizingMaskIntoConstraints = false
-
-    let textStack = NSStackView(views: [titleLabel, chipsStack, descriptionLabel])
+    let textStack = NSStackView(views: [titleLabel, descriptionLabel])
     textStack.orientation = .vertical
     textStack.spacing = 2
     textStack.alignment = .leading
@@ -90,32 +77,4 @@ final class FamilyInfoMenuItemView: NSView {
       hStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
     ])
   }
-}
-
-// Simple rounded chip used for metadata in the family info view.
-private final class ChipView: NSView {
-  private let label = NSTextField(labelWithString: "")
-  private let paddingX: CGFloat = 6
-  private let paddingY: CGFloat = 2
-
-  init(text: String) {
-    super.init(frame: .zero)
-    translatesAutoresizingMaskIntoConstraints = false
-    wantsLayer = true
-    label.translatesAutoresizingMaskIntoConstraints = false
-    label.font = MenuTypography.secondary
-    label.textColor = .secondaryLabelColor
-    label.stringValue = text
-    addSubview(label)
-    NSLayoutConstraint.activate([
-      label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: paddingX),
-      label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -paddingX),
-      label.topAnchor.constraint(equalTo: topAnchor, constant: paddingY),
-      label.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -paddingY),
-    ])
-    layer?.cornerRadius = 6
-    layer?.backgroundColor = NSColor.cgColor(.lbBadgeBackground, in: self)
-  }
-
-  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 }

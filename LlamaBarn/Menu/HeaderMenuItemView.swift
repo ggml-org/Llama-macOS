@@ -12,19 +12,11 @@ final class HeaderMenuItemView: NSView {
   private let backgroundView = NSView()
   private let settingsButton = NSButton()
   private let appBaseTitle = "LlamaBarn"
-  private let versionString: String
-  private let buildString: String
   private let llamaCppVersion: String
   private let isSettingsVisible: Bool
 
   init(server: LlamaServer, llamaCppVersion: String, isSettingsVisible: Bool) {
     self.server = server
-    // App version/build
-    let ver =
-      Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
-    let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
-    self.versionString = ver
-    self.buildString = build
     self.llamaCppVersion = llamaCppVersion
     self.isSettingsVisible = isSettingsVisible
     super.init(frame: .zero)
@@ -81,8 +73,8 @@ final class HeaderMenuItemView: NSView {
     h.addArrangedSubview(stack)
     h.addArrangedSubview(NSView())  // flexible spacer
     h.addArrangedSubview(settingsButton)
-    (h.arrangedSubviews[1] as? NSView)?.setContentHuggingPriority(.defaultLow, for: .horizontal)
-    (h.arrangedSubviews[1] as? NSView)?.setContentCompressionResistancePriority(
+    (h.arrangedSubviews[1]).setContentHuggingPriority(.defaultLow, for: .horizontal)
+    (h.arrangedSubviews[1]).setContentCompressionResistancePriority(
       .defaultLow, for: .horizontal)
 
     addSubview(backgroundView)
