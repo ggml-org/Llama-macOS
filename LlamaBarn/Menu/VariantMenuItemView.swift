@@ -233,7 +233,6 @@ final class VariantMenuItemView: MenuRowView {
       memoryLabel.stringValue = ""
       memoryLabel.isHidden = true
       memorySeparatorLabel.isHidden = true
-      separatorLabel.isHidden = true
     }
 
     infoRow.toolTip = display.infoTooltip
