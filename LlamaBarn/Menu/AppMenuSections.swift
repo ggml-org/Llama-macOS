@@ -247,7 +247,7 @@ final class AppMenuCatalogSection {
 
       let sortedModels = models.sorted(by: ModelCatalogEntry.displayOrder(_:_:))
       for model in sortedModels {
-        let view = VariantMenuItemView(model: model, modelManager: modelManager) {
+        let view = CatalogModelMenuItemView(model: model, modelManager: modelManager) {
           [weak self] in
           self?.onDownloadStatusChange(model)
         }

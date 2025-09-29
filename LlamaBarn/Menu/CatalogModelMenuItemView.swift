@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Menu row for a downloadable model variant inside a family submenu.
-final class VariantMenuItemView: MenuRowView {
+final class CatalogModelMenuItemView: MenuRowView {
   // Central tweak for inline SF Symbol vertical alignment beside secondary text.
   // Negative lowers the glyph relative to the text baseline.
   private static let iconBaselineYOffset: CGFloat = -2

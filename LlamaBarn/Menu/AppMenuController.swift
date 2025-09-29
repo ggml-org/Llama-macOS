@@ -175,7 +175,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
       if let view = menuItem.view as? InstalledModelMenuItemView { view.refresh() }
       if let submenu = menuItem.submenu {
         submenu.items.forEach { subItem in
-          if let view = subItem.view as? VariantMenuItemView { view.refresh() }
+          if let view = subItem.view as? CatalogModelMenuItemView { view.refresh() }
         }
       }
       if let famView = menuItem.view as? FamilyHeaderMenuItemView { famView.refresh() }
