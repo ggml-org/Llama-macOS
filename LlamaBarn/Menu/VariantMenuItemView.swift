@@ -51,11 +51,11 @@ final class VariantMenuItemView: MenuRowView {
   private let labelField = NSTextField(labelWithString: "")
   private let infoRow = NSStackView()
   private let sizeLabel = NSTextField(labelWithString: "")
-  private let separatorLabel = NSTextField(labelWithString: "•")
+  private let separatorLabel = CenteredDotSeparatorView()
   private let ctxLabel = NSTextField(labelWithString: "")
-  private let memorySeparatorLabel = NSTextField(labelWithString: "•")
+  private let memorySeparatorLabel = CenteredDotSeparatorView()
   private let memoryLabel = NSTextField(labelWithString: "")
-  private let warningSeparatorLabel = NSTextField(labelWithString: "•")
+  private let warningSeparatorLabel = CenteredDotSeparatorView()
   private let warningImageView = NSImageView()
   private let progressLabel = NSTextField(labelWithString: "")
   // Background handled by MenuRowView
@@ -101,12 +101,6 @@ final class VariantMenuItemView: MenuRowView {
       label.translatesAutoresizingMaskIntoConstraints = false
     }
 
-    let separators = [separatorLabel, memorySeparatorLabel, warningSeparatorLabel]
-    for separator in separators {
-      separator.font = Typography.secondary
-      separator.textColor = .tertiaryLabelColor
-      separator.translatesAutoresizingMaskIntoConstraints = false
-    }
     warningSeparatorLabel.isHidden = true
 
     warningImageView.translatesAutoresizingMaskIntoConstraints = false
@@ -248,10 +242,7 @@ final class VariantMenuItemView: MenuRowView {
     warningImageView.isHidden = !display.showsWarning
     warningImageView.toolTip = display.warningTooltip
     warningImageView.contentTintColor = display.infoColor
-    warningSeparatorLabel.textColor = display.infoColor
 
-    separatorLabel.textColor = display.infoColor
-    memorySeparatorLabel.textColor = display.infoColor
     memoryLabel.textColor = display.infoColor
     ctxLabel.textColor = display.infoColor
 
