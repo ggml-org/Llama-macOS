@@ -429,7 +429,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     let sizeText = model.totalSize
     let contextText: String = {
       if let recommendedContext {
-        return "Ctx \(TokenFormatters.shortTokens(recommendedContext))"
+        return TokenFormatters.shortTokens(recommendedContext)
       }
       return ""
     }()
