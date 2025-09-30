@@ -65,8 +65,9 @@ enum VariantRowPresenter {
 
     if compatible {
       contextString = {
-        if let recommendedContext {
-          return TokenFormatters.shortTokens(recommendedContext)
+        if let usable = recommendedContext, usable < model.contextLength {
+          let max = model.contextLength
+          return "\(TokenFormatters.shortTokens(usable)) of \(TokenFormatters.shortTokens(max))"
         }
         guard model.contextLength > 0 else { return "—" }
         return TokenFormatters.shortTokens(model.contextLength)
@@ -131,15 +132,7 @@ enum VariantRowPresenter {
       contextLengthTokens: maxTokens
     )
     guard !stillFits else { return (false, nil) }
-    let reason = ModelCatalog.incompatibilitySummary(
-      model,
-      contextLengthTokens: maxTokens
-    )
-    if let reason {
-      let ctxString = TokenFormatters.shortTokens(model.contextLength)
-      return (true, "\(reason) for full \(ctxString) context")
-    }
-    return (true, "Cannot run at maximum context")
+    return (true, "Can run at reduced context window")
   }
 
   private static func progressPercent(_ progress: Progress) -> Int {
