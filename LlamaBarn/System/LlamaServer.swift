@@ -91,30 +91,25 @@ class LlamaServer {
     self.outputPipe = outputPipe
     self.errorPipe = errorPipe
 
-    outputPipe.fileHandleForReading.readabilityHandler = { fileHandle in
-      let data = fileHandle.availableData
-      if data.count == 0 {
-        fileHandle.readabilityHandler = nil
-      } else {
-        if let output = String(data: data, encoding: .utf8) {
-          self.logger.info(
-            "llama-server: \(output.trimmingCharacters(in: .whitespacesAndNewlines), privacy: .public)"
-          )
-        }
-      }
+    setHandler(for: outputPipe) { message in
+      self.logger.info("llama-server: \(message, privacy: .public)")
     }
 
-    errorPipe.fileHandleForReading.readabilityHandler = { fileHandle in
+    setHandler(for: errorPipe) { message in
+      self.logger.error("llama-server error: \(message, privacy: .public)")
+    }
+  }
+
+  private func setHandler(for pipe: Pipe, logMessage: @escaping (String) -> Void) {
+    pipe.fileHandleForReading.readabilityHandler = { fileHandle in
       let data = fileHandle.availableData
-      if data.count == 0 {
+      guard !data.isEmpty else {
         fileHandle.readabilityHandler = nil
-      } else {
-        if let error = String(data: data, encoding: .utf8) {
-          self.logger.error(
-            "llama-server error: \(error.trimmingCharacters(in: .whitespacesAndNewlines), privacy: .public)"
-          )
-        }
+        return
       }
+
+      guard let output = String(data: data, encoding: .utf8) else { return }
+      logMessage(output.trimmingCharacters(in: .whitespacesAndNewlines))
     }
   }
 
@@ -170,9 +165,6 @@ class LlamaServer {
     arguments.append(contentsOf: extraArgs)
 
     let workingDirectory = URL(fileURLWithPath: llamaServerPath).deletingLastPathComponent().path
-
-    // Stop any existing process first
-    stopActiveProcess()
 
     // Create and configure the new process
     let process = Process()
@@ -235,36 +227,14 @@ class LlamaServer {
 
   /// Terminates the currently running llama-server process and resets state
   func stop() {
-    guard let process = activeProcess, process.isRunning else {
-      resetState()
-      return
-    }
-
-    // Try graceful termination first
-    process.terminate()
-
-    // Give the process a brief moment to terminate gracefully
-    DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
-      if process.isRunning {
-        kill(process.processIdentifier, SIGKILL)
-      }
-    }
-
-    resetState()
-  }
-
-  /// Resets all server state
-  private func resetState() {
     cleanUpResources()
-
-    self.activeProcess = nil
-    self.state = .idle
-    self.activeModelPath = nil
-    self.activeContextLength = nil
-    self.memoryUsageMB = 0
+    activeModelPath = nil
+    activeContextLength = nil
+    memoryUsageMB = 0
+    state = .idle
   }
 
-  /// Cleans up all resources including process, pipes, and monitoring tasks
+  /// Cleans up all background resources tied to the server process
   private func cleanUpResources() {
     stopActiveProcess()
     cleanUpPipes()
@@ -274,10 +244,20 @@ class LlamaServer {
 
   /// Gracefully terminates the currently running process
   private func stopActiveProcess() {
-    guard let process = activeProcess, process.isRunning else { return }
+    guard let process = activeProcess else { return }
 
-    process.terminate()
-    process.waitUntilExit()
+    if process.isRunning {
+      process.terminate()
+
+      DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
+        if process.isRunning {
+          kill(process.processIdentifier, SIGKILL)
+        }
+      }
+
+      process.waitUntilExit()
+    }
+
     activeProcess = nil
   }
 
