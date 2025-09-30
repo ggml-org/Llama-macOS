@@ -28,6 +28,7 @@ class ModelManager: NSObject {
   static let shared = ModelManager()
 
   var downloadedModels: [ModelCatalogEntry] = []
+  private var downloadedModelIds: Set<String> = []
   var modelsBeingDeleted: Set<String> = []
 
   var hasActiveDownloads: Bool {
@@ -55,7 +56,7 @@ class ModelManager: NSObject {
 
   /// Gets the current status of a model.
   func getModelStatus(_ model: ModelCatalogEntry) -> ModelStatus {
-    if model.isDownloaded {
+    if downloadedModelIds.contains(model.id) {
       return .downloaded
     }
     if modelsBeingDeleted.contains(model.id) {
@@ -70,7 +71,7 @@ class ModelManager: NSObject {
 
   /// Checks if a model has been completely downloaded.
   func isModelDownloaded(_ model: ModelCatalogEntry) -> Bool {
-    return getModelStatus(model) == .downloaded
+    return downloadedModelIds.contains(model.id)
   }
 
   /// Safely deletes a downloaded model and its associated files.
@@ -99,7 +100,7 @@ class ModelManager: NSObject {
       } catch {
         _ = await MainActor.run {
           self.modelsBeingDeleted.remove(model.id)
-          if model.isDownloaded {
+          if self.downloadedModelIds.contains(model.id) {
             self.downloadedModels.append(model)
           }
         }
@@ -111,7 +112,30 @@ class ModelManager: NSObject {
 
   /// Scans the local models directory and updates the list of downloaded models.
   func refreshDownloadedModels() {
-    self.downloadedModels = ModelCatalog.allEntries().filter { $0.isDownloaded }
+    let modelsDir = ModelCatalogEntry.getModelStorageDirectory()
+    guard let files = try? FileManager.default.contentsOfDirectory(atPath: modelsDir.path) else {
+      self.downloadedModels = []
+      self.downloadedModelIds = []
+      NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
+      return
+    }
+    let fileSet = Set(files)
+
+    self.downloadedModels = ModelCatalog.allEntries().filter { model in
+      guard fileSet.contains(model.downloadUrl.lastPathComponent) else {
+        return false
+      }
+
+      if let additionalParts = model.additionalParts {
+        for part in additionalParts {
+          if !fileSet.contains(part.lastPathComponent) {
+            return false
+          }
+        }
+      }
+      return true
+    }
+    self.downloadedModelIds = Set(self.downloadedModels.map { $0.id })
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
   }
 

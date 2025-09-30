@@ -80,21 +80,6 @@ struct ModelCatalogEntry: Identifiable, Codable {
       for: self, contextLengthTokens: maxTokens)
   }
 
-  /// Check if all required files exist locally
-  var isDownloaded: Bool {
-    let modelFileExists = FileManager.default.fileExists(atPath: modelFilePath)
-    let shardFilesExist: Bool = {
-      guard let additional = additionalParts, !additional.isEmpty else { return true }
-      let baseDir = URL(fileURLWithPath: modelFilePath).deletingLastPathComponent()
-      for url in additional {
-        let path = baseDir.appendingPathComponent(url.lastPathComponent).path
-        if !FileManager.default.fileExists(atPath: path) { return false }
-      }
-      return true
-    }()
-    return modelFileExists && shardFilesExist
-  }
-
   /// The local file system path where the model file will be stored
   var modelFilePath: String {
     Self.getModelStorageDirectory().appendingPathComponent(downloadUrl.lastPathComponent).path
@@ -115,7 +100,7 @@ struct ModelCatalogEntry: Identifiable, Codable {
   // Removed: visionFile and related local path; multimodal files are not tracked.
 
   /// Returns the directory where AI models are stored, creating it if necessary
-  private static func getModelStorageDirectory() -> URL {
+  static func getModelStorageDirectory() -> URL {
     let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
     let modelsDirectory = homeDirectory.appendingPathComponent(".llamabarn", isDirectory: true)
 
