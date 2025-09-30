@@ -30,6 +30,7 @@ final class CatalogModelMenuItemView: MenuRowView {
   private let warningSeparatorLabel = CenteredDotSeparatorView()
   private let warningImageView = NSImageView()
   private let progressLabel = NSTextField(labelWithString: "")
+  private var rowClickRecognizer: NSClickGestureRecognizer?
   // Background handled by MenuRowView
 
   // Hover handling provided by MenuRowView
@@ -134,7 +135,20 @@ final class CatalogModelMenuItemView: MenuRowView {
       hStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
     ])
   }
-  override func mouseDown(with event: NSEvent) {
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    guard rowClickRecognizer == nil else { return }
+
+    let click = NSClickGestureRecognizer(target: self, action: #selector(didClickRow(_:)))
+    click.buttonMask = 0x1  // Left mouse button only
+    addGestureRecognizer(click)
+    rowClickRecognizer = click
+  }
+
+  @objc private func didClickRow(_ recognizer: NSClickGestureRecognizer) {
+    guard recognizer.state == .ended else { return }
+    let location = recognizer.location(in: self)
+    guard bounds.contains(location) else { return }
     guard hoverHighlightEnabled else { return }
     handleAction()
     refresh()
