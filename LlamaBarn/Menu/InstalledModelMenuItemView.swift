@@ -16,8 +16,8 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
 
   // Subviews
   private let circleIcon = CircularIconView()
-  private let labelField = NSTextField(labelWithString: "")
-  private let infoLabel = NSTextField(labelWithString: "")
+  private let modelNameLabel = NSTextField(labelWithString: "")
+  private let metadataLabel = NSTextField(labelWithString: "")
   private let progressLabel = NSTextField(labelWithString: "")
   private let cancelImageView = NSImageView()
   private let deleteImageView = NSImageView()
@@ -48,15 +48,15 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     wantsLayer = true
     circleIcon.setImage(NSImage(named: model.icon))
 
-    labelField.stringValue = model.displayName
-    labelField.font = Typography.primary
-    labelField.lineBreakMode = .byTruncatingTail
-    labelField.translatesAutoresizingMaskIntoConstraints = false
+    modelNameLabel.stringValue = model.displayName
+    modelNameLabel.font = Typography.primary
+    modelNameLabel.lineBreakMode = .byTruncatingTail
+    modelNameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    infoLabel.font = Typography.secondary
-    infoLabel.textColor = .secondaryLabelColor
-    infoLabel.lineBreakMode = .byTruncatingTail
-    infoLabel.translatesAutoresizingMaskIntoConstraints = false
+    metadataLabel.font = Typography.secondary
+    metadataLabel.textColor = .secondaryLabelColor
+    metadataLabel.lineBreakMode = .byTruncatingTail
+    metadataLabel.translatesAutoresizingMaskIntoConstraints = false
 
     progressLabel.font = Typography.secondary
     progressLabel.textColor = .secondaryLabelColor
@@ -89,13 +89,13 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    labelField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-    labelField.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+    modelNameLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+    modelNameLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
     progressLabel.setContentHuggingPriority(.required, for: .horizontal)
     progressLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
     // Left: icon aligned with first text line, then two-line text column
-    let nameStack = NSStackView(views: [labelField, infoLabel])
+    let nameStack = NSStackView(views: [modelNameLabel, metadataLabel])
     nameStack.translatesAutoresizingMaskIntoConstraints = false
     nameStack.orientation = .vertical
     nameStack.spacing = 1
@@ -200,11 +200,11 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   func refresh() {
     let status = modelManager.getModelStatus(model)
     let isActive = server.isActive(model: model)
-    let isLoadingServer = isActive && server.isLoading
+    let isServerLoading = isActive && server.isLoading
     let isRunning = isActive && server.isRunning
 
     // Update icon state
-    circleIcon.setLoading(isLoadingServer)
+    circleIcon.setLoading(isServerLoading)
     circleIcon.isActive = isRunning
     circleIcon.imageView.contentTintColor = isRunning ? .white : .labelColor
 
@@ -218,13 +218,13 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
         : 0
       progressLabel.stringValue = "\(percent)%"
 
-      let completedText = ByteFormatters.gbTwoDecimals(progress.completedUnitCount)
+      let completedSizeText = ByteFormatters.gbTwoDecimals(progress.completedUnitCount)
       let totalBytes = progress.totalUnitCount > 0 ? progress.totalUnitCount : model.fileSize
-      let totalText = ByteFormatters.gbTwoDecimals(totalBytes)
+      let totalSizeText = ByteFormatters.gbTwoDecimals(totalBytes)
 
-      infoLabel.attributedStringValue = IconLabelFormatter.make(
+      metadataLabel.attributedStringValue = IconLabelFormatter.make(
         icon: IconLabelFormatter.sizeSymbol,
-        text: "\(completedText) / \(totalText)",
+        text: "\(completedSizeText) / \(totalSizeText)",
         color: .secondaryLabelColor,
         baselineOffset: Self.iconBaselineYOffset
       )
@@ -232,7 +232,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     case .downloaded, .available:
       cancelImageView.isHidden = true
       progressLabel.stringValue = ""
-      infoLabel.attributedStringValue = buildInfoText(isRunning: isRunning)
+      metadataLabel.attributedStringValue = buildInfoText(isRunning: isRunning)
     }
 
     needsDisplay = true
