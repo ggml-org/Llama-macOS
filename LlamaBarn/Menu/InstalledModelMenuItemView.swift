@@ -1,151 +1,12 @@
 import AppKit
 import Foundation
 
-private final class InstalledModelActionsView: NSView {
-  private enum Action {
-    case delete
-  }
-
-  var onDelete: (() -> Void)?
-
-  private let deleteButton: NSButton
-  private let deleteImageView: NSImageView
-
-  private var latestStatus: ModelStatus = .available
-  private var latestIsRunning = false
-  private var latestHighlight = false
-
-  override init(frame frameRect: NSRect) {
-    let delete = Self.makeButton(
-      symbolName: "trash",
-      accessibilityLabel: "Delete"
-    )
-    deleteButton = delete.button
-    deleteImageView = delete.imageView
-
-    super.init(frame: frameRect)
-    translatesAutoresizingMaskIntoConstraints = false
-    wantsLayer = false
-
-    deleteButton.target = self
-    deleteButton.action = #selector(didTapDelete)
-
-    let stack = NSStackView(views: [deleteButton])
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    stack.orientation = .horizontal
-    stack.alignment = .centerY
-    stack.spacing = 6
-    stack.detachesHiddenViews = true
-
-    addSubview(stack)
-
-    NSLayoutConstraint.activate([
-      deleteButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      deleteButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-    ])
-
-    NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-      stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-      stack.topAnchor.constraint(equalTo: topAnchor),
-      stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-    ])
-  }
-
-  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-  func update(for status: ModelStatus, isRunning: Bool, highlighted: Bool) {
-    latestStatus = status
-    latestIsRunning = isRunning
-    latestHighlight = highlighted
-    applyVisibility(visibleActions(for: status, isRunning: isRunning, highlighted: highlighted))
-    updateTints()
-  }
-
-  func isInteractiveArea(at parentPoint: NSPoint, in parentView: NSView) -> Bool {
-    let localPoint = convert(parentPoint, from: parentView)
-    guard bounds.contains(localPoint) else { return false }
-    return hitTest(localPoint) != nil
-  }
-
-  private func handle(action: Action) {
-    switch action {
-    case .delete: onDelete?()
-    }
-  }
-
-  private func updateTints() {
-    deleteImageView.contentTintColor = .secondaryLabelColor
-  }
-
-  @objc private func didTapDelete() { handle(action: .delete) }
-
-  private static func makeButton(
-    symbolName: String,
-    accessibilityLabel: String,
-    tint: NSColor = .secondaryLabelColor
-  ) -> (button: NSButton, imageView: NSImageView) {
-    let button = NSButton()
-    button.translatesAutoresizingMaskIntoConstraints = false
-    button.isBordered = false
-    button.imagePosition = .imageOnly
-    button.setButtonType(.momentaryChange)
-    button.title = ""
-    button.toolTip = accessibilityLabel
-    button.setAccessibilityLabel(accessibilityLabel)
-
-    let imageView = NSImageView()
-    if let img = NSImage(
-      systemSymbolName: symbolName,
-      accessibilityDescription: accessibilityLabel
-    ) {
-      img.isTemplate = true
-      imageView.image = img
-    }
-    imageView.translatesAutoresizingMaskIntoConstraints = false
-    imageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
-    imageView.imageScaling = .scaleProportionallyDown
-    imageView.contentTintColor = tint
-    button.addSubview(imageView)
-
-    NSLayoutConstraint.activate([
-      imageView.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-      imageView.centerYAnchor.constraint(equalTo: button.centerYAnchor),
-      imageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      imageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-    ])
-
-    return (button, imageView)
-  }
-
-  private func visibleActions(for status: ModelStatus, isRunning: Bool, highlighted: Bool) -> Set<
-    Action
-  > {
-    switch status {
-    case .available:
-      return []
-    case .downloading(_):
-      return []
-    case .downloaded:
-      guard highlighted else {
-        return []
-      }
-
-      return [.delete]
-    }
-  }
-
-  private func applyVisibility(_ actions: Set<Action>) {
-    deleteButton.isHidden = !actions.contains(.delete)
-  }
-}
-
 /// Menu row representing a single installed model.
 /// Visual states:
 /// - Idle: circular icon (inactive) + label
 /// - Loading: circular icon (active)
 /// - Running: circular icon (active)
-final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate {
+final class InstalledModelMenuItemView: MenuRowView {
   private let model: ModelCatalogEntry
   private unowned let server: LlamaServer
   private unowned let modelManager: ModelManager
@@ -166,7 +27,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   private let memorySeparatorLabel = CenteredDotSeparatorView()
   private let memoryLabel = NSTextField(labelWithString: "")
   private let cancelImageView = NSImageView()
-  private let actionsView = InstalledModelActionsView()
+  private let deleteButton = NSButton()
 
   // Hover handling is provided by MenuRowView
   private var rowClickRecognizer: NSClickGestureRecognizer?
@@ -213,6 +74,22 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     cancelImageView.contentTintColor = .systemRed
     cancelImageView.isHidden = true
 
+    deleteButton.translatesAutoresizingMaskIntoConstraints = false
+    deleteButton.isBordered = false
+    deleteButton.imagePosition = .imageOnly
+    deleteButton.setButtonType(.momentaryChange)
+    deleteButton.title = ""
+    deleteButton.toolTip = "Delete"
+    deleteButton.setAccessibilityLabel("Delete")
+    if let img = NSImage(systemSymbolName: "trash", accessibilityDescription: "Delete") {
+      img.isTemplate = true
+      deleteButton.image = img
+    }
+    deleteButton.contentTintColor = .secondaryLabelColor
+    deleteButton.isHidden = true
+    deleteButton.target = self
+    deleteButton.action = #selector(performDelete)
+
     let labels = [sizeLabel, ctxLabel, memoryLabel]
     for label in labels {
       label.font = Typography.secondary
@@ -230,8 +107,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     infoRow.addArrangedSubview(ctxLabel)
     infoRow.addArrangedSubview(memorySeparatorLabel)
     infoRow.addArrangedSubview(memoryLabel)
-
-    actionsView.onDelete = { [weak self] in self?.performDelete() }
 
     // Order: icon | (label over bytes) | spacer | (state, progress, delete, action)
     // Spacer expands so trailing visuals sit flush right.
@@ -263,7 +138,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-    let rightStack = NSStackView(views: [progressLabel, cancelImageView, actionsView])
+    let rightStack = NSStackView(views: [progressLabel, cancelImageView, deleteButton])
     rightStack.translatesAutoresizingMaskIntoConstraints = false
     rightStack.orientation = .horizontal
     rightStack.spacing = 6
@@ -281,6 +156,8 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       circleIcon.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
       cancelImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
       cancelImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
+      deleteButton.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
+      deleteButton.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
 
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.progressWidth),
       rootStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -300,7 +177,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     super.viewDidMoveToWindow()
     if rowClickRecognizer == nil {
       let click = NSClickGestureRecognizer(target: self, action: #selector(didClickRow))
-      click.delegate = self
       addGestureRecognizer(click)
       rowClickRecognizer = click
     }
@@ -322,22 +198,10 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     refresh()
   }
 
-  // Prevent row-level toggle when clicking inline action buttons.
-  func gestureRecognizer(
-    _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
-  ) -> Bool {
-    let location = convert(event.locationInWindow, from: nil)
-    if actionsView.isInteractiveArea(at: location, in: self) { return false }
-    return true
-  }
-
   override func hoverHighlightDidChange(_ highlighted: Bool) {
     let status = modelManager.getModelStatus(model)
-    actionsView.update(
-      for: status,
-      isRunning: server.isActive(model: model) && server.isRunning,
-      highlighted: highlighted
-    )
+    // Show delete button only when hovering over a downloaded model
+    deleteButton.isHidden = !(highlighted && status == .downloaded)
     // Update icon tint when highlight changes.
     applyIconTint()
   }
@@ -413,12 +277,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
       memorySeparatorLabel.isHidden = true
       separatorLabel.isHidden = true
       infoRow.isHidden = false
-      // Removed indicator image in favor of simplified state display
-      actionsView.update(
-        for: .downloading(progress),
-        isRunning: isRunning,
-        highlighted: isHoverHighlighted
-      )
+    // Removed indicator image in favor of simplified state display
     case .downloaded, .available:
       progressLabel.stringValue = ""
       infoRow.isHidden = false
@@ -457,12 +316,6 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
         memoryLabel.isHidden = true
         memorySeparatorLabel.isHidden = true
       }
-
-      actionsView.update(
-        for: status,
-        isRunning: isRunning,
-        highlighted: isHoverHighlighted
-      )
     }
     // Update leading circular badge state and tinting
     // Icon should become blue only after the model is done loading (running)
@@ -491,15 +344,10 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .systemRed
-    let status = modelManager.getModelStatus(model)
-    actionsView.update(
-      for: status,
-      isRunning: server.isActive(model: model) && server.isRunning,
-      highlighted: isHoverHighlighted
-    )
+    deleteButton.contentTintColor = .secondaryLabelColor
   }
 
-  private func performDelete() {
+  @objc private func performDelete() {
     let status = modelManager.getModelStatus(model)
     guard case .downloaded = status else { return }
     modelManager.deleteDownloadedModel(model)
