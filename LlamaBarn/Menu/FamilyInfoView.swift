@@ -3,7 +3,7 @@ import Foundation
 
 /// Submenu header that shows the model family "business card":
 /// rounded-rect family icon, family name, and a short description.
-final class FamilyInfoMenuItemView: NSView {
+final class FamilyInfoView: NSView {
   private let iconView = RoundedRectIconView()
   private let titleLabel = NSTextField(labelWithString: "")
   private let descriptionLabel = NSTextField(labelWithString: "")
@@ -60,19 +60,19 @@ final class FamilyInfoMenuItemView: NSView {
 
     NSLayoutConstraint.activate([
       container.leadingAnchor.constraint(
-        equalTo: leadingAnchor, constant: MenuMetrics.outerHorizontalPadding),
+        equalTo: leadingAnchor, constant: Metrics.outerHorizontalPadding),
       container.trailingAnchor.constraint(
-        equalTo: trailingAnchor, constant: -MenuMetrics.outerHorizontalPadding),
+        equalTo: trailingAnchor, constant: -Metrics.outerHorizontalPadding),
       container.topAnchor.constraint(equalTo: topAnchor),
       container.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-      iconView.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      iconView.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
+      iconView.widthAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      iconView.heightAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
 
       hStack.leadingAnchor.constraint(
-        equalTo: container.leadingAnchor, constant: MenuMetrics.innerHorizontalPadding),
+        equalTo: container.leadingAnchor, constant: Metrics.innerHorizontalPadding),
       hStack.trailingAnchor.constraint(
-        equalTo: container.trailingAnchor, constant: -MenuMetrics.innerHorizontalPadding),
+        equalTo: container.trailingAnchor, constant: -Metrics.innerHorizontalPadding),
       hStack.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
       hStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
     ])

@@ -1,7 +1,7 @@
 import LaunchAtLogin
 import SwiftUI
 
-struct SettingsMenuItemView: View {
+struct SettingsView: View {
   @State private var launchAtLogin = LaunchAtLogin.isEnabled
   @State private var showQuantizedVariants = UserSettings.showQuantizedVariants
 
@@ -35,5 +35,5 @@ struct SettingsMenuItemView: View {
 }
 
 #Preview {
-  SettingsMenuItemView()
+  SettingsView()
 }

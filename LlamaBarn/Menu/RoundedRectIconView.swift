@@ -16,17 +16,17 @@ final class RoundedRectIconView: NSView {
     wantsLayer = true
 
     imageView.translatesAutoresizingMaskIntoConstraints = false
-    imageView.symbolConfiguration = .init(pointSize: MenuMetrics.smallIconSize, weight: .regular)
+    imageView.symbolConfiguration = .init(pointSize: Metrics.smallIconSize, weight: .regular)
     imageView.imageScaling = .scaleProportionallyDown
 
     addSubview(imageView)
     NSLayoutConstraint.activate([
-      widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
+      widthAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      heightAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
       imageView.centerXAnchor.constraint(equalTo: centerXAnchor),
       imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
-      imageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.smallIconSize),
-      imageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.smallIconSize),
+      imageView.widthAnchor.constraint(lessThanOrEqualToConstant: Metrics.smallIconSize),
+      imageView.heightAnchor.constraint(lessThanOrEqualToConstant: Metrics.smallIconSize),
     ])
     refresh()
   }
@@ -35,7 +35,7 @@ final class RoundedRectIconView: NSView {
 
   override func layout() {
     super.layout()
-    layer?.cornerRadius = MenuMetrics.cornerRadius
+    layer?.cornerRadius = Metrics.cornerRadius
   }
 
   override func viewDidChangeEffectiveAppearance() {

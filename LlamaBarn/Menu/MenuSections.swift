@@ -3,18 +3,18 @@ import Foundation
 import SwiftUI
 
 /// Shared helpers that build individual sections of the status bar menu.
-/// Breaks the large AppMenuController into focused collaborators so each
+/// Breaks the large MenuController into focused collaborators so each
 /// section owns its layout and mutation logic.
-final class AppMenuHeaderSection {
+final class MenuHeaderSection {
   private let server: LlamaServer
-  private var titleView: HeaderMenuItemView?
+  private var titleView: HeaderView?
 
   init(server: LlamaServer, llamaCppVersion: String) {
     self.server = server
   }
 
   func add(to menu: NSMenu, isSettingsVisible: Bool) {
-    let view = HeaderMenuItemView(
+    let view = HeaderView(
       server: server,
       isSettingsVisible: isSettingsVisible
     )
@@ -28,11 +28,11 @@ final class AppMenuHeaderSection {
   }
 }
 
-final class AppMenuSettingsSection {
-  private var settingsView: NSHostingView<SettingsMenuItemView>?
+final class MenuSettingsSection {
+  private var settingsView: NSHostingView<SettingsView>?
 
   func add(to menu: NSMenu, menuWidth: CGFloat) {
-    let rootView = SettingsMenuItemView()
+    let rootView = SettingsView()
     let view = NSHostingView(rootView: rootView)
     settingsView = view
     let height = view.fittingSize.height
@@ -47,7 +47,7 @@ final class AppMenuSettingsSection {
   }
 }
 
-final class AppMenuInstalledSection {
+final class InstalledSection {
   private enum Constants {
     static let headerIdentifier = "installed-header"
     static let placeholderTitle = "No installed models"
@@ -190,7 +190,7 @@ final class AppMenuInstalledSection {
   }
 }
 
-final class AppMenuCatalogSection {
+final class CatalogSection {
   private let modelManager: Manager
   private let onDownloadStatusChange: (CatalogEntry) -> Void
 
@@ -222,7 +222,7 @@ final class AppMenuCatalogSection {
 
       if models.isEmpty { continue }
 
-      let familyView = FamilyHeaderMenuItemView(
+      let familyView = FamilyMenuItemView(
         family: family.name,
         models: models,
         modelManager: modelManager
@@ -234,7 +234,7 @@ final class AppMenuCatalogSection {
       let submenu = NSMenu(title: family.name)
       submenu.autoenablesItems = false
       submenu.delegate = menu.delegate
-      let infoView = FamilyInfoMenuItemView(
+      let infoView = FamilyInfoView(
         familyName: family.name,
         iconName: family.iconName,
         blurb: family.blurb
@@ -266,7 +266,7 @@ final class AppMenuCatalogSection {
   }
 }
 
-final class AppMenuFooterSection {
+final class FooterSection {
   func add(to menu: NSMenu, menuWidth: CGFloat) {
     menu.addItem(.separator())
 
@@ -290,7 +290,7 @@ final class AppMenuFooterSection {
     container.addSubview(versionLabel)
     container.addSubview(quitButton)
 
-    let horizontalPadding = MenuMetrics.outerHorizontalPadding + MenuMetrics.innerHorizontalPadding
+    let horizontalPadding = Metrics.outerHorizontalPadding + Metrics.innerHorizontalPadding
 
     if menuWidth > 0 {
       container.widthAnchor.constraint(equalToConstant: menuWidth).isActive = true

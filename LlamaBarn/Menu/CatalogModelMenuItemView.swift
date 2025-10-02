@@ -91,9 +91,9 @@ final class CatalogModelMenuItemView: MenuRowView {
     contentView.addSubview(hStack)
 
     NSLayoutConstraint.activate([
-      statusIndicator.widthAnchor.constraint(equalToConstant: MenuMetrics.smallIconSize),
-      statusIndicator.heightAnchor.constraint(equalToConstant: MenuMetrics.smallIconSize),
-      progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.progressWidth),
+      statusIndicator.widthAnchor.constraint(equalToConstant: Metrics.smallIconSize),
+      statusIndicator.heightAnchor.constraint(equalToConstant: Metrics.smallIconSize),
+      progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Metrics.progressWidth),
       hStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       hStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
       hStack.topAnchor.constraint(equalTo: contentView.topAnchor),

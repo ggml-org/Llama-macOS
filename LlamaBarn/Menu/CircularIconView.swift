@@ -16,7 +16,7 @@ final class CircularIconView: NSView {
     wantsLayer = true
 
     imageView.translatesAutoresizingMaskIntoConstraints = false
-    imageView.symbolConfiguration = .init(pointSize: MenuMetrics.smallIconSize, weight: .regular)
+    imageView.symbolConfiguration = .init(pointSize: Metrics.smallIconSize, weight: .regular)
     imageView.imageScaling = .scaleProportionallyDown
 
     // Configure spinner but keep it hidden until used.
@@ -28,12 +28,12 @@ final class CircularIconView: NSView {
     addSubview(imageView)
     addSubview(spinner)
     NSLayoutConstraint.activate([
-      widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
+      widthAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      heightAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
       imageView.centerXAnchor.constraint(equalTo: centerXAnchor),
       imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
-      imageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.smallIconSize),
-      imageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.smallIconSize),
+      imageView.widthAnchor.constraint(lessThanOrEqualToConstant: Metrics.smallIconSize),
+      imageView.heightAnchor.constraint(lessThanOrEqualToConstant: Metrics.smallIconSize),
       spinner.centerXAnchor.constraint(equalTo: centerXAnchor),
       spinner.centerYAnchor.constraint(equalTo: centerYAnchor),
     ])

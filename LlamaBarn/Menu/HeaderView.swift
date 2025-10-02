@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Header row showing app name and server status.
-final class HeaderMenuItemView: NSView {
+final class HeaderView: NSView {
 
   private unowned let server: LlamaServer
   private let appNameLabel = NSTextField(labelWithString: "")
@@ -76,15 +76,15 @@ final class HeaderMenuItemView: NSView {
 
     NSLayoutConstraint.activate([
       backgroundView.leadingAnchor.constraint(
-        equalTo: leadingAnchor, constant: MenuMetrics.outerHorizontalPadding),
+        equalTo: leadingAnchor, constant: Metrics.outerHorizontalPadding),
       backgroundView.trailingAnchor.constraint(
-        equalTo: trailingAnchor, constant: -MenuMetrics.outerHorizontalPadding),
+        equalTo: trailingAnchor, constant: -Metrics.outerHorizontalPadding),
       backgroundView.topAnchor.constraint(equalTo: topAnchor),
       backgroundView.bottomAnchor.constraint(equalTo: bottomAnchor),
       headerStackView.leadingAnchor.constraint(
-        equalTo: backgroundView.leadingAnchor, constant: MenuMetrics.innerHorizontalPadding),
+        equalTo: backgroundView.leadingAnchor, constant: Metrics.innerHorizontalPadding),
       headerStackView.trailingAnchor.constraint(
-        equalTo: backgroundView.trailingAnchor, constant: -MenuMetrics.innerHorizontalPadding),
+        equalTo: backgroundView.trailingAnchor, constant: -Metrics.innerHorizontalPadding),
       headerStackView.topAnchor.constraint(equalTo: backgroundView.topAnchor, constant: 6),
       headerStackView.bottomAnchor.constraint(equalTo: backgroundView.bottomAnchor, constant: -6),
       settingsButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 22),

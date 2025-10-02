@@ -3,28 +3,28 @@ import Foundation
 
 /// Controls the status bar item and its AppKit menu.
 /// Breaks menu construction into section helpers so each concern stays focused.
-final class AppMenuController: NSObject, NSMenuDelegate {
+final class MenuController: NSObject, NSMenuDelegate {
   private let statusItem: NSStatusItem
   private let modelManager: Manager
   private let server: LlamaServer
 
-  private lazy var headerSection = AppMenuHeaderSection(
+  private lazy var headerSection = MenuHeaderSection(
     server: server,
     llamaCppVersion: AppInfo.llamaCppVersion
   )
-  private let settingsSection = AppMenuSettingsSection()
-  private lazy var installedSection = AppMenuInstalledSection(
+  private let settingsSection = MenuSettingsSection()
+  private lazy var installedSection = InstalledSection(
     modelManager: modelManager,
     server: server
   ) { [weak self] model in
     self?.didChangeDownloadStatus(for: model)
   }
-  private lazy var catalogSection = AppMenuCatalogSection(
+  private lazy var catalogSection = CatalogSection(
     modelManager: modelManager
   ) { [weak self] model in
     self?.didChangeDownloadStatus(for: model)
   }
-  private let footerSection = AppMenuFooterSection()
+  private let footerSection = FooterSection()
 
   private var isSettingsVisible = false
   private var menuWidth: CGFloat = 260
@@ -195,7 +195,7 @@ final class AppMenuController: NSObject, NSMenuDelegate {
           if let view = subItem.view as? CatalogModelMenuItemView { view.refresh() }
         }
       }
-      if let famView = menuItem.view as? FamilyHeaderMenuItemView { famView.refresh() }
+      if let famView = menuItem.view as? FamilyMenuItemView { famView.refresh() }
     }
 
     if let menu = statusItem.menu {

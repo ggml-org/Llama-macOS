@@ -33,16 +33,16 @@ final class SectionHeaderMenuItemView: NSView {
 
     NSLayoutConstraint.activate([
       container.leadingAnchor.constraint(
-        equalTo: leadingAnchor, constant: MenuMetrics.outerHorizontalPadding),
+        equalTo: leadingAnchor, constant: Metrics.outerHorizontalPadding),
       container.trailingAnchor.constraint(
-        equalTo: trailingAnchor, constant: -MenuMetrics.outerHorizontalPadding),
+        equalTo: trailingAnchor, constant: -Metrics.outerHorizontalPadding),
       container.topAnchor.constraint(equalTo: topAnchor),
       container.bottomAnchor.constraint(equalTo: bottomAnchor),
 
       label.leadingAnchor.constraint(
-        equalTo: container.leadingAnchor, constant: MenuMetrics.innerHorizontalPadding),
+        equalTo: container.leadingAnchor, constant: Metrics.innerHorizontalPadding),
       label.trailingAnchor.constraint(
-        equalTo: container.trailingAnchor, constant: -MenuMetrics.innerHorizontalPadding),
+        equalTo: container.trailingAnchor, constant: -Metrics.innerHorizontalPadding),
       label.topAnchor.constraint(equalTo: container.topAnchor, constant: 2),
       label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -2),
     ])

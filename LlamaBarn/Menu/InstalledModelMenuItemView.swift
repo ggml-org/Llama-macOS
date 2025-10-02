@@ -126,14 +126,14 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
     contentView.addSubview(rootStack)
 
     NSLayoutConstraint.activate([
-      circleIcon.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      circleIcon.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      cancelImageView.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      cancelImageView.heightAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.iconSize),
-      deleteImageView.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      deleteImageView.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
+      circleIcon.widthAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      circleIcon.heightAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      cancelImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Metrics.iconSize),
+      cancelImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Metrics.iconSize),
+      deleteImageView.widthAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      deleteImageView.heightAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
 
-      progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: MenuMetrics.progressWidth),
+      progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Metrics.progressWidth),
       rootStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       // Pin trailing controls to the backgroundView’s edge (hover highlight),
       // not the contentView’s inner padding, so the trash icon visually

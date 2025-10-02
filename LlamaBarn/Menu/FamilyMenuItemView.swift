@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Displays a model family with variant badges summarizing status.
-final class FamilyHeaderMenuItemView: MenuRowView {
+final class FamilyMenuItemView: MenuRowView {
   private let family: String
   private let models: [CatalogEntry]
   private unowned let modelManager: Manager
@@ -77,10 +77,10 @@ final class FamilyHeaderMenuItemView: MenuRowView {
     contentView.addSubview(hStack)
 
     NSLayoutConstraint.activate([
-      iconView.widthAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      iconView.heightAnchor.constraint(equalToConstant: MenuMetrics.iconBadgeSize),
-      chevron.widthAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
-      chevron.heightAnchor.constraint(equalToConstant: MenuMetrics.iconSize),
+      iconView.widthAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      iconView.heightAnchor.constraint(equalToConstant: Metrics.iconBadgeSize),
+      chevron.widthAnchor.constraint(equalToConstant: Metrics.iconSize),
+      chevron.heightAnchor.constraint(equalToConstant: Metrics.iconSize),
       hStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       hStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
       hStack.topAnchor.constraint(equalTo: contentView.topAnchor),

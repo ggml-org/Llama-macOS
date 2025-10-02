@@ -1,7 +1,7 @@
 import AppKit
 
 /// Shared UI metrics and helpers for NSMenu custom rows.
-enum MenuMetrics {
+enum Metrics {
   static let outerHorizontalPadding: CGFloat = 5
   static let innerHorizontalPadding: CGFloat = 8
   static let verticalPadding: CGFloat = 4
@@ -17,8 +17,7 @@ enum MenuMetrics {
 extension NSView {
   /// Applies or clears the standard hover highlight background on a container view.
   /// Uses dynamic colors resolved for the view's effective appearance and sets a rounded corner.
-  func lbSetHoverHighlighted(_ highlighted: Bool, cornerRadius: CGFloat = MenuMetrics.cornerRadius)
-  {
+  func lbSetHoverHighlighted(_ highlighted: Bool, cornerRadius: CGFloat = Metrics.cornerRadius) {
     wantsLayer = true
     let color: NSColor = highlighted ? .lbHoverBackground : .clear
     layer?.setBackgroundColor(color, in: self)

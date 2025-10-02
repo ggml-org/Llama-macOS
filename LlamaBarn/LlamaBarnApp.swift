@@ -16,7 +16,7 @@ struct LlamaBarnApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
   private var updaterController: SPUStandardUpdaterController?
   private let logger = Logger(subsystem: "LlamaBarn", category: "AppDelegate")
-  private var menuController: AppMenuController?
+  private var menuController: MenuController?
   private var updatesObserver: NSObjectProtocol?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -44,7 +44,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     _ = Manager.shared
 
     // Create the AppKit-based status bar menu (installed models only for now)
-    menuController = AppMenuController()
+    menuController = MenuController()
 
     // Listen for explicit update requests from the menu controller
     updatesObserver = NotificationCenter.default.addObserver(
