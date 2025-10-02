@@ -2,7 +2,12 @@ import AppKit
 import Foundation
 
 /// Interactive menu item that triggers a submenu for a model family, showing model size indicators with download/compatibility status.
+///
+/// Background and hover handling provided by MenuItemView.
+/// Size indicators are rebuilt on each refresh rather than tracked statefully for simplicity.
 final class FamilyMenuItemView: MenuItemView {
+  // MARK: - Properties
+
   private let family: String
   private let models: [CatalogEntry]
   private unowned let modelManager: Manager
@@ -11,8 +16,8 @@ final class FamilyMenuItemView: MenuItemView {
   private let familyLabel = NSTextField(labelWithString: "")
   private let metadataLabel = NSTextField(labelWithString: "")
   private let chevron = NSImageView()
-  // Background and hover handling provided by MenuItemView.
-  // Size indicators are rebuilt on each refresh rather than tracked statefully for simplicity.
+
+  // MARK: - Initialization
 
   init(family: String, models: [CatalogEntry], modelManager: Manager) {
     self.family = family
@@ -28,28 +33,37 @@ final class FamilyMenuItemView: MenuItemView {
 
   override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 40) }
 
+  // MARK: - Setup
+
+  /// Configures the view hierarchy and layout constraints.
   private func setup() {
     wantsLayer = true
+
+    // Configure icon view
     iconView.translatesAutoresizingMaskIntoConstraints = false
     iconView.setImage(NSImage(named: models.first?.icon ?? ""))
     // Family rows trigger submenus rather than actions, so never show active state.
     iconView.isActive = false
 
+    // Configure family name label
     familyLabel.stringValue = family
     familyLabel.font = Typography.primary
     familyLabel.translatesAutoresizingMaskIntoConstraints = false
 
+    // Configure metadata label (shows model sizes)
     metadataLabel.font = Typography.secondary
     metadataLabel.textColor = .secondaryLabelColor
     metadataLabel.lineBreakMode = .byTruncatingTail
     metadataLabel.translatesAutoresizingMaskIntoConstraints = false
 
+    // Configure chevron indicator
     chevron.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
     // Match InstalledModelMenuItemView trailing indicator sizing for alignment.
     chevron.symbolConfiguration = .init(pointSize: 14, weight: .regular)
     chevron.contentTintColor = .secondaryLabelColor
     chevron.translatesAutoresizingMaskIntoConstraints = false
 
+    // Build layout hierarchy: icon + text column on left, chevron on right
     let textColumn = NSStackView(views: [familyLabel, metadataLabel])
     textColumn.orientation = .vertical
     textColumn.spacing = 2
@@ -63,6 +77,7 @@ final class FamilyMenuItemView: MenuItemView {
     leadingStack.alignment = .centerY
     leadingStack.translatesAutoresizingMaskIntoConstraints = false
 
+    // Main row with flexible space between leading content and chevron
     let hStack = NSStackView(views: [leadingStack, NSView(), chevron])
     hStack.orientation = .horizontal
     hStack.spacing = 6
@@ -83,11 +98,18 @@ final class FamilyMenuItemView: MenuItemView {
     ])
   }
 
+  // MARK: - Refresh
+
+  /// Updates the metadata line with current model size states.
   func refresh() {
     metadataLabel.attributedStringValue = makeMetadataLine()
     needsDisplay = true
   }
 
+  // MARK: - Metadata Line Construction
+
+  /// Builds an attributed string showing all unique model sizes in this family,
+  /// highlighting downloaded models with underlines and compatible models with darker text.
   private func makeMetadataLine() -> NSAttributedString {
     let sorted = models.sorted(by: CatalogEntry.displayOrder(_:_:))
     // Deduplicate sizes since multiple builds can share the same size.
@@ -101,7 +123,10 @@ final class FamilyMenuItemView: MenuItemView {
       let status = modelManager.getModelStatus(model)
       let downloaded = (status == .downloaded)
       let compatible = Catalog.isModelCompatible(model)
+      // Use darker text for downloaded or compatible models to make them stand out.
       let color: NSColor = (downloaded || compatible) ? .labelColor : .secondaryLabelColor
+
+      // Add separator between size labels
       if line.length > 0 {
         line.append(MetadataSeparator.make(color: .tertiaryLabelColor))
       }
@@ -112,6 +137,8 @@ final class FamilyMenuItemView: MenuItemView {
     return line
   }
 
+  /// Creates an attributed string for a model size label.
+  /// Downloaded models show a green checkmark to indicate they're already installed.
   private func attributedSizeLabel(
     text: String,
     downloaded: Bool,
