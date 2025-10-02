@@ -67,7 +67,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   func menuDidClose(_ menu: NSMenu) {
     menu.items.forEach { (item: NSMenuItem) in
-      (item.view as? MenuRowView)?.setHoverHighlight(false)
+      (item.view as? MenuItemView)?.setHoverHighlight(false)
     }
     guard menu === statusItem.menu else { return }
     removeObservers()
@@ -75,9 +75,9 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
-    let highlighted = item?.view as? MenuRowView
+    let highlighted = item?.view as? MenuItemView
     menu.items.forEach { (entry: NSMenuItem) in
-      guard let row = entry.view as? MenuRowView else { return }
+      guard let row = entry.view as? MenuItemView else { return }
       row.setHoverHighlight(row === highlighted)
     }
   }

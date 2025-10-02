@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 
-/// Menu row for a downloadable model build inside a family submenu.
-final class CatalogModelMenuItemView: MenuRowView {
+/// Interactive menu item for a downloadable model build inside a family submenu.
+final class CatalogModelMenuItemView: MenuItemView {
   // Central tweak for inline SF Symbol vertical alignment beside secondary text.
   // Negative lowers the glyph relative to the text baseline.
   private static let iconBaselineYOffset: CGFloat = -2
@@ -16,9 +16,9 @@ final class CatalogModelMenuItemView: MenuRowView {
   private let metadataLabel = NSTextField(labelWithString: "")
   private let progressLabel = NSTextField(labelWithString: "")
   private var rowClickRecognizer: NSClickGestureRecognizer?
-  // Background handled by MenuRowView
+  // Background handled by MenuItemView
 
-  // Hover handling provided by MenuRowView
+  // Hover handling provided by MenuItemView
 
   init(
     model: CatalogEntry, modelManager: Manager, membershipChanged: @escaping () -> Void

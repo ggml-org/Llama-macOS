@@ -1,12 +1,12 @@
 import AppKit
 import Foundation
 
-/// Menu row representing a single installed model.
+/// Interactive menu item representing a single installed model.
 /// Visual states:
 /// - Idle: circular icon (inactive) + label
 /// - Loading: circular icon (active)
 /// - Running: circular icon (active)
-final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate {
+final class InstalledModelMenuItemView: MenuItemView, NSGestureRecognizerDelegate {
   private let model: CatalogEntry
   private unowned let server: LlamaServer
   private unowned let modelManager: Manager
@@ -22,7 +22,7 @@ final class InstalledModelMenuItemView: MenuRowView, NSGestureRecognizerDelegate
   private let cancelImageView = NSImageView()
   private let deleteImageView = NSImageView()
 
-  // Hover handling is provided by MenuRowView
+  // Hover handling is provided by MenuItemView
   private var rowClickRecognizer: NSClickGestureRecognizer?
   private var deleteClickRecognizer: NSClickGestureRecognizer?
 

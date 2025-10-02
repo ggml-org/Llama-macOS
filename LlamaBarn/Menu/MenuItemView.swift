@@ -1,8 +1,8 @@
 import AppKit
 
-/// Minimal base class for custom NSMenu item rows.
+/// Minimal base class for interactive menu items.
 /// Provides a shared background container with hover highlight and a content area for subclasses.
-class MenuRowView: NSView {
+class MenuItemView: NSView {
   let backgroundView = NSView()
   let contentView = NSView()
 

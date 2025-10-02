@@ -1,8 +1,8 @@
 import AppKit
 import Foundation
 
-/// Interactive row that triggers a submenu for a model family, showing model size indicators with download/compatibility status.
-final class FamilyMenuItemView: MenuRowView {
+/// Interactive menu item that triggers a submenu for a model family, showing model size indicators with download/compatibility status.
+final class FamilyMenuItemView: MenuItemView {
   private let family: String
   private let models: [CatalogEntry]
   private unowned let modelManager: Manager
@@ -11,7 +11,7 @@ final class FamilyMenuItemView: MenuRowView {
   private let familyLabel = NSTextField(labelWithString: "")
   private let metadataLabel = NSTextField(labelWithString: "")
   private let chevron = NSImageView()
-  // Background and hover handling provided by MenuRowView.
+  // Background and hover handling provided by MenuItemView.
   // Size indicators are rebuilt on each refresh rather than tracked statefully for simplicity.
 
   init(family: String, models: [CatalogEntry], modelManager: Manager) {

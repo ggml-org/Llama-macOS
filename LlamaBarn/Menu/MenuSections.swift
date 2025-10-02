@@ -179,7 +179,7 @@ final class InstalledSection {
   }
 
   private func makeSectionHeaderItem(_ title: String) -> NSMenuItem {
-    let view = SectionHeaderMenuItemView(title: title)
+    let view = SectionHeaderView(title: title)
     let item = NSMenuItem.viewItem(with: view, minHeight: 18)
     item.isEnabled = false
     return item
@@ -259,7 +259,7 @@ final class CatalogSection {
   }
 
   private func makeSectionHeaderItem(_ title: String) -> NSMenuItem {
-    let view = SectionHeaderMenuItemView(title: title)
+    let view = SectionHeaderView(title: title)
     let item = NSMenuItem.viewItem(with: view, minHeight: 18)
     item.isEnabled = false
     return item

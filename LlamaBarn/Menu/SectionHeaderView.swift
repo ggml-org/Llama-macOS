@@ -1,6 +1,6 @@
 import AppKit
 
-final class SectionHeaderMenuItemView: NSView {
+final class SectionHeaderView: NSView {
   private let label = NSTextField(labelWithString: "")
   private let container = NSView()
 
