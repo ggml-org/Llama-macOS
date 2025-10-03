@@ -274,10 +274,16 @@ final class FooterSection {
     let container = NSView()
     container.translatesAutoresizingMaskIntoConstraints = false
 
-    let versionLabel = NSTextField(
-      labelWithString:
-        "\(AppInfo.shortVersion) · build \(AppInfo.buildNumber) · llama.cpp \(AppInfo.llamaCppVersion)"
-    )
+    // Production builds show marketing version without build number;
+    // dev/test builds (0.0.0) show only build number
+    let versionText: String
+    if AppInfo.shortVersion == "0.0.0" {
+      versionText = "build \(AppInfo.buildNumber) · llama.cpp \(AppInfo.llamaCppVersion)"
+    } else {
+      versionText = "\(AppInfo.shortVersion) · llama.cpp \(AppInfo.llamaCppVersion)"
+    }
+
+    let versionLabel = NSTextField(labelWithString: versionText)
     versionLabel.font = Typography.primary
     versionLabel.textColor = .secondaryLabelColor
     versionLabel.lineBreakMode = .byTruncatingMiddle
