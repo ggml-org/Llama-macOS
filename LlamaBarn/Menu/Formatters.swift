@@ -44,3 +44,12 @@ enum TokenFormatters {
     }
   }
 }
+
+enum MemoryFormatters {
+  /// Formats binary megabytes as gigabytes with one decimal (e.g., "3.1 GB" from 3174 MB).
+  /// Uses binary units (1 GB = 1024 MB) to match Activity Monitor and system memory reporting.
+  static func gbOneDecimal(_ mb: UInt64) -> String {
+    let gb = Double(mb) / 1024.0
+    return String(format: "%.1f GB", gb)
+  }
+}

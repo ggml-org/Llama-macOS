@@ -201,6 +201,16 @@ final class CatalogModelItemView: ItemView {
 
     line.append(MetadataSeparator.make(color: .tertiaryLabelColor))
 
+    line.append(
+      MetadataLabel.make(
+        icon: MetadataLabel.memorySymbol,
+        text: display.memoryText,
+        color: .secondaryLabelColor
+      )
+    )
+
+    line.append(MetadataSeparator.make(color: .tertiaryLabelColor))
+
     if display.compatible {
       line.append(
         MetadataLabel.make(

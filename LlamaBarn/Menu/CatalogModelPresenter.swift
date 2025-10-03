@@ -11,6 +11,7 @@ enum CatalogModelPresenter {
     let title: String
     let titleColor: NSColor
     let sizeText: String
+    let memoryText: String
     let contextText: String
     let infoTooltip: String?
     let warningTooltip: String?
@@ -90,10 +91,16 @@ enum CatalogModelPresenter {
       rowTooltip = nil
     }
 
+    let memoryMB = Catalog.runtimeMemoryUsageMB(
+      for: model,
+      contextLengthTokens: Catalog.compatibilityContextLengthTokens
+    )
+
     return DisplayData(
       title: title,
       titleColor: titleColor,
       sizeText: model.totalSize,
+      memoryText: MemoryFormatters.gbOneDecimal(memoryMB),
       contextText: contextString,
       infoTooltip: infoTooltip,
       warningTooltip: warningTooltip,
