@@ -46,7 +46,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     wantsLayer = true
     circleIcon.setImage(NSImage(named: model.icon))
 
-    modelNameLabel.stringValue = makeTitle()
     modelNameLabel.font = Typography.primary
 
     // Configure metadata label (second line showing size, context, memory)
@@ -171,64 +170,26 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   func refresh() {
     let status = modelManager.getModelStatus(model)
-    let isActive = server.isActive(model: model)
-    let isServerLoading = isActive && server.isLoading
-    let isRunning = isActive && server.isRunning
+
+    // Get display data from presenter
+    let display = InstalledModelPresenter.makeDisplay(
+      for: model,
+      status: status,
+      server: server
+    )
+
+    // Apply display data
+    modelNameLabel.stringValue = display.title
+    metadataLabel.attributedStringValue = display.metadataText
+    progressLabel.stringValue = display.progressText ?? ""
+    cancelImageView.isHidden = !display.showsCancelButton
 
     // Update icon state
-    circleIcon.setLoading(isServerLoading)
-    circleIcon.isActive = isRunning
+    circleIcon.setLoading(display.isLoading)
+    circleIcon.isActive = display.isActive
     circleIcon.imageView.contentTintColor = .labelColor
 
-    // Build info text based on state
-    switch status {
-    case .downloading(let progress):
-      cancelImageView.isHidden = false
-      let percent =
-        progress.totalUnitCount > 0
-        ? Int(Double(progress.completedUnitCount) / Double(progress.totalUnitCount) * 100)
-        : 0
-      progressLabel.stringValue = "\(percent)%"
-
-      let completedSizeText = ByteFormatters.gbTwoDecimals(progress.completedUnitCount)
-      let totalBytes = progress.totalUnitCount > 0 ? progress.totalUnitCount : model.fileSize
-      let totalSizeText = ByteFormatters.gbTwoDecimals(totalBytes)
-
-      metadataLabel.attributedStringValue = MetadataLabel.make(
-        icon: MetadataLabel.sizeSymbol,
-        text: "\(completedSizeText) / \(totalSizeText)"
-      )
-
-    case .downloaded, .available:
-      cancelImageView.isHidden = true
-      progressLabel.stringValue = ""
-      metadataLabel.attributedStringValue = buildInfoText(isRunning: isRunning)
-    }
-
     needsDisplay = true
-  }
-
-  /// Build the info line with size, context, and optionally memory usage.
-  private func buildInfoText(isRunning: Bool) -> NSAttributedString {
-    let result = NSMutableAttributedString()
-
-    result.append(MetadataLabel.make(icon: MetadataLabel.sizeSymbol, text: model.totalSize))
-
-    if let recommendedContext = Catalog.recommendedContextLength(for: model) {
-      result.append(MetadataLabel.makeSeparator())
-      result.append(
-        MetadataLabel.make(
-          icon: MetadataLabel.contextSymbol,
-          text: TokenFormatters.shortTokens(recommendedContext)
-        ))
-    }
-
-    if isRunning, let memoryText = formatMemory(server.memoryUsageMB) {
-      result.append(MetadataLabel.makeSeparator())
-      result.append(MetadataLabel.make(icon: MetadataLabel.memorySymbol, text: memoryText))
-    }
-
-    return result
   }
 
   override func viewDidChangeEffectiveAppearance() {
@@ -244,16 +205,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     membershipChanged(model)
   }
 
-  private func makeTitle() -> String {
-    var title = model.displayName
-    if !model.isFullPrecision,
-      let quantLabel = QuantizationFormatters.short(model.quantization).nilIfEmpty
-    {
-      title += "-\(quantLabel)"
-    }
-    return title
-  }
-
   private func configureImageView(
     _ imageView: NSImageView, symbol: String, pointSize: CGFloat, color: NSColor
   ) {
@@ -264,14 +215,5 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     imageView.symbolConfiguration = .init(pointSize: pointSize, weight: .regular)
     imageView.contentTintColor = color
     imageView.isHidden = true
-  }
-
-  private func formatMemory(_ memMB: Double) -> String? {
-    guard memMB > 0 else { return nil }
-    if memMB >= 1024 {
-      let gb = memMB / 1024
-      return gb < 10 ? String(format: "%.1f GB", gb) : String(format: "%.0f GB", gb)
-    }
-    return String(format: "%.0f MB", memMB)
   }
 }

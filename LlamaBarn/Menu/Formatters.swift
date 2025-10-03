@@ -52,6 +52,18 @@ enum MemoryFormatters {
     let gb = Double(mb) / 1024.0
     return String(format: "%.1f GB", gb)
   }
+
+  /// Formats runtime memory usage from binary megabytes.
+  /// Shows MB when < 1 GB, otherwise GB with appropriate precision.
+  /// Uses binary units (1 GB = 1024 MB) to match Activity Monitor.
+  static func runtime(_ mb: Double) -> String? {
+    guard mb > 0 else { return nil }
+    if mb >= 1024 {
+      let gb = mb / 1024
+      return gb < 10 ? String(format: "%.1f GB", gb) : String(format: "%.0f GB", gb)
+    }
+    return String(format: "%.0f MB", mb)
+  }
 }
 
 enum QuantizationFormatters {
