@@ -2,18 +2,20 @@ import Foundation
 
 // Shared comparator for consistent model ordering in menus.
 extension CatalogEntry {
-  /// Sorts smaller download sizes first; tie-break by parameter size.
+  /// Sorts smaller download sizes first; tie-break by ID for stable ordering.
   static func displayOrder(_ lhs: CatalogEntry, _ rhs: CatalogEntry) -> Bool {
     if lhs.fileSize != rhs.fileSize { return lhs.fileSize < rhs.fileSize }
-    // Stable fallback to keep deterministic ordering when sizes match
     return lhs.id < rhs.id
   }
 
   /// Orders catalog entries for display within a family submenu.
-  /// Keeps full-precision builds ahead of quantized variants for the same base model size.
+  /// Sorts by parameter size (ignoring quantization), then full-precision before quantized.
   static func familyDisplayOrder(_ lhs: CatalogEntry, _ rhs: CatalogEntry) -> Bool {
-    if lhs.size != rhs.size { return displayOrder(lhs, rhs) }
+    // Sort by parameter size first (e.g., E2B before E4B, regardless of quantization)
+    if lhs.size != rhs.size { return lhs.size < rhs.size }
+    // Within same size, full-precision comes before quantized
     if lhs.isFullPrecision != rhs.isFullPrecision { return lhs.isFullPrecision }
+    // Tie-break by file size (smaller quantized variants first)
     return displayOrder(lhs, rhs)
   }
 }
