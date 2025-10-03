@@ -57,7 +57,7 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
   var activeDownloads: [String: ActiveDownload] = [:]
 
   private var urlSession: URLSession!
-  private let logger = Logger(subsystem: "LlamaBarn", category: "Downloader")
+  private let logger = Logger(subsystem: "app.llamabarn.LlamaBarn", category: "Downloader")
 
   private override init() {
     super.init()

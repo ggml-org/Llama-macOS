@@ -34,7 +34,7 @@ class LlamaServer {
   private var errorPipe: Pipe?
   private var activeProcess: Process?
   private var healthCheckTask: Task<Void, Error>?
-  private let logger = Logger(subsystem: "LlamaBarn", category: "LlamaServer")
+  private let logger = Logger(subsystem: "app.llamabarn.LlamaBarn", category: "LlamaServer")
 
   enum ServerState: Equatable {
     case idle

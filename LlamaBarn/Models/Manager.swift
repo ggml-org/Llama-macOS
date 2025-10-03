@@ -33,7 +33,7 @@ class Manager: NSObject {
   }
 
   private let downloader = Downloader.shared
-  private let logger = Logger(subsystem: "LlamaBarn", category: "Manager")
+  private let logger = Logger(subsystem: "app.llamabarn.LlamaBarn", category: "Manager")
   private var observers: [NSObjectProtocol] = []
 
   private override init() {
