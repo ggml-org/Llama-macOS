@@ -245,7 +245,7 @@ final class CatalogSection: NSObject, NSMenuDelegate {
     guard menu.items.isEmpty else { return }
     guard let (sortedModels, family) = submenuData[menu.title] else { return }
 
-    let infoView = FamilyInfoView(
+    let infoView = FamilyHeaderView(
       familyName: family.name,
       iconName: family.iconName,
       blurb: family.blurb

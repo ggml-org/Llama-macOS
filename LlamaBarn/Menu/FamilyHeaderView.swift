@@ -3,7 +3,7 @@ import Foundation
 
 /// Submenu header that shows the model family "business card":
 /// rounded-rect family icon, family name, and a short description.
-final class FamilyInfoView: NSView {
+final class FamilyHeaderView: NSView {
   private let iconView = IconBadgeView(cornerStyle: .rounded)
   private let titleLabel = Typography.makePrimaryLabel()
   private let descriptionLabel = Typography.makeSecondaryLabel()
