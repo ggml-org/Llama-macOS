@@ -33,6 +33,11 @@ class LlamaServer {
   private var activeProcess: Process?
   private var healthCheckTask: Task<Void, Error>?
   private let logger = Logger(subsystem: Logging.subsystem, category: "LlamaServer")
+
+  // Lock protects shared state accessed from background threads (process termination handler).
+  // Unlike Manager and Downloader (main-thread-only), LlamaServer needs synchronization because
+  // Process.terminationHandler runs on a background thread and accesses activeModelPath and
+  // isIntentionalShutdown. State updates still dispatch to main for UI consistency.
   private let stateLock = NSLock()
 
   // Tracks whether we're intentionally stopping the process to suppress the termination handler.

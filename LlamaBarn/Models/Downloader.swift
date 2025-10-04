@@ -59,7 +59,6 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
   }
 
   var activeDownloads: [String: ActiveDownload] = [:]
-  private let downloadsLock = NSLock()
 
   private var urlSession: URLSession!
   private let logger = Logger(subsystem: Logging.subsystem, category: "Downloader")
@@ -73,13 +72,11 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
 
   private override init() {
     super.init()
-    // Route delegate callbacks to the main queue to keep state access consistent
+    // All URLSession delegate callbacks run on main queue, so no locking needed for state access
     urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
   }
 
   func getDownloadStatus(for model: CatalogEntry) -> ModelStatus {
-    downloadsLock.lock()
-    defer { downloadsLock.unlock() }
     if let download = activeDownloads[model.id] {
       return .downloading(download.progress)
     }
@@ -90,11 +87,7 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
   func downloadModel(_ model: CatalogEntry) throws {
     // Prevent duplicate downloads if user clicks download multiple times or if called from multiple code paths.
     // Without this check, we'd start redundant URLSession tasks, waste bandwidth, and corrupt download state.
-    downloadsLock.lock()
-    let alreadyDownloading = activeDownloads[model.id] != nil
-    downloadsLock.unlock()
-
-    if alreadyDownloading {
+    if activeDownloads[model.id] != nil {
       logger.info("Download already in progress for model: \(model.displayName)")
       return
     }
@@ -127,14 +120,12 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
 
   /// Cancels an ongoing download and removes it from tracking
   func cancelModelDownload(_ model: CatalogEntry) {
-    downloadsLock.lock()
     if let download = activeDownloads[model.id] {
       var mutable = download
       mutable.cancelAllTasks()
       activeDownloads.removeValue(forKey: model.id)
       lastNotificationTime.removeValue(forKey: model.id)
     }
-    downloadsLock.unlock()
     NotificationCenter.default.post(name: .LBModelDownloadsDidChange, object: self)
   }
 
@@ -218,7 +209,6 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
         return
       }
 
-      downloadsLock.lock()
       let shouldNotifyFinished: Bool
       if self.activeDownloads[modelId] != nil {
         var aggregate = self.activeDownloads[modelId]!
@@ -236,9 +226,7 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
         // but if it is, ensure we notify for a refresh.
         shouldNotifyFinished = true
       }
-      downloadsLock.unlock()
 
-      // Post notifications after releasing lock to prevent potential deadlocks
       if shouldNotifyFinished {
         self.logger.info("All downloads completed for model: \(model.displayName)")
         NotificationCenter.default.post(
@@ -250,7 +238,6 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
       self.postDownloadsDidChange()
     } catch {
       logger.error("Error moving downloaded file: \(error.localizedDescription)")
-      downloadsLock.lock()
       if var aggregate = self.activeDownloads[modelId] {
         aggregate.removeTask(with: downloadTask.taskIdentifier)
         if aggregate.isEmpty {
@@ -260,7 +247,6 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
           self.activeDownloads[modelId] = aggregate
         }
       }
-      downloadsLock.unlock()
       postDownloadsDidChange()
     }
   }
@@ -283,13 +269,11 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
 
     logger.error("Model download failed (\(reason)) for model: \(model.displayName)")
 
-    downloadsLock.lock()
     if var aggregate = self.activeDownloads[modelId] {
       aggregate.cancelAllTasks()
       self.activeDownloads.removeValue(forKey: modelId)
       self.lastNotificationTime.removeValue(forKey: modelId)
     }
-    downloadsLock.unlock()
     postDownloadsDidChange()
   }
 
@@ -299,14 +283,11 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
   ) {
     guard let modelId = downloadTask.taskDescription else { return }
 
-    downloadsLock.lock()
     guard var download = self.activeDownloads[modelId] else {
-      downloadsLock.unlock()
       return
     }
     download.refreshProgress()
     self.activeDownloads[modelId] = download
-    downloadsLock.unlock()
 
     // Throttle notifications to avoid excessive UI updates
     let now = Date()
@@ -324,7 +305,6 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
 
     if let error = error {
       logger.error("Model download failed: \(error.localizedDescription)")
-      downloadsLock.lock()
       let shouldNotify: Bool
       if var aggregate = self.activeDownloads[modelId] {
         aggregate.removeTask(with: task.taskIdentifier)
@@ -339,7 +319,6 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
       } else {
         shouldNotify = false
       }
-      downloadsLock.unlock()
 
       if shouldNotify {
         postDownloadsDidChange()
@@ -400,9 +379,6 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
     preserveEmpty: Bool = false,
     mutate: (inout ActiveDownload) -> Void
   ) -> ActiveDownload? {
-    downloadsLock.lock()
-    defer { downloadsLock.unlock() }
-
     var aggregate =
       activeDownloads[modelId]
       ?? ActiveDownload(progress: Progress(totalUnitCount: 0), tasks: [:], finishedBytes: 0)

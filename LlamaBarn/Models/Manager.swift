@@ -26,6 +26,7 @@ enum ModelStatus: Equatable {
 }
 
 /// Manages the high-level state of available and downloaded models.
+@MainActor
 class Manager: NSObject {
   static let shared = Manager()
 
@@ -36,14 +37,14 @@ class Manager: NSObject {
   private let logger = Logger(subsystem: Logging.subsystem, category: "Manager")
   private var observers: [NSObjectProtocol] = []
 
-  private override init() {
+  override init() {
     super.init()
     refreshDownloadedModels()
     addObservers()
   }
 
   deinit {
-    removeObservers()
+    observers.forEach { NotificationCenter.default.removeObserver($0) }
   }
 
   /// Downloads a model by delegating to the downloader.
@@ -76,22 +77,20 @@ class Manager: NSObject {
     }
     downloader.cancelModelDownload(model)
 
-    Task { @MainActor in
-      do {
-        // Delete files first, before modifying state
-        for path in model.allLocalModelPaths {
-          if FileManager.default.fileExists(atPath: path) {
-            try FileManager.default.removeItem(atPath: path)
-          }
+    do {
+      // Delete files first, before modifying state
+      for path in model.allLocalModelPaths {
+        if FileManager.default.fileExists(atPath: path) {
+          try FileManager.default.removeItem(atPath: path)
         }
-
-        // Only update state after successful deletion
-        downloadedModelIds.remove(model.id)
-        downloadedModels.removeAll { $0.id == model.id }
-        NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
-      } catch {
-        logger.error("Failed to delete model: \(error.localizedDescription)")
       }
+
+      // Only update state after successful deletion
+      downloadedModelIds.remove(model.id)
+      downloadedModels.removeAll { $0.id == model.id }
+      NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
+    } catch {
+      logger.error("Failed to delete model: \(error.localizedDescription)")
     }
   }
 
@@ -139,10 +138,5 @@ class Manager: NSObject {
         self?.refreshDownloadedModels()
       }
     )
-  }
-
-  private func removeObservers() {
-    observers.forEach { NotificationCenter.default.removeObserver($0) }
-    observers.removeAll()
   }
 }

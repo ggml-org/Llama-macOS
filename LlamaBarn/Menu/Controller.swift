@@ -3,6 +3,7 @@ import Foundation
 
 /// Controls the status bar item and its AppKit menu.
 /// Breaks menu construction into section helpers so each concern stays focused.
+@MainActor
 final class Controller: NSObject, NSMenuDelegate {
   private let statusItem: NSStatusItem
   private let modelManager: Manager
@@ -38,7 +39,7 @@ final class Controller: NSObject, NSMenuDelegate {
 
   deinit {
     refreshWorkItem?.cancel()
-    removeObservers()
+    observers.forEach { NotificationCenter.default.removeObserver($0) }
   }
 
   private func configureStatusItem() {

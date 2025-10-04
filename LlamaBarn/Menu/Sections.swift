@@ -30,6 +30,7 @@ private func makeSectionHeaderItem(_ title: String) -> NSMenuItem {
   return item
 }
 
+@MainActor
 final class MenuHeaderSection {
   private let server: LlamaServer
   private var titleView: HeaderView?
@@ -53,6 +54,7 @@ final class MenuHeaderSection {
   }
 }
 
+@MainActor
 final class MenuSettingsSection {
   func add(to menu: NSMenu, menuWidth: CGFloat) {
     let rootView = SettingsView()
@@ -65,6 +67,7 @@ final class MenuSettingsSection {
   }
 }
 
+@MainActor
 final class InstalledSection {
   private enum Constants {
     static let placeholderTitle = "No installed models"
@@ -181,6 +184,7 @@ final class InstalledSection {
 
 }
 
+@MainActor
 final class CatalogSection: NSObject, NSMenuDelegate {
   private let modelManager: Manager
   private let onDownloadStatusChange: (CatalogEntry) -> Void
@@ -261,6 +265,7 @@ final class CatalogSection: NSObject, NSMenuDelegate {
   }
 }
 
+@MainActor
 final class FooterSection {
   func add(to menu: NSMenu, menuWidth: CGFloat) {
     menu.addItem(.separator())
