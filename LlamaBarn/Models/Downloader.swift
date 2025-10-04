@@ -61,6 +61,7 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
   }
 
   var activeDownloads: [String: ActiveDownload] = [:]
+  private let downloadsLock = NSLock()
 
   private var urlSession: URLSession!
   private let logger = Logger(subsystem: Logging.subsystem, category: "Downloader")
@@ -79,6 +80,8 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
   }
 
   func getDownloadStatus(for model: CatalogEntry) -> ModelStatus {
+    downloadsLock.lock()
+    defer { downloadsLock.unlock() }
     if let download = activeDownloads[model.id] {
       return .downloading(download.progress)
     }
@@ -89,7 +92,11 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
   func downloadModel(_ model: CatalogEntry) throws {
     // Prevent duplicate downloads if user clicks download multiple times or if called from multiple code paths.
     // Without this check, we'd start redundant URLSession tasks, waste bandwidth, and corrupt download state.
-    if activeDownloads[model.id] != nil {
+    downloadsLock.lock()
+    let alreadyDownloading = activeDownloads[model.id] != nil
+    downloadsLock.unlock()
+
+    if alreadyDownloading {
       logger.info("Download already in progress for model: \(model.displayName)")
       return
     }
@@ -122,12 +129,14 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
 
   /// Cancels an ongoing download and removes it from tracking
   func cancelModelDownload(_ model: CatalogEntry) {
+    downloadsLock.lock()
     if let download = activeDownloads[model.id] {
       var mutable = download
       mutable.cancelAllTasks()
       activeDownloads.removeValue(forKey: model.id)
       lastNotificationTime.removeValue(forKey: model.id)
     }
+    downloadsLock.unlock()
     NotificationCenter.default.post(name: .LBModelDownloadsDidChange, object: self)
   }
 
@@ -211,12 +220,14 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
         return
       }
 
+      downloadsLock.lock()
       if self.activeDownloads[modelId] != nil {
         var aggregate = self.activeDownloads[modelId]!
         aggregate.markTaskFinished(downloadTask, fileSize: fileSize)
         if aggregate.isEmpty {
           self.activeDownloads.removeValue(forKey: modelId)
           self.lastNotificationTime.removeValue(forKey: modelId)
+          downloadsLock.unlock()
           self.logger.info("All downloads completed for model: \(model.displayName)")
           NotificationCenter.default.post(
             name: .LBModelDownloadFinished,
@@ -226,9 +237,11 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
           self.postDownloadsDidChange()
         } else {
           self.activeDownloads[modelId] = aggregate
+          downloadsLock.unlock()
           self.postDownloadsDidChange()
         }
       } else {
+        downloadsLock.unlock()
         // This case should not be hit if the download is tracked properly,
         // but if it is, ensure we notify for a refresh.
         NotificationCenter.default.post(
@@ -236,6 +249,7 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
       }
     } catch {
       logger.error("Error moving downloaded file: \(error.localizedDescription)")
+      downloadsLock.lock()
       if var aggregate = self.activeDownloads[modelId] {
         aggregate.removeTask(with: downloadTask.taskIdentifier)
         if aggregate.isEmpty {
@@ -243,8 +257,9 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
         } else {
           self.activeDownloads[modelId] = aggregate
         }
-        NotificationCenter.default.post(name: .LBModelDownloadsDidChange, object: self)
       }
+      downloadsLock.unlock()
+      NotificationCenter.default.post(name: .LBModelDownloadsDidChange, object: self)
     }
   }
 
@@ -266,11 +281,13 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
 
     logger.error("Model download failed (\(reason)) for model: \(model.displayName)")
 
+    downloadsLock.lock()
     if var aggregate = self.activeDownloads[modelId] {
       aggregate.cancelAllTasks()
       self.activeDownloads.removeValue(forKey: modelId)
       self.lastNotificationTime.removeValue(forKey: modelId)
     }
+    downloadsLock.unlock()
     postDownloadsDidChange()
   }
 
@@ -278,13 +295,16 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
     _ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64,
     totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64
   ) {
-    guard let modelId = downloadTask.taskDescription,
-      var download = self.activeDownloads[modelId]
-    else {
+    guard let modelId = downloadTask.taskDescription else { return }
+
+    downloadsLock.lock()
+    guard var download = self.activeDownloads[modelId] else {
+      downloadsLock.unlock()
       return
     }
     download.refreshProgress()
     self.activeDownloads[modelId] = download
+    downloadsLock.unlock()
 
     // Throttle notifications to avoid excessive UI updates
     let now = Date()
@@ -302,16 +322,21 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
 
     if let error = error {
       logger.error("Model download failed: \(error.localizedDescription)")
+      downloadsLock.lock()
       if var aggregate = self.activeDownloads[modelId] {
         aggregate.removeTask(with: task.taskIdentifier)
         if aggregate.isEmpty {
           self.activeDownloads.removeValue(forKey: modelId)
           self.lastNotificationTime.removeValue(forKey: modelId)
+          downloadsLock.unlock()
           postDownloadsDidChange()
         } else {
           self.activeDownloads[modelId] = aggregate
+          downloadsLock.unlock()
           postDownloadsDidChange()
         }
+      } else {
+        downloadsLock.unlock()
       }
     }
   }
@@ -369,6 +394,9 @@ class Downloader: NSObject, URLSessionDownloadDelegate {
     preserveEmpty: Bool = false,
     mutate: (inout ActiveDownload) -> Void
   ) -> ActiveDownload? {
+    downloadsLock.lock()
+    defer { downloadsLock.unlock() }
+
     var aggregate =
       activeDownloads[modelId]
       ?? ActiveDownload(progress: Progress(totalUnitCount: 0), tasks: [:], finishedBytes: 0)

@@ -187,7 +187,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Update icon state
     circleIcon.setLoading(display.isLoading)
     circleIcon.isActive = display.isActive
-    circleIcon.imageView.contentTintColor = .labelColor
 
     needsDisplay = true
   }

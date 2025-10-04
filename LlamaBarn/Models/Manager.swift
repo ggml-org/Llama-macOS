@@ -13,7 +13,9 @@ enum ModelStatus: Equatable {
     case (.available, .available), (.downloaded, .downloaded):
       return true
     case (.downloading(let lhsProgress), .downloading(let rhsProgress)):
-      return lhsProgress === rhsProgress
+      // Compare progress values instead of object identity to catch actual changes
+      return lhsProgress.completedUnitCount == rhsProgress.completedUnitCount
+        && lhsProgress.totalUnitCount == rhsProgress.totalUnitCount
     default:
       return false
     }
@@ -75,27 +77,29 @@ class Manager: NSObject {
       llamaServer.stop()
     }
     downloader.cancelModelDownload(model)
-    let wasTracked = downloadedModelIds.remove(model.id) != nil
-    downloadedModels.removeAll { $0.id == model.id }
-    NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
 
-    Task {
+    // Capture state before modification for potential rollback
+    let wasTracked = downloadedModelIds.contains(model.id)
+    let modelEntry = downloadedModels.first { $0.id == model.id }
+
+    downloadedModelIds.remove(model.id)
+    downloadedModels.removeAll { $0.id == model.id }
+
+    Task { @MainActor in
       do {
         for path in model.allLocalModelPaths {
           if FileManager.default.fileExists(atPath: path) {
             try FileManager.default.removeItem(atPath: path)
           }
         }
-        // Post a final notification after deletion is complete on disk
         NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
       } catch {
-        _ = await MainActor.run {
-          if wasTracked {
-            self.downloadedModelIds.insert(model.id)
-          }
-          if !self.downloadedModels.contains(where: { $0.id == model.id }) {
-            self.downloadedModels.append(model)
-          }
+        // Rollback state changes on failure
+        if wasTracked {
+          downloadedModelIds.insert(model.id)
+        }
+        if let modelEntry, !downloadedModels.contains(where: { $0.id == model.id }) {
+          downloadedModels.append(modelEntry)
         }
         NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
         logger.error("Failed to delete model: \(error.localizedDescription)")

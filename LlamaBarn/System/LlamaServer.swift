@@ -183,13 +183,18 @@ class LlamaServer {
     // Set up termination handler for proper state management
     let currentModelPath = activeModelPath
     process.terminationHandler = { [weak self] proc in
-      guard let self = self, currentModelPath == self.activeModelPath else { return }
+      guard let self = self else { return }
+
+      // Only update state if this termination is for the model we still think is active.
+      // If activeModelPath is nil, we called stop() intentionally and shouldn't update state.
+      guard let activePath = self.activeModelPath, currentModelPath == activePath else { return }
 
       if self.activeProcess == proc {
         self.cleanUpResources()
       }
       DispatchQueue.main.async {
-        if currentModelPath == self.activeModelPath {
+        // Double-check model is still active before updating state
+        if self.activeModelPath == currentModelPath {
           if proc.terminationStatus == 0 {
             self.state = .idle
           } else {
@@ -228,11 +233,12 @@ class LlamaServer {
 
   /// Terminates the currently running llama-server process and resets state
   func stop() {
-    cleanUpResources()
+    // Clear model path first to signal we're stopping intentionally
     activeModelPath = nil
     activeContextLength = nil
     memoryUsageMB = 0
     state = .idle
+    cleanUpResources()
   }
 
   /// Cleans up all background resources tied to the server process

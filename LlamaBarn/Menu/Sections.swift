@@ -79,6 +79,22 @@ final class InstalledSection {
   /// Called during live refresh to keep the UI in sync while menu stays open.
   func refresh(in menu: NSMenu) {
     guard let range = installedSectionRange(in: menu) else { return }
+    let currentModels = getInstalledModels()
+    let currentIds = Set(currentModels.map { $0.id })
+
+    // Get existing model IDs in the section
+    let existingIds = Set(
+      range.compactMap { index -> String? in
+        guard let id = menu.items[index].representedObject as? String else { return nil }
+        return id == "placeholder" ? nil : id
+      })
+
+    // Only rebuild if membership changed (models added/removed)
+    if currentIds == existingIds {
+      return
+    }
+
+    // Membership changed, rebuild the section
     for index in range.reversed() {
       menu.removeItem(at: index)
     }
@@ -112,6 +128,7 @@ final class InstalledSection {
     let item = NSMenuItem()
     item.title = Constants.placeholderTitle
     item.isEnabled = false
+    item.representedObject = "placeholder" as NSString
     return item
   }
 

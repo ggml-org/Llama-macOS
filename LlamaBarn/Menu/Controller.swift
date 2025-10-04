@@ -26,6 +26,7 @@ final class Controller: NSObject, NSMenuDelegate {
   private var isSettingsVisible = false
   private var menuWidth: CGFloat = 260
   private var observers: [NSObjectProtocol] = []
+  private var refreshWorkItem: DispatchWorkItem?
 
   init(modelManager: Manager = .shared, server: LlamaServer = .shared) {
     self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -67,6 +68,8 @@ final class Controller: NSObject, NSMenuDelegate {
       (item.view as? ItemView)?.setHoverHighlight(false)
     }
     guard menu === statusItem.menu else { return }
+    refreshWorkItem?.cancel()
+    refreshWorkItem = nil
     removeObservers()
     isSettingsVisible = false
   }
@@ -163,6 +166,18 @@ final class Controller: NSObject, NSMenuDelegate {
   }
 
   private func performRefresh() {
+    // Debounce rapid refresh calls to prevent excessive UI updates.
+    // Cancel any pending refresh and schedule a new one after 50ms.
+    // This coalesces multiple notifications within a single run loop cycle.
+    refreshWorkItem?.cancel()
+    let workItem = DispatchWorkItem { [weak self] in
+      self?.executeRefresh()
+    }
+    refreshWorkItem = workItem
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
+  }
+
+  private func executeRefresh() {
     if let button = statusItem.button {
       let running = server.isRunning
       let imageName = running ? "MenuIconOn" : "MenuIconOff"
