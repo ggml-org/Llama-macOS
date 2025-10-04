@@ -5,8 +5,8 @@ import Foundation
 /// rounded-rect family icon, family name, and a short description.
 final class FamilyInfoView: NSView {
   private let iconView = IconBadgeView(cornerStyle: .rounded)
-  private let titleLabel = NSTextField(labelWithString: "")
-  private let descriptionLabel = NSTextField(labelWithString: "")
+  private let titleLabel = Typography.makePrimaryLabel()
+  private let descriptionLabel = Typography.makeSecondaryLabel()
   private let container = NSView()
 
   init(familyName: String, iconName: String, blurb: String) {
@@ -32,14 +32,10 @@ final class FamilyInfoView: NSView {
     iconView.setImage(NSImage(named: iconName))
 
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
-    titleLabel.font = Typography.primary
-    titleLabel.textColor = .controlTextColor
     titleLabel.stringValue = familyName
     titleLabel.lineBreakMode = .byTruncatingTail
 
     descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
-    descriptionLabel.font = Typography.secondary
-    descriptionLabel.textColor = .controlTextColor
     descriptionLabel.stringValue = blurb
     descriptionLabel.lineBreakMode = .byWordWrapping
 

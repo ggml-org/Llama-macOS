@@ -1,7 +1,7 @@
 import AppKit
 
 final class SectionHeaderView: NSView {
-  private let label = NSTextField(labelWithString: "")
+  private let label = Typography.makeSecondaryLabel()
   private let container = NSView()
 
   init(title: String) {
@@ -23,8 +23,6 @@ final class SectionHeaderView: NSView {
 
     container.translatesAutoresizingMaskIntoConstraints = false
     label.translatesAutoresizingMaskIntoConstraints = false
-    label.font = Typography.secondary
-    label.textColor = .controlTextColor
     label.stringValue = title
 
     addSubview(container)

@@ -5,8 +5,8 @@ import Foundation
 final class HeaderView: NSView {
 
   private unowned let server: LlamaServer
-  private let appNameLabel = NSTextField(labelWithString: "")
-  private let serverStatusLabel = NSTextField(labelWithString: "")
+  private let appNameLabel = Typography.makePrimaryLabel()
+  private let serverStatusLabel = Typography.makeSecondaryLabel()
   private let backgroundView = NSView()
   private let settingsButton = NSButton()
   private let isSettingsVisible: Bool
@@ -29,11 +29,8 @@ final class HeaderView: NSView {
     backgroundView.translatesAutoresizingMaskIntoConstraints = false
     backgroundView.wantsLayer = true
 
-    appNameLabel.font = Typography.primary
-    appNameLabel.textColor = .controlTextColor
     appNameLabel.stringValue = "LlamaBarn"
 
-    serverStatusLabel.font = Typography.secondary
     serverStatusLabel.allowsEditingTextAttributes = true
     serverStatusLabel.isSelectable = true
 

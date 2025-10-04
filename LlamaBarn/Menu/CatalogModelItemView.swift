@@ -8,9 +8,9 @@ final class CatalogModelItemView: ItemView {
   private let membershipChanged: () -> Void
 
   private let statusIndicator = NSImageView()
-  private let labelField = NSTextField(labelWithString: "")
-  private let metadataLabel = NSTextField(labelWithString: "")
-  private let progressLabel = NSTextField(labelWithString: "")
+  private let labelField = Typography.makePrimaryLabel()
+  private let metadataLabel = Typography.makeSecondaryLabel()
+  private let progressLabel = Typography.makeSecondaryLabel()
   private var rowClickRecognizer: NSClickGestureRecognizer?
   // Background handled by MenuItemView
 
@@ -41,16 +41,11 @@ final class CatalogModelItemView: ItemView {
     wantsLayer = true
     statusIndicator.symbolConfiguration = .init(pointSize: 12, weight: .regular)
 
-    labelField.font = Typography.primary
-    labelField.textColor = .controlTextColor
     labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
     // Configure metadata label (second line showing size, context, warnings)
     // Contains all metadata fields in a single attributed string (e.g., "📦 4.28 GB • 🧠 84k")
-    metadataLabel.font = Typography.secondary
-    metadataLabel.textColor = .controlTextColor
 
-    progressLabel.font = Typography.secondary
     progressLabel.alignment = .right
 
     // Two-line text column (title + metadata)

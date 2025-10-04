@@ -282,9 +282,7 @@ final class FooterSection {
       versionText = "\(AppInfo.shortVersion) • llama.cpp \(AppInfo.llamaCppVersion)"
     }
 
-    let versionLabel = NSTextField(labelWithString: versionText)
-    versionLabel.font = Typography.primary
-    versionLabel.textColor = .controlTextColor
+    let versionLabel = Typography.makePrimaryLabel(versionText)
     versionLabel.lineBreakMode = .byTruncatingMiddle
     versionLabel.translatesAutoresizingMaskIntoConstraints = false
 

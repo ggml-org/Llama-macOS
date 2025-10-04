@@ -14,9 +14,9 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   // Subviews
   private let circleIcon = IconBadgeView()
-  private let modelNameLabel = NSTextField(labelWithString: "")
-  private let metadataLabel = NSTextField(labelWithString: "")
-  private let progressLabel = NSTextField(labelWithString: "")
+  private let modelNameLabel = Typography.makePrimaryLabel()
+  private let metadataLabel = Typography.makeSecondaryLabel()
+  private let progressLabel = Typography.makeSecondaryLabel()
   private let cancelImageView = NSImageView()
   private let deleteImageView = NSImageView()
 
@@ -46,15 +46,9 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     wantsLayer = true
     circleIcon.setImage(NSImage(named: model.icon))
 
-    modelNameLabel.font = Typography.primary
-    modelNameLabel.textColor = .controlTextColor
-
     // Configure metadata label (second line showing size, context, memory)
     // Contains all metadata fields in a single attributed string (e.g., "📦 2.53 GB • 🧠 84k")
-    metadataLabel.font = Typography.secondary
-    metadataLabel.textColor = .controlTextColor
 
-    progressLabel.font = Typography.secondary
     progressLabel.alignment = .right
 
     configureImageView(cancelImageView, symbol: "xmark", pointSize: 12, color: .systemRed)
