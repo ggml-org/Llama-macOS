@@ -40,14 +40,16 @@ final class HeaderView: NSView {
     stack.spacing = 2
 
     // Trailing Settings and Quit controls (header buttons)
-    settingsButton.bezelStyle = .texturedRounded
-    settingsButton.title = "Settings"
-    settingsButton.font = Typography.secondary
-    settingsButton.setButtonType(.toggle)
+    settingsButton.title = ""
+    let gearImage = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Settings")
+    let symbolConfig = NSImage.SymbolConfiguration(pointSize: 13, weight: .regular)
+      .applying(.init(paletteColors: [isSettingsVisible ? .linkColor : .controlTextColor]))
+    settingsButton.image = gearImage?.withSymbolConfiguration(symbolConfig)
+    settingsButton.isBordered = false
+    settingsButton.bezelStyle = .rounded
     settingsButton.target = self
     settingsButton.action = #selector(toggleSettings)
     settingsButton.keyEquivalent = ","
-    settingsButton.state = isSettingsVisible ? .on : .off
 
     // Horizontal container: [stack][spacer][settings][quit]
     let headerStackView = NSStackView()
