@@ -43,7 +43,7 @@ enum InstalledModelPresenter {
       let metadataText = makeMetadataText(
         for: model,
         isRunning: isRunning,
-        memoryUsageMB: server.memoryUsageMB
+        memoryUsageMb: server.memoryUsageMb
       )
 
       return Display(
@@ -60,22 +60,22 @@ enum InstalledModelPresenter {
   private static func makeMetadataText(
     for model: CatalogEntry,
     isRunning: Bool,
-    memoryUsageMB: Double
+    memoryUsageMb: Double
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
     result.append(MetadataLabel.make(icon: MetadataLabel.sizeSymbol, text: model.totalSize))
 
-    if let recommendedCtx = Catalog.recommendedCtxWindow(for: model) {
+    if let usableCtx = Catalog.usableCtxWindow(for: model) {
       result.append(MetadataLabel.makeSeparator())
       result.append(
         MetadataLabel.make(
           icon: MetadataLabel.contextSymbol,
-          text: TokenFormatters.shortTokens(recommendedCtx)
+          text: TokenFormatters.shortTokens(usableCtx)
         ))
     }
 
-    if isRunning, let memoryText = MemoryFormatters.runtime(memoryUsageMB) {
+    if isRunning, let memoryText = MemoryFormatters.runtime(memoryUsageMb) {
       result.append(MetadataLabel.makeSeparator())
       result.append(MetadataLabel.make(icon: MetadataLabel.memorySymbol, text: memoryText))
     }

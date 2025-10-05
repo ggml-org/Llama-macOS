@@ -10,7 +10,7 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
   struct ActiveDownload {
     var progress: Progress
     var tasks: [Int: URLSessionDownloadTask]
-    var finishedBytes: Int64 = 0
+    var completedFilesBytes: Int64 = 0
 
     mutating func addTask(_ task: URLSessionDownloadTask) {
       tasks[task.taskIdentifier] = task
@@ -20,7 +20,7 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     mutating func cancelAllTasks() {
       tasks.values.forEach { $0.cancel() }
       tasks.removeAll()
-      finishedBytes = 0
+      completedFilesBytes = 0
       refreshProgress()
     }
 
@@ -31,7 +31,7 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
 
     mutating func markTaskFinished(_ task: URLSessionDownloadTask, fileSize: Int64) {
       tasks.removeValue(forKey: task.taskIdentifier)
-      finishedBytes += fileSize
+      completedFilesBytes += fileSize
       refreshProgress()
     }
 
@@ -49,8 +49,8 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
         expectedActiveBytes += expected > 0 ? expected : received
       }
 
-      let totalCompleted = finishedBytes + activeBytes
-      let totalExpected = max(progress.totalUnitCount, finishedBytes + expectedActiveBytes)
+      let totalCompleted = completedFilesBytes + activeBytes
+      let totalExpected = max(progress.totalUnitCount, completedFilesBytes + expectedActiveBytes)
       progress.totalUnitCount = max(totalExpected, 1)
       progress.completedUnitCount = totalCompleted
     }
@@ -100,16 +100,16 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     // Publish aggregate before starting tasks to avoid race with delegate callbacks
     let modelId = model.id
     let totalUnitCount = max(remainingBytesRequired(for: model), 1)
-    updateActiveDownload(for: modelId, preserveEmpty: true) { aggregate in
+    modifyDownload(for: modelId, preserveEmpty: true) { aggregate in
       aggregate.progress = Progress(totalUnitCount: totalUnitCount)
-      aggregate.finishedBytes = 0
+      aggregate.completedFilesBytes = 0
       aggregate.refreshProgress()
     }
 
     for fileUrl in filesToDownload {
       let task = urlSession.downloadTask(with: fileUrl)
       task.taskDescription = modelId
-      updateActiveDownload(for: modelId, preserveEmpty: true) { aggregate in
+      modifyDownload(for: modelId, preserveEmpty: true) { aggregate in
         aggregate.addTask(task)
       }
       task.resume()
@@ -193,6 +193,10 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
       let fileSize =
         (try? FileManager.default.attributesOfItem(
           atPath: destinationURL.path)[.size] as? NSNumber)?.int64Value ?? 0
+      // Sanity check downloaded file size to catch truncated/corrupted downloads.
+      // Threshold is 1 MB minimum, or half the expected size if expected size < 20 MB.
+      // This catches obviously broken downloads (network errors, server issues) while
+      // allowing small models and avoiding false positives on large multi-GB files.
       let tenMB: Int64 = 10 * 1_000_000
       let minAcceptableBytes = min(model.fileSize / 2, tenMB)
       let minThreshold = max(Int64(1_000_000), minAcceptableBytes)
@@ -374,14 +378,14 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
   }
 
   @discardableResult
-  private func updateActiveDownload(
+  private func modifyDownload(
     for modelId: String,
     preserveEmpty: Bool = false,
     mutate: (inout ActiveDownload) -> Void
   ) -> ActiveDownload? {
     var aggregate =
       activeDownloads[modelId]
-      ?? ActiveDownload(progress: Progress(totalUnitCount: 0), tasks: [:], finishedBytes: 0)
+      ?? ActiveDownload(progress: Progress(totalUnitCount: 0), tasks: [:], completedFilesBytes: 0)
     mutate(&aggregate)
     if aggregate.isEmpty && !preserveEmpty {
       activeDownloads.removeValue(forKey: modelId)

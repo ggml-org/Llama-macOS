@@ -22,7 +22,7 @@ enum Catalog {
   }
 
   private static var compatibilityCache: [String: CompatibilityInfo] = [:]
-  private static var recommendedContextCache: [String: Int?] = [:]
+  private static var usableContextCache: [String: [Int?: Int?]] = [:]
 
   private static func compatibilityCacheKey(_ model: CatalogEntry, _ tokens: Double) -> String {
     "\(model.id)_\(tokens)"
@@ -48,7 +48,7 @@ enum Catalog {
     let isFullPrecision: Bool
     let fileSize: Int64
     /// Estimated KV-cache bytes needed for a 1k-token context.
-    let ctxFootprint: Int
+    let ctxBytesPer1kTokens: Int
     let downloadUrl: URL
     let additionalParts: [URL]?
     let serverArgs: [String]
@@ -63,7 +63,7 @@ enum Catalog {
         releaseDate: model.releaseDate,
         ctxWindow: model.ctxWindow,
         fileSize: fileSize,
-        ctxFootprint: ctxFootprint,
+        ctxBytesPer1kTokens: ctxBytesPer1kTokens,
         overheadMultiplier: family.overheadMultiplier,
         downloadUrl: downloadUrl,
         additionalParts: additionalParts,
@@ -184,16 +184,23 @@ enum Catalog {
     return SystemMemory.memoryMB
   }
 
-  /// Computes the maximum context window (in tokens) that fits within the allowed memory budget.
+  /// Computes the usable context window (in tokens) that fits within the allowed memory budget.
   /// - Parameters:
   ///   - model: Catalog entry under evaluation.
   ///   - desiredTokens: Upper bound requested by the caller. When nil, defaults to the model's max.
   /// - Returns: Rounded context window (multiple of 1024) or nil when the model cannot satisfy the
   ///            minimum requirements.
-  static func safeCtxWindow(
+  static func usableCtxWindow(
     for model: CatalogEntry,
     desiredTokens: Int? = nil
   ) -> Int? {
+    // Check cache
+    if let modelCache = usableContextCache[model.id],
+      let cached = modelCache[desiredTokens]
+    {
+      return cached
+    }
+
     let minimumTokens = Int(minimumCtxWindowTokens)
     guard model.ctxWindow >= minimumTokens else { return nil }
 
@@ -209,7 +216,7 @@ enum Catalog {
     let effectiveDesired = desiredTokens.flatMap { $0 > 0 ? $0 : nil } ?? model.ctxWindow
     let desiredTokensDouble = Double(effectiveDesired)
 
-    let ctxBytesPerToken = Double(model.ctxFootprint) / 1_000.0
+    let ctxBytesPerToken = Double(model.ctxBytesPer1kTokens) / 1_000.0
     let maxTokensFromMemory: Double = {
       if ctxBytesPerToken <= 0 {
         return Double(model.ctxWindow)
@@ -227,17 +234,14 @@ enum Catalog {
     var rounded = (floored / 1_024) * 1_024
     if rounded < minimumTokens { rounded = minimumTokens }
     if rounded > model.ctxWindow { rounded = model.ctxWindow }
-    return rounded
-  }
 
-  /// Recommended context window to launch the model with, honoring memory constraints.
-  static func recommendedCtxWindow(for model: CatalogEntry) -> Int? {
-    if let cached = recommendedContextCache[model.id] {
-      return cached
+    // Cache the result
+    if usableContextCache[model.id] == nil {
+      usableContextCache[model.id] = [:]
     }
-    let result = safeCtxWindow(for: model)
-    recommendedContextCache[model.id] = result
-    return result
+    usableContextCache[model.id]?[desiredTokens] = rounded
+
+    return rounded
   }
 
   /// Computes compatibility info for a model and caches the result
@@ -271,11 +275,11 @@ enum Catalog {
     // Check memory requirements
     let systemMemoryMB = systemMemoryMB
     let memoryFraction = availableMemoryFraction(forSystemMemoryMB: systemMemoryMB)
-    let estimatedMemoryUsageMB = runtimeMemoryUsageMB(
+    let estimatedMemoryUsageMb = runtimeMemoryUsageMb(
       for: model, ctxWindowTokens: ctxWindowTokens)
 
     func memoryRequirementSummary() -> String {
-      let requiredTotalMB = UInt64(ceil(Double(estimatedMemoryUsageMB) / memoryFraction))
+      let requiredTotalMB = UInt64(ceil(Double(estimatedMemoryUsageMb) / memoryFraction))
       let gb = ceil(Double(requiredTotalMB) / 1024.0)
       return String(format: "requires %.0f GB+ of memory", gb)
     }
@@ -287,7 +291,7 @@ enum Catalog {
     }
 
     let availableMemoryMB = Double(systemMemoryMB) * memoryFraction
-    let isCompatible = estimatedMemoryUsageMB <= UInt64(availableMemoryMB)
+    let isCompatible = estimatedMemoryUsageMb <= UInt64(availableMemoryMB)
 
     return cache(
       CompatibilityInfo(
@@ -314,7 +318,7 @@ enum Catalog {
     getCompatibilityInfo(model, ctxWindowTokens: ctxWindowTokens).incompatibilitySummary
   }
 
-  static func runtimeMemoryUsageMB(
+  static func runtimeMemoryUsageMb(
     for model: CatalogEntry,
     ctxWindowTokens: Double = compatibilityCtxWindowTokens
   ) -> UInt64 {
@@ -322,7 +326,7 @@ enum Catalog {
     let fileSizeMB = Double(model.fileSize) / 1_048_576.0
     let fileSizeWithOverheadMB = fileSizeMB * model.overheadMultiplier
     let ctxMultiplier = ctxWindowTokens / 1_000.0
-    let ctxBytes = Double(model.ctxFootprint) * ctxMultiplier
+    let ctxBytes = Double(model.ctxBytesPer1kTokens) * ctxMultiplier
     let ctxMB = ctxBytes / 1_048_576.0
     let totalMB = fileSizeWithOverheadMB + ctxMB
     return UInt64(ceil(totalMB))
@@ -354,7 +358,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 8_709_519_872,
-            ctxFootprint: 150_994_944,
+            ctxBytesPer1kTokens: 150_994_944,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF/resolve/main/DeepSeek-R1-0528-Qwen3-8B-Q8_0.gguf"
@@ -368,7 +372,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 5_027_785_216,
-              ctxFootprint: 150_994_944,
+              ctxBytesPer1kTokens: 150_994_944,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF/resolve/main/DeepSeek-R1-0528-Qwen3-8B-Q4_K_M.gguf"
@@ -399,7 +403,7 @@ enum CatalogFamilies {
             quantization: "mxfp4",
             isFullPrecision: true,
             fileSize: 12_109_566_560,
-            ctxFootprint: 25_165_824,
+            ctxBytesPer1kTokens: 25_165_824,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/main/gpt-oss-20b-mxfp4.gguf"
@@ -419,7 +423,7 @@ enum CatalogFamilies {
             quantization: "mxfp4",
             isFullPrecision: true,
             fileSize: 63_387_346_464,
-            ctxFootprint: 37_748_736,
+            ctxBytesPer1kTokens: 37_748_736,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gpt-oss-120b-GGUF/resolve/main/gpt-oss-120b-mxfp4-00001-of-00003.gguf"
@@ -459,7 +463,7 @@ enum CatalogFamilies {
             quantization: "Q4_0",
             isFullPrecision: true,
             fileSize: 15_908_791_488,
-            ctxFootprint: 83_886_080,
+            ctxBytesPer1kTokens: 83_886_080,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gemma-3-27b-it-qat-GGUF/resolve/main/gemma-3-27b-it-qat-Q4_0.gguf"
@@ -479,7 +483,7 @@ enum CatalogFamilies {
             quantization: "Q4_0",
             isFullPrecision: true,
             fileSize: 7_131_017_792,
-            ctxFootprint: 67_108_864,
+            ctxBytesPer1kTokens: 67_108_864,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gemma-3-12b-it-qat-GGUF/resolve/main/gemma-3-12b-it-qat-Q4_0.gguf"
@@ -499,7 +503,7 @@ enum CatalogFamilies {
             quantization: "Q4_0",
             isFullPrecision: true,
             fileSize: 2_526_080_992,
-            ctxFootprint: 20_971_520,
+            ctxBytesPer1kTokens: 20_971_520,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gemma-3-4b-it-qat-GGUF/resolve/main/gemma-3-4b-it-qat-Q4_0.gguf"
@@ -519,7 +523,7 @@ enum CatalogFamilies {
             quantization: "Q4_0",
             isFullPrecision: true,
             fileSize: 720_425_600,
-            ctxFootprint: 4_194_304,
+            ctxBytesPer1kTokens: 4_194_304,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gemma-3-1b-it-qat-GGUF/resolve/main/gemma-3-1b-it-qat-Q4_0.gguf"
@@ -539,7 +543,7 @@ enum CatalogFamilies {
             quantization: "Q4_0",
             isFullPrecision: true,
             fileSize: 241_410_624,
-            ctxFootprint: 3_145_728,
+            ctxBytesPer1kTokens: 3_145_728,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gemma-3-270m-it-qat-GGUF/resolve/main/gemma-3-270m-it-qat-Q4_0.gguf"
@@ -570,7 +574,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 7_353_292_256,
-            ctxFootprint: 14_680_064,
+            ctxBytesPer1kTokens: 14_680_064,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gemma-3n-E4B-it-GGUF/resolve/main/gemma-3n-E4B-it-Q8_0.gguf"
@@ -584,7 +588,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 4_539_054_208,
-              ctxFootprint: 14_680_064,
+              ctxBytesPer1kTokens: 14_680_064,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/gemma-3n-E4B-it-GGUF/resolve/main/gemma-3n-E4B-it-Q4_K_M.gguf"
@@ -604,7 +608,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 4_788_112_064,
-            ctxFootprint: 12_582_912,
+            ctxBytesPer1kTokens: 12_582_912,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/gemma-3n-E2B-it-GGUF/resolve/main/gemma-3n-E2B-it-Q8_0.gguf"
@@ -618,7 +622,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 3_026_881_888,
-              ctxFootprint: 12_582_912,
+              ctxBytesPer1kTokens: 12_582_912,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/gemma-3n-E2B-it-GGUF/resolve/main/gemma-3n-E2B-it-Q4_K_M.gguf"
@@ -649,7 +653,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 32_483_935_392,
-            ctxFootprint: 100_663_296,
+            ctxBytesPer1kTokens: 100_663_296,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q8_0.gguf"
@@ -663,7 +667,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 18_556_689_568,
-              ctxFootprint: 100_663_296,
+              ctxBytesPer1kTokens: 100_663_296,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
@@ -694,7 +698,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 32_483_932_576,
-            ctxFootprint: 100_663_296,
+            ctxBytesPer1kTokens: 100_663_296,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/Qwen3-30B-A3B-Instruct-2507-Q8_0-GGUF/resolve/main/qwen3-30b-a3b-instruct-2507-q8_0.gguf"
@@ -708,7 +712,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 18_556_686_752,
-              ctxFootprint: 100_663_296,
+              ctxBytesPer1kTokens: 100_663_296,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF/resolve/main/Qwen3-30B-A3B-Instruct-2507-Q4_K_M.gguf"
@@ -728,7 +732,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 4_280_405_600,
-            ctxFootprint: 150_994_944,
+            ctxBytesPer1kTokens: 150_994_944,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/Qwen3-4B-Instruct-2507-Q8_0-GGUF/resolve/main/qwen3-4b-instruct-2507-q8_0.gguf"
@@ -742,7 +746,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 2_497_281_120,
-              ctxFootprint: 150_994_944,
+              ctxBytesPer1kTokens: 150_994_944,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
@@ -773,7 +777,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 32_483_932_576,
-            ctxFootprint: 100_663_296,
+            ctxBytesPer1kTokens: 100_663_296,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/Qwen3-30B-A3B-Thinking-2507-Q8_0-GGUF/resolve/main/qwen3-30b-a3b-thinking-2507-q8_0.gguf"
@@ -787,7 +791,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 18_556_686_752,
-              ctxFootprint: 100_663_296,
+              ctxBytesPer1kTokens: 100_663_296,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/Qwen3-30B-A3B-Thinking-2507-GGUF/resolve/main/Qwen3-30B-A3B-Thinking-2507-Q4_K_M.gguf"
@@ -807,7 +811,7 @@ enum CatalogFamilies {
             quantization: "Q8_0",
             isFullPrecision: true,
             fileSize: 4_280_405_632,
-            ctxFootprint: 150_994_944,
+            ctxBytesPer1kTokens: 150_994_944,
             downloadUrl: URL(
               string:
                 "https://huggingface.co/ggml-org/Qwen3-4B-Thinking-2507-Q8_0-GGUF/resolve/main/qwen3-4b-thinking-2507-q8_0.gguf"
@@ -821,7 +825,7 @@ enum CatalogFamilies {
               quantization: "Q4_K_M",
               isFullPrecision: false,
               fileSize: 2_497_281_152,
-              ctxFootprint: 150_994_944,
+              ctxBytesPer1kTokens: 150_994_944,
               downloadUrl: URL(
                 string:
                   "https://huggingface.co/unsloth/Qwen3-4B-Thinking-2507-GGUF/resolve/main/Qwen3-4B-Thinking-2507-Q4_K_M.gguf"

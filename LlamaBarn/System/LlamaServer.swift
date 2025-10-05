@@ -68,7 +68,7 @@ class LlamaServer {
   }
   var activeModelPath: String?
   private(set) var activeCtxWindow: Int?
-  var memoryUsageMB: Double = 0 {
+  var memoryUsageMb: Double = 0 {
     didSet { NotificationCenter.default.post(name: .LBServerMemoryDidChange, object: self) }
   }
 
@@ -241,7 +241,7 @@ class LlamaServer {
     activeCtxWindow = nil
     stateLock.unlock()
 
-    memoryUsageMB = 0
+    memoryUsageMb = 0
     state = .idle
     cleanUpResources()
 
@@ -345,14 +345,14 @@ class LlamaServer {
   ) -> (applied: Int, args: [String])? {
     let sanitizedArgs = Self.removeContextArguments(from: model.serverArgs)
     guard
-      let safeCtx = Catalog.safeCtxWindow(
+      let usableCtx = Catalog.usableCtxWindow(
         for: model, desiredTokens: requestedCtx)
     else {
-      logger.error("No safe context window for model \(model.displayName, privacy: .public)")
+      logger.error("No usable context window for model \(model.displayName, privacy: .public)")
       return nil
     }
-    let args = ["-c", String(safeCtx)] + sanitizedArgs
-    return (safeCtx, args)
+    let args = ["-c", String(usableCtx)] + sanitizedArgs
+    return (usableCtx, args)
   }
 
   private static func removeContextArguments(from args: [String]) -> [String] {
@@ -428,11 +428,11 @@ class LlamaServer {
       let (_, response) = try await URLSession.shared.data(for: request)
 
       if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-        let memoryValue = measureMemoryUsageMB()
+        let memoryValue = measureMemoryUsageMb()
         _ = await MainActor.run {
           if self.state != .idle {
             self.state = .running
-            self.memoryUsageMB = memoryValue
+            self.memoryUsageMb = memoryValue
             self.startMemoryMonitoring()
           }
         }
@@ -454,9 +454,9 @@ class LlamaServer {
           break
         }
 
-        let memoryValue = self.measureMemoryUsageMB()
+        let memoryValue = self.measureMemoryUsageMb()
         _ = await MainActor.run {
-          self.memoryUsageMB = memoryValue
+          self.memoryUsageMb = memoryValue
         }
 
         try? await Task.sleep(nanoseconds: 2_000_000_000)
@@ -470,7 +470,7 @@ class LlamaServer {
   }
 
   /// Measures the current memory footprint of the llama-server process
-  func measureMemoryUsageMB() -> Double {
+  func measureMemoryUsageMb() -> Double {
     guard let process = activeProcess, process.isRunning else { return 0 }
 
     let task = Process()

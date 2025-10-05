@@ -40,13 +40,13 @@ enum CatalogModelPresenter {
       }
     }()
 
-    let recommendedCtx = Catalog.recommendedCtxWindow(for: model)
+    let usableCtx = Catalog.usableCtxWindow(for: model)
 
     let contextString: String
 
     if compatible {
       contextString = {
-        if let usable = recommendedCtx, usable < model.ctxWindow {
+        if let usable = usableCtx, usable < model.ctxWindow {
           let max = model.ctxWindow
           return "\(TokenFormatters.shortTokens(usable)) of \(TokenFormatters.shortTokens(max))"
         }
@@ -82,14 +82,14 @@ enum CatalogModelPresenter {
       rowTooltip = nil
     }
 
-    let memoryMB = Catalog.runtimeMemoryUsageMB(
+    let memoryMb = Catalog.runtimeMemoryUsageMb(
       for: model,
-      ctxWindowTokens: Double(recommendedCtx ?? model.ctxWindow)
+      ctxWindowTokens: Double(usableCtx ?? model.ctxWindow)
     )
 
     let metadataText = makeMetadataText(
       model: model,
-      memoryMb: memoryMB,
+      memoryMb: memoryMb,
       contextString: contextString,
       showsWarning: showsWarning
     )

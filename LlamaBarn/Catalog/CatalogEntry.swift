@@ -10,7 +10,7 @@ struct CatalogEntry: Identifiable, Codable {
   let fileSize: Int64  // File size in bytes for progress tracking and display
   /// Estimated KV-cache footprint for a 1k-token context, in bytes.
   /// This helps us preflight memory requirements before launching llama-server.
-  let ctxFootprint: Int
+  let ctxBytesPer1kTokens: Int
   /// Overhead multiplier for the model file size (e.g., 1.3 = 30% overhead).
   /// Applied during memory calculations to account for loading overhead.
   let overheadMultiplier: Double
@@ -30,7 +30,7 @@ struct CatalogEntry: Identifiable, Codable {
     releaseDate: Date,
     ctxWindow: Int,
     fileSize: Int64,
-    ctxFootprint: Int,
+    ctxBytesPer1kTokens: Int,
     overheadMultiplier: Double = 1.05,
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
@@ -45,7 +45,7 @@ struct CatalogEntry: Identifiable, Codable {
     self.releaseDate = releaseDate
     self.ctxWindow = ctxWindow
     self.fileSize = fileSize
-    self.ctxFootprint = ctxFootprint
+    self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
     self.overheadMultiplier = overheadMultiplier
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts
@@ -89,7 +89,7 @@ struct CatalogEntry: Identifiable, Codable {
       ctxWindow > 0
       ? Double(ctxWindow)
       : Catalog.compatibilityCtxWindowTokens
-    return Catalog.runtimeMemoryUsageMB(
+    return Catalog.runtimeMemoryUsageMb(
       for: self, ctxWindowTokens: maxTokens)
   }
 
