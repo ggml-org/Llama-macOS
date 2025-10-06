@@ -11,7 +11,6 @@ final class FamilyHeaderView: NSView {
   init(familyName: String, iconName: String, blurb: String) {
     super.init(frame: .zero)
     translatesAutoresizingMaskIntoConstraints = false
-    wantsLayer = true
 
     setAccessibilityElement(true)
     setAccessibilityRole(.group)
