@@ -36,14 +36,9 @@ class LlamaServer {
 
   // Lock protects shared state accessed from background threads (process termination handler).
   // Unlike ModelManager and ModelDownloader (main-thread-only), LlamaServer needs synchronization because
-  // Process.terminationHandler runs on a background thread and accesses activeModelPath and
-  // isIntentionalShutdown. State updates still dispatch to main for UI consistency.
+  // Process.terminationHandler runs on a background thread and accesses activeModelPath.
+  // State updates still dispatch to main for UI consistency.
   private let stateLock = NSLock()
-
-  // Tracks whether we're intentionally stopping the process to suppress the termination handler.
-  // Without this flag, the async termination handler would fire when we call stop() and incorrectly
-  // treat our intentional shutdown as a crash, updating state when we've already cleaned up.
-  private var isIntentionalShutdown = false
 
   enum ServerState: Equatable {
     case idle
@@ -197,12 +192,12 @@ class LlamaServer {
       guard let self = self else { return }
 
       self.stateLock.lock()
-      let isIntentional = self.isIntentionalShutdown
+      let currentState = self.state
       let hadActiveModel = self.activeModelPath != nil
       self.stateLock.unlock()
 
-      // Skip handler if this was an intentional shutdown or no model was running
-      guard !isIntentional, hadActiveModel else { return }
+      // Skip handler if we're already idle (intentional stop) or no model was running
+      guard currentState != .idle, hadActiveModel else { return }
 
       if self.activeProcess == proc {
         self.cleanUpResources()
@@ -235,19 +230,16 @@ class LlamaServer {
 
   /// Terminates the currently running llama-server process and resets state
   func stop() {
+    // Set state to .idle first so termination handler knows this is intentional
+    memoryUsageMb = 0
+    state = .idle
+
     stateLock.lock()
-    isIntentionalShutdown = true
     activeModelPath = nil
     activeCtxWindow = nil
     stateLock.unlock()
 
-    memoryUsageMb = 0
-    state = .idle
     cleanUpResources()
-
-    stateLock.lock()
-    isIntentionalShutdown = false
-    stateLock.unlock()
   }
 
   /// Cleans up all background resources tied to the server process

@@ -100,20 +100,20 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     // Publish aggregate before starting tasks to avoid race with delegate callbacks
     let modelId = model.id
     let totalUnitCount = max(remainingBytesRequired(for: model), 1)
-    modifyDownload(for: modelId, preserveEmpty: true) { aggregate in
-      aggregate.progress = Progress(totalUnitCount: totalUnitCount)
-      aggregate.completedFilesBytes = 0
-      aggregate.refreshProgress()
-    }
+    var aggregate = ActiveDownload(
+      progress: Progress(totalUnitCount: totalUnitCount),
+      tasks: [:],
+      completedFilesBytes: 0
+    )
 
     for fileUrl in filesToDownload {
       let task = urlSession.downloadTask(with: fileUrl)
       task.taskDescription = modelId
-      modifyDownload(for: modelId, preserveEmpty: true) { aggregate in
-        aggregate.addTask(task)
-      }
+      aggregate.addTask(task)
       task.resume()
     }
+
+    activeDownloads[modelId] = aggregate
 
     postDownloadsDidChange()
   }
@@ -375,24 +375,6 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
       let haveStr = DiskSpace.formatGB(available)
       throw DownloadError.notEnoughDiskSpace(required: needStr, available: haveStr)
     }
-  }
-
-  @discardableResult
-  private func modifyDownload(
-    for modelId: String,
-    preserveEmpty: Bool = false,
-    mutate: (inout ActiveDownload) -> Void
-  ) -> ActiveDownload? {
-    var aggregate =
-      activeDownloads[modelId]
-      ?? ActiveDownload(progress: Progress(totalUnitCount: 0), tasks: [:], completedFilesBytes: 0)
-    mutate(&aggregate)
-    if aggregate.isEmpty && !preserveEmpty {
-      activeDownloads.removeValue(forKey: modelId)
-      return nil
-    }
-    activeDownloads[modelId] = aggregate
-    return aggregate
   }
 
   private func postDownloadsDidChange() {

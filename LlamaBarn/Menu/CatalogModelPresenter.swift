@@ -32,13 +32,7 @@ enum CatalogModelPresenter {
 
   static func makeDisplay(for model: CatalogEntry, status: ModelStatus) -> Display {
     let compatible = Catalog.isModelCompatible(model)
-    let actionable: Bool = {
-      switch status {
-      case .available: return compatible
-      case .downloading: return true
-      case .installed: return false
-      }
-    }()
+    let actionable = isActionable(model: model, status: status)
 
     let usableCtx = Catalog.usableCtxWindow(for: model)
 

@@ -21,12 +21,18 @@ enum Catalog {
     let incompatibilitySummary: String?
   }
 
-  private static var compatibilityCache: [String: CompatibilityInfo] = [:]
-  private static var usableContextCache: [String: [Int?: Int?]] = [:]
-
-  private static func compatibilityCacheKey(_ model: CatalogEntry, _ tokens: Double) -> String {
-    "\(model.id)_\(tokens)"
+  private struct CompatibilityCacheKey: Hashable {
+    let modelId: String
+    let tokens: Double
   }
+
+  private struct UsableContextCacheKey: Hashable {
+    let modelId: String
+    let desiredTokens: Int?
+  }
+
+  private static var compatibilityCache: [CompatibilityCacheKey: CompatibilityInfo] = [:]
+  private static var usableContextCache: [UsableContextCacheKey: Int?] = [:]
 
   static func availableMemoryFraction(forSystemMemoryMB systemMemoryMB: UInt64) -> Double {
     guard systemMemoryMB >= highMemoryThresholdMB else { return defaultAvailableMemoryFraction }
@@ -195,9 +201,8 @@ enum Catalog {
     desiredTokens: Int? = nil
   ) -> Int? {
     // Check cache
-    if let modelCache = usableContextCache[model.id],
-      let cached = modelCache[desiredTokens]
-    {
+    let cacheKey = UsableContextCacheKey(modelId: model.id, desiredTokens: desiredTokens)
+    if let cached = usableContextCache[cacheKey] {
       return cached
     }
 
@@ -236,10 +241,7 @@ enum Catalog {
     if rounded > model.ctxWindow { rounded = model.ctxWindow }
 
     // Cache the result
-    if usableContextCache[model.id] == nil {
-      usableContextCache[model.id] = [:]
-    }
-    usableContextCache[model.id]?[desiredTokens] = rounded
+    usableContextCache[cacheKey] = rounded
 
     return rounded
   }
@@ -249,7 +251,7 @@ enum Catalog {
     _ model: CatalogEntry,
     ctxWindowTokens: Double = compatibilityCtxWindowTokens
   ) -> CompatibilityInfo {
-    let cacheKey = compatibilityCacheKey(model, ctxWindowTokens)
+    let cacheKey = CompatibilityCacheKey(modelId: model.id, tokens: ctxWindowTokens)
     if let cached = compatibilityCache[cacheKey] { return cached }
 
     func cache(_ info: CompatibilityInfo) -> CompatibilityInfo {
