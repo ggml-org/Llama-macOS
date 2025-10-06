@@ -1,6 +1,6 @@
 import AppKit
 
-// Custom colors for the app. Prefer system semantic colors (.labelColor, .separatorColor, etc.) everywhere else.
+// Custom colors.
 extension NSColor {
   /// Green for status indicators and active badges.
   static let llamaGreen = NSColor(name: nil) { appearance in

@@ -52,7 +52,8 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     progressLabel.alignment = .right
 
     configureImageView(cancelImageView, symbol: "xmark", pointSize: 12, color: .systemRed)
-    configureImageView(deleteImageView, symbol: "trash", pointSize: 12, color: .labelColor)
+    configureImageView(
+      deleteImageView, symbol: "trash", pointSize: 12, color: Typography.primaryColor)
 
     // Spacer expands so trailing visuals sit flush right.
     let spacer = NSView()
@@ -190,7 +191,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .systemRed
-    deleteImageView.contentTintColor = .labelColor
+    deleteImageView.contentTintColor = Typography.primaryColor
   }
 
   @objc private func performDelete() {

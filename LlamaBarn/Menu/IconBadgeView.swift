@@ -91,7 +91,7 @@ final class IconBadgeView: NSView {
     } else {
       layer.setBackgroundColor(.lbSubtleBackground, in: self)
       // Default (may be overridden by caller for hover emphasis)
-      imageView.contentTintColor = .labelColor
+      imageView.contentTintColor = Typography.primaryColor
     }
   }
 }

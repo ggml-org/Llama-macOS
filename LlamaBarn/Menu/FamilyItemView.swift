@@ -52,7 +52,7 @@ final class FamilyItemView: ItemView {
     chevron.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
     // Match InstalledModelMenuItemView trailing indicator sizing for alignment.
     chevron.symbolConfiguration = .init(pointSize: 14, weight: .regular)
-    chevron.contentTintColor = .labelColor
+    chevron.contentTintColor = Typography.primaryColor
 
     // Build layout hierarchy: icon + text column on left, chevron on right
     let textColumn = NSStackView(views: [familyLabel, metadataLabel])
