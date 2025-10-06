@@ -12,14 +12,7 @@ final class FamilyHeaderView: NSView {
     super.init(frame: .zero)
     translatesAutoresizingMaskIntoConstraints = false
     wantsLayer = true
-    setup(familyName: familyName, iconName: iconName, blurb: blurb)
-  }
 
-  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 70) }
-
-  private func setup(familyName: String, iconName: String, blurb: String) {
     setAccessibilityElement(true)
     setAccessibilityRole(.group)
     setAccessibilityLabel("\(familyName) info")
@@ -57,4 +50,8 @@ final class FamilyHeaderView: NSView {
       iconView.heightAnchor.constraint(equalToConstant: Layout.iconBadgeSize),
     ])
   }
+
+  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 70) }
 }
