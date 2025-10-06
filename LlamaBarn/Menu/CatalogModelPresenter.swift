@@ -64,11 +64,7 @@ enum CatalogModelPresenter {
       rowTooltip = nil
     }
 
-    let metadataText = makeMetadataText(
-      model: model,
-      usableCtx: usableCtx,
-      compatible: compatible
-    )
+    let metadataText = makeMetadataText(model: model, compatible: compatible)
 
     return Display(
       title: model.menuTitle,
@@ -85,55 +81,16 @@ enum CatalogModelPresenter {
 
   private static func makeMetadataText(
     model: CatalogEntry,
-    usableCtx: Int?,
     compatible: Bool
   ) -> NSAttributedString {
-    let line = NSMutableAttributedString()
-
     // Incompatible models show only error message in tertiaryColor
     guard compatible else {
-      line.append(
-        NSAttributedString(
-          string: "Won't run on this device.", attributes: Typography.tertiaryAttributes))
-      return line
+      return NSAttributedString(
+        string: "Won't run on this device.", attributes: Typography.tertiaryAttributes)
     }
 
-    // Calculate memory usage for compatible models only
-    let memoryMb = Catalog.runtimeMemoryUsageMb(
-      for: model,
-      ctxWindowTokens: Double(usableCtx ?? model.ctxWindow)
-    )
-
-    // All compatible models show size and memory
-    line.append(MetadataLabel.make(icon: MetadataLabel.sizeSymbol, text: model.totalSize))
-    line.append(MetadataLabel.makeSeparator())
-    line.append(
-      MetadataLabel.make(
-        icon: MetadataLabel.memorySymbol, text: MemoryFormatters.gbOneDecimal(memoryMb)))
-    line.append(MetadataLabel.makeSeparator())
-
-    // Context window display depends on whether it's capped
-    if let usable = usableCtx, usable < model.ctxWindow {
-      // Capped context: show strikethrough max with usable value, plus warning icon
-      line.append(MetadataLabel.makeIconOnly(icon: MetadataLabel.contextSymbol))
-      line.append(NSAttributedString(string: " "))
-      var attrs = Typography.secondaryAttributes
-      attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
-      line.append(
-        NSAttributedString(string: TokenFormatters.shortTokens(model.ctxWindow), attributes: attrs))
-      line.append(NSAttributedString(string: " ", attributes: Typography.secondaryAttributes))
-      line.append(
-        NSAttributedString(
-          string: TokenFormatters.shortTokens(usable), attributes: Typography.secondaryAttributes))
-      line.append(MetadataLabel.makeSeparator())
-      line.append(MetadataLabel.makeIconOnly(icon: MetadataLabel.warningSymbol))
-    } else {
-      // Full context: show normal context window
-      let text = model.ctxWindow > 0 ? TokenFormatters.shortTokens(model.ctxWindow) : "—"
-      line.append(MetadataLabel.make(icon: MetadataLabel.contextSymbol, text: text))
-    }
-
-    return line
+    // Compatible models use shared metadata formatter
+    return ModelMetadataFormatters.makeMetadataText(for: model)
   }
 
 }

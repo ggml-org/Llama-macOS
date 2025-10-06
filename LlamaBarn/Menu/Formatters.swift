@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 enum ByteFormatters {
@@ -109,5 +110,48 @@ enum ProgressFormatters {
   /// Formats progress percentage as a string (e.g., "42%").
   static func percentText(_ progress: Progress) -> String {
     "\(percent(progress))%"
+  }
+}
+
+enum ModelMetadataFormatters {
+  /// Formats complete model metadata line showing size, memory, and context window.
+  /// Format: "􀥾 2.53 GB • 􀫦 3.1 GB • 􀵫 128k" (or "􀵫 ~~128k~~ 32k" if capped).
+  static func makeMetadataText(for model: CatalogEntry) -> NSAttributedString {
+    let result = NSMutableAttributedString()
+    let usableCtx = Catalog.usableCtxWindow(for: model)
+
+    // Size
+    result.append(MetadataLabel.make(icon: MetadataLabel.sizeSymbol, text: model.totalSize))
+    result.append(MetadataLabel.makeSeparator())
+
+    // Memory (estimated)
+    let memoryMb = Catalog.runtimeMemoryUsageMb(
+      for: model,
+      ctxWindowTokens: Double(usableCtx ?? model.ctxWindow)
+    )
+    result.append(
+      MetadataLabel.make(
+        icon: MetadataLabel.memorySymbol, text: MemoryFormatters.gbOneDecimal(memoryMb)))
+    result.append(MetadataLabel.makeSeparator())
+
+    // Context window: strikethrough if capped, normal otherwise
+    if let usable = usableCtx, usable < model.ctxWindow {
+      result.append(MetadataLabel.makeIconOnly(icon: MetadataLabel.contextSymbol))
+      result.append(NSAttributedString(string: " "))
+      var attrs = Typography.secondaryAttributes
+      attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+      result.append(
+        NSAttributedString(
+          string: TokenFormatters.shortTokens(model.ctxWindow), attributes: attrs))
+      result.append(NSAttributedString(string: " ", attributes: Typography.secondaryAttributes))
+      result.append(
+        NSAttributedString(
+          string: TokenFormatters.shortTokens(usable), attributes: Typography.secondaryAttributes))
+    } else {
+      let text = model.ctxWindow > 0 ? TokenFormatters.shortTokens(model.ctxWindow) : "—"
+      result.append(MetadataLabel.make(icon: MetadataLabel.contextSymbol, text: text))
+    }
+
+    return result
   }
 }

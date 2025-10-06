@@ -17,7 +17,6 @@ enum InstalledModelPresenter {
   ) -> Display {
     let isActive = server.isActive(model: model)
     let isLoading = isActive && server.isLoading
-    let isRunning = isActive && server.isRunning
 
     switch status {
     case .downloading(let progress):
@@ -36,50 +35,18 @@ enum InstalledModelPresenter {
         progressText: ProgressFormatters.percentText(progress),
         showsCancelButton: true,
         isLoading: isLoading,
-        isActive: isRunning
+        isActive: isActive
       )
 
     case .installed, .available:
-      let metadataText = makeMetadataText(
-        for: model,
-        isRunning: isRunning,
-        memoryUsageMb: server.memoryUsageMb
-      )
-
       return Display(
         title: model.menuTitle,
-        metadataText: metadataText,
+        metadataText: ModelMetadataFormatters.makeMetadataText(for: model),
         progressText: nil,
         showsCancelButton: false,
         isLoading: isLoading,
-        isActive: isRunning
+        isActive: isActive
       )
     }
-  }
-
-  private static func makeMetadataText(
-    for model: CatalogEntry,
-    isRunning: Bool,
-    memoryUsageMb: Double
-  ) -> NSAttributedString {
-    let result = NSMutableAttributedString()
-
-    result.append(MetadataLabel.make(icon: MetadataLabel.sizeSymbol, text: model.totalSize))
-
-    if let usableCtx = Catalog.usableCtxWindow(for: model) {
-      result.append(MetadataLabel.makeSeparator())
-      result.append(
-        MetadataLabel.make(
-          icon: MetadataLabel.contextSymbol,
-          text: TokenFormatters.shortTokens(usableCtx)
-        ))
-    }
-
-    if isRunning, let memoryText = MemoryFormatters.runtime(memoryUsageMb) {
-      result.append(MetadataLabel.makeSeparator())
-      result.append(MetadataLabel.make(icon: MetadataLabel.memorySymbol, text: memoryText))
-    }
-
-    return result
   }
 }

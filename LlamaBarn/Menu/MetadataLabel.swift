@@ -26,12 +26,11 @@ enum MetadataLabel {
 
   // Status symbols (used standalone)
   static let checkSymbol = makeSymbol("checkmark")
-  static let warningSymbol = makeSymbol("exclamationmark.triangle")
 
   // MARK: - Attributed String Builders
 
   /// Creates an attributed string containing only an icon (no text).
-  /// Used for status indicators like checkmarks or warnings.
+  /// Used for status indicators like checkmarks.
   static func makeIconOnly(icon: NSImage?) -> NSAttributedString {
     guard let icon else { return NSAttributedString() }
     return NSAttributedString(attachment: iconAttachment(for: icon))
