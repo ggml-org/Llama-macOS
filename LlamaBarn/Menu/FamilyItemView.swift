@@ -137,13 +137,9 @@ final class FamilyItemView: ItemView {
     }
 
     // Build size text (e.g., "27B" or "27B-Q4")
-    var sizeText = model.size
-    if !model.isFullPrecision {
-      let quantLabel = QuantizationFormatters.short(model.quantization)
-      if !quantLabel.isEmpty {
-        sizeText += "-" + quantLabel
-      }
-    }
+    let quantSuffix =
+      model.isFullPrecision ? "" : "-" + QuantizationFormatters.short(model.quantization)
+    let sizeText = "\(model.size)\(quantSuffix)"
 
     // Use tertiary color for unsupported models
     let isSupported = Catalog.isModelCompatible(model)
