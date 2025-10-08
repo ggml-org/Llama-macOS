@@ -46,11 +46,17 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     wantsLayer = true
     circleIcon.setImage(NSImage(named: model.icon))
 
-    // Configure metadata label (second line showing size, context, memory)
-
     progressLabel.alignment = .right
 
-    configureImageView(cancelImageView, symbol: "xmark", pointSize: 12, color: .systemRed)
+    // Configure cancel button
+    if let img = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil) {
+      img.isTemplate = true
+      cancelImageView.image = img
+    }
+    cancelImageView.symbolConfiguration = .init(pointSize: 12, weight: .regular)
+    cancelImageView.contentTintColor = .systemRed
+    cancelImageView.isHidden = true
+
     deleteLabel.textColor = Typography.secondaryColor
     deleteLabel.isHidden = true
 
@@ -167,25 +173,32 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   func refresh() {
     let status = modelManager.status(for: model)
+    let isActive = server.isActive(model: model)
+    let isLoading = isActive && server.isLoading
+    let isDownloading = if case .downloading = status { true } else { false }
 
-    // Get display data from presenter
-    let display = InstalledModelPresenter.makeDisplay(
-      for: model,
-      status: status,
-      server: server
-    )
+    // Compute colors once
+    let itemColor = isDownloading ? Typography.secondaryColor : Typography.primaryColor
+    let titleColor = isDownloading ? Typography.secondaryColor : .controlTextColor
 
-    // Apply display data
-    modelNameLabel.stringValue = display.title
-    modelNameLabel.textColor = display.titleColor
-    metadataLabel.attributedStringValue = display.metadataText
-    progressLabel.stringValue = display.progressText ?? ""
-    cancelImageView.isHidden = !display.showsCancelButton
+    // Apply values directly
+    modelNameLabel.stringValue = model.menuTitle
+    modelNameLabel.textColor = titleColor
+    metadataLabel.attributedStringValue = ModelMetadataFormatters.makeMetadataText(for: model)
+
+    // Progress and cancel button only for downloading
+    if case .downloading(let progress) = status {
+      progressLabel.stringValue = ProgressFormatters.percentText(progress)
+      cancelImageView.isHidden = false
+    } else {
+      progressLabel.stringValue = ""
+      cancelImageView.isHidden = true
+    }
 
     // Update icon state
-    circleIcon.setLoading(display.isLoading)
-    circleIcon.isActive = display.isActive
-    circleIcon.inactiveTintColor = display.iconTintColor
+    circleIcon.setLoading(isLoading)
+    circleIcon.isActive = isActive
+    circleIcon.inactiveTintColor = itemColor
 
     needsDisplay = true
   }
@@ -201,17 +214,5 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     guard case .installed = status else { return }
     modelManager.deleteDownloadedModel(model)
     membershipChanged(model)
-  }
-
-  private func configureImageView(
-    _ imageView: NSImageView, symbol: String, pointSize: CGFloat, color: NSColor
-  ) {
-    if let img = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) {
-      img.isTemplate = true
-      imageView.image = img
-    }
-    imageView.symbolConfiguration = .init(pointSize: pointSize, weight: .regular)
-    imageView.contentTintColor = color
-    imageView.isHidden = true
   }
 }

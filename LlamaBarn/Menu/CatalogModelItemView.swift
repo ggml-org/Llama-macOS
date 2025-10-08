@@ -34,7 +34,15 @@ final class CatalogModelItemView: ItemView {
 
   // Only allow hover highlight for actionable rows (available/compatible or downloading).
   override var hoverHighlightEnabled: Bool {
-    CatalogModelPresenter.isActionable(model: model, status: modelManager.status(for: model))
+    let status = modelManager.status(for: model)
+    switch status {
+    case .available:
+      return Catalog.isModelCompatible(model)
+    case .downloading:
+      return true
+    case .installed:
+      return false
+    }
   }
 
   private func setup() {
@@ -42,10 +50,6 @@ final class CatalogModelItemView: ItemView {
     statusIndicator.symbolConfiguration = .init(pointSize: 12, weight: .regular)
 
     labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-    // Configure metadata label (second line showing size, context, warnings)
-    // Contains all metadata fields in a single attributed string (e.g., "📦 4.28 GB • 🧠 84k")
-
     progressLabel.alignment = .right
 
     // Two-line text column (title + metadata)
@@ -124,33 +128,76 @@ final class CatalogModelItemView: ItemView {
     }
   }
 
-  // Hover highlight handled by base class
-
   func refresh() {
     let status = modelManager.status(for: model)
-    let display = CatalogModelPresenter.makeDisplay(for: model, status: status)
+    let compatible = Catalog.isModelCompatible(model)
+    let usableCtx = Catalog.usableCtxWindow(for: model)
 
-    labelField.stringValue = display.title
+    // Title and basic display
+    labelField.stringValue = model.menuTitle
 
-    metadataLabel.attributedStringValue = display.metadataText
-    metadataLabel.toolTip = combinedTooltip(
-      info: display.infoTooltip, warning: display.warningTooltip)
+    // Metadata text (second line)
+    let metadataText: NSAttributedString
+    if compatible {
+      metadataText = ModelMetadataFormatters.makeMetadataText(for: model)
+    } else {
+      metadataText = NSAttributedString(
+        string: "Won't run on this device.",
+        attributes: Typography.tertiaryAttributes
+      )
+    }
+    metadataLabel.attributedStringValue = metadataText
 
-    // Update status indicator icon
-    let symbolName =
-      switch display.status {
-      case .installed: "checkmark.circle"
-      case .downloading: "arrow.down.circle"
-      case .available(let compatible): compatible ? "arrow.down.circle" : "nosign"
+    // Tooltips
+    let infoTooltip: String? =
+      compatible
+      ? nil
+      : (Catalog.incompatibilitySummary(model) ?? "not compatible")
+
+    let warningTooltip: String? =
+      if compatible, let ctx = usableCtx, ctx < model.ctxWindow {
+        "Can run at reduced context window"
+      } else {
+        nil
       }
-    statusIndicator.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
 
-    // Use tertiaryColor for incompatible models (can't be interacted with)
-    // Use secondaryColor for installed models (already downloaded, secondary information)
+    metadataLabel.toolTip =
+      [infoTooltip, warningTooltip]
+      .compactMap { $0 }
+      .joined(separator: "\n")
+      .nilIfEmpty
+
+    // Status-specific display
+    let symbolName: String
+    let rowTooltip: String?
+    let progressText: String?
+
+    switch status {
+    case .installed:
+      symbolName = "checkmark.circle"
+      rowTooltip = "Already installed"
+      progressText = nil
+
+    case .downloading(let progress):
+      symbolName = "arrow.down.circle"
+      rowTooltip = nil
+      progressText = ProgressFormatters.percentText(progress)
+
+    case .available:
+      symbolName = compatible ? "arrow.down.circle" : "nosign"
+      rowTooltip = nil
+      progressText = nil
+    }
+
+    statusIndicator.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+    toolTip = rowTooltip
+    progressLabel.stringValue = progressText ?? ""
+
+    // Colors: tertiary for incompatible, secondary for installed, primary otherwise
     let itemColor: NSColor =
-      if case .installed = display.status {
+      if case .installed = status {
         Typography.secondaryColor
-      } else if display.isCompatible {
+      } else if compatible {
         Typography.primaryColor
       } else {
         Typography.tertiaryColor
@@ -158,15 +205,8 @@ final class CatalogModelItemView: ItemView {
     labelField.textColor = itemColor
     statusIndicator.contentTintColor = itemColor
 
-    progressLabel.stringValue = display.progressText ?? ""
-    toolTip = display.rowTooltip
-
-    // If the item is no longer actionable, clear any lingering hover highlight.
-    if !display.isActionable { setHoverHighlight(false) }
+    // Clear hover highlight if no longer actionable
+    if !hoverHighlightEnabled { setHoverHighlight(false) }
     needsDisplay = true
-  }
-
-  private func combinedTooltip(info: String?, warning: String?) -> String? {
-    [info, warning].compactMap { $0 }.joined(separator: "\n").nilIfEmpty
   }
 }
