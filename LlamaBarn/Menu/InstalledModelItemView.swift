@@ -40,7 +40,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: 260, height: 40) }
+  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 40) }
 
   private func setup() {
     wantsLayer = true
@@ -72,7 +72,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Left: icon aligned with first text line, then two-line text column
     let nameStack = NSStackView(views: [modelNameLabel, metadataLabel])
     nameStack.orientation = .vertical
-    nameStack.spacing = 1
+    nameStack.spacing = 2
     nameStack.alignment = .leading
 
     let leading = NSStackView(views: [iconView, nameStack])
