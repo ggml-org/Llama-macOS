@@ -47,11 +47,6 @@ curl http://localhost:2276/v1/health
 ```
 
 ```sh
-# list running models
-curl http://localhost:2276/v1/models
-```
-
-```sh
 # chat with the running model
 curl http://localhost:2276/v1/chat/completions \
   -H "Content-Type: application/json" \
