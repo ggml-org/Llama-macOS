@@ -87,7 +87,7 @@ final class HeaderView: NSView {
         string: "Select a model to run",
         attributes: [
           .font: Typography.secondary,
-          .foregroundColor: Typography.secondaryColor,
+          .foregroundColor: Typography.primaryColor,
         ]
       )
       serverStatusLabel.toolTip = nil
