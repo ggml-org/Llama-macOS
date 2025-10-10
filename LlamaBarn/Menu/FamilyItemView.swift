@@ -122,7 +122,7 @@ final class FamilyItemView: ItemView {
   }
 
   /// Creates an attributed string for a model size label.
-  /// Downloaded models show a checkmark to indicate they're already installed.
+  /// Shows status icon (checkmark.circle for installed, arrow.down.circle for available, nosign for incompatible).
   /// Unsupported models use a dimmed tertiary label color.
   private func attributedSizeLabel(
     for model: CatalogEntry,
@@ -130,16 +130,25 @@ final class FamilyItemView: ItemView {
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
-    // Add checkmark for downloaded models
+    let isSupported = Catalog.isModelCompatible(model)
+    let textColor: NSColor = isSupported ? Typography.secondaryColor : Typography.tertiaryColor
+
+    // Add status icon matching CatalogModelItemView
+    let icon: NSImage?
     if downloaded {
-      result.append(MetadataLabel.makeIconOnly(icon: Symbols.checkmark))
+      icon = NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: nil)
+    } else if isSupported {
+      icon = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
+    } else {
+      icon = NSImage(systemSymbolName: "nosign", accessibilityDescription: nil)
+    }
+
+    if let icon = icon {
+      result.append(MetadataLabel.makeIconOnly(icon: icon, color: textColor))
       result.append(NSAttributedString(string: " "))
     }
 
     // Use sizeLabel property which includes quantization suffix (e.g., "27B" or "27B-Q4")
-    let isSupported = Catalog.isModelCompatible(model)
-    let textColor: NSColor = isSupported ? Typography.secondaryColor : Typography.tertiaryColor
-
     result.append(
       NSAttributedString(
         string: model.sizeLabel,
