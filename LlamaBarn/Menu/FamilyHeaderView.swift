@@ -6,8 +6,8 @@ final class FamilyHeaderView: NSView {
   private static let menuWidth: CGFloat = 320
   private static let iconTextSpacing: CGFloat = 8
 
-  private let iconView = IconBadgeView()
-  private let titleLabel = Typography.makePrimaryLabel()
+  private let iconView = IconView()
+  private let familyNameLabel = Typography.makePrimaryLabel()
   private let descriptionLabel = Typography.makeSecondaryLabel()
 
   init(familyName: String, iconName: String, blurb: String) {
@@ -19,8 +19,8 @@ final class FamilyHeaderView: NSView {
     setAccessibilityLabel("\(familyName) info")
 
     iconView.setImage(NSImage(named: iconName))
-    titleLabel.stringValue = familyName
-    titleLabel.lineBreakMode = .byTruncatingTail
+    familyNameLabel.stringValue = familyName
+    familyNameLabel.lineBreakMode = .byTruncatingTail
     descriptionLabel.stringValue = blurb
     descriptionLabel.lineBreakMode = .byWordWrapping
     descriptionLabel.usesSingleLineMode = false
@@ -32,7 +32,7 @@ final class FamilyHeaderView: NSView {
       Self.menuWidth - horizontalPadding - Layout.iconBadgeSize - Self.iconTextSpacing
     descriptionLabel.preferredMaxLayoutWidth = availableWidth
 
-    let textStack = NSStackView(views: [titleLabel, descriptionLabel])
+    let textStack = NSStackView(views: [familyNameLabel, descriptionLabel])
     textStack.orientation = .vertical
     textStack.spacing = 2
     textStack.alignment = .leading

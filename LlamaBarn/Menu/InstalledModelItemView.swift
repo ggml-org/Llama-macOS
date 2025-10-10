@@ -13,7 +13,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let membershipChanged: (CatalogEntry) -> Void
 
   // Subviews
-  private let iconView = IconBadgeView()
+  private let iconView = IconView()
   private let modelNameLabel = Typography.makePrimaryLabel()
   private let metadataLabel = Typography.makeSecondaryLabel()
   private let progressLabel = Typography.makeSecondaryLabel()

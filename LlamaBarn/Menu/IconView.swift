@@ -4,7 +4,7 @@ import AppKit
 /// Uses rounded corners matching Layout.cornerRadius.
 /// - Inactive: clear background, primary tint.
 /// - Active: filled with `controlAccentColor`, white glyph.
-final class IconBadgeView: NSView {
+final class IconView: NSView {
   let imageView = NSImageView()
   private let spinner = NSProgressIndicator()
 
