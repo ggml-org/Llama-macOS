@@ -140,7 +140,7 @@ final class FamilyItemView: ItemView {
     } else if isSupported {
       icon = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
     } else {
-      icon = NSImage(systemSymbolName: "slash.circle", accessibilityDescription: nil)
+      icon = NSImage(systemSymbolName: "minus.circle", accessibilityDescription: nil)
     }
 
     if let icon = icon {
