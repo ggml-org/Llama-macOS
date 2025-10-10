@@ -8,7 +8,7 @@ import SwiftUI
 
 private func makeSectionHeaderItem(_ title: String) -> NSMenuItem {
   let view = SectionHeaderView(title: title)
-  let item = NSMenuItem.viewItem(with: view, minHeight: 18)
+  let item = NSMenuItem.viewItem(with: view)
   item.isEnabled = false
   return item
 }
@@ -25,7 +25,7 @@ final class MenuHeaderSection {
   func add(to menu: NSMenu) {
     let view = HeaderView(server: server)
     titleView = view
-    menu.addItem(NSMenuItem.viewItem(with: view, minHeight: 40))
+    menu.addItem(NSMenuItem.viewItem(with: view))
     menu.addItem(.separator())
   }
 
@@ -133,7 +133,7 @@ final class InstalledSection {
     ) { [weak self] entry in
       self?.onMembershipChanged(entry)
     }
-    let item = NSMenuItem.viewItem(with: view, minHeight: 28)
+    let item = NSMenuItem.viewItem(with: view)
     return (item, view)
   }
 
@@ -205,7 +205,7 @@ final class CatalogSection {
         iconName: family.iconName,
         blurb: family.blurb
       )
-      submenu.addItem(NSMenuItem.viewItem(with: infoView, minHeight: 56))
+      submenu.addItem(NSMenuItem.viewItem(with: infoView))
       submenu.addItem(.separator())
 
       for model in sortedModels {
@@ -214,7 +214,7 @@ final class CatalogSection {
           self?.onDownloadStatusChange(model)
         }
         catalogViews.append(view)
-        let modelItem = NSMenuItem.viewItem(with: view, minHeight: 26)
+        let modelItem = NSMenuItem.viewItem(with: view)
         submenu.addItem(modelItem)
       }
 
@@ -290,7 +290,7 @@ final class FooterSection {
         lessThanOrEqualTo: settingsButton.leadingAnchor, constant: -8),
     ])
 
-    let item = NSMenuItem.viewItem(with: container, minHeight: 30)
+    let item = NSMenuItem.viewItem(with: container)
     item.isEnabled = true
     settingsButton.target = self
     settingsButton.action = #selector(toggleSettings)
