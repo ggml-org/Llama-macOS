@@ -172,17 +172,17 @@ final class CatalogModelItemView: ItemView {
 
     switch status {
     case .installed:
-      symbolName = "checkmark.circle"
+      symbolName = "checkmark"
       rowTooltip = "Already installed"
       progressText = nil
 
     case .downloading(let progress):
-      symbolName = "arrow.down.circle"
+      symbolName = "arrow.down"
       rowTooltip = nil
       progressText = ProgressFormatters.percentText(progress)
 
     case .available:
-      symbolName = compatible ? "arrow.down.circle" : "minus.circle"
+      symbolName = compatible ? "arrow.down" : "nosign"
       rowTooltip = nil
       progressText = nil
     }

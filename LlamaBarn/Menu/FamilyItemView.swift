@@ -125,7 +125,7 @@ final class FamilyItemView: ItemView {
   }
 
   /// Creates an attributed string for a model size label.
-  /// Shows status icon (checkmark.circle for installed, arrow.down.circle for available, slash.circle for incompatible).
+  /// Shows status icon (checkmark for installed, arrow.down for available, nosign for incompatible).
   /// Unsupported models use a dimmed tertiary label color.
   private func attributedSizeLabel(
     for model: CatalogEntry,
@@ -139,11 +139,11 @@ final class FamilyItemView: ItemView {
     // Add status icon matching CatalogModelItemView
     let icon: NSImage?
     if downloaded {
-      icon = NSImage(systemSymbolName: "checkmark.circle", accessibilityDescription: nil)
+      icon = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
     } else if isSupported {
-      icon = NSImage(systemSymbolName: "arrow.down.circle", accessibilityDescription: nil)
+      icon = NSImage(systemSymbolName: "arrow.down", accessibilityDescription: nil)
     } else {
-      icon = NSImage(systemSymbolName: "minus.circle", accessibilityDescription: nil)
+      icon = NSImage(systemSymbolName: "nosign", accessibilityDescription: nil)
     }
 
     if let icon = icon {
