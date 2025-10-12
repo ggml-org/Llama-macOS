@@ -1,9 +1,8 @@
 import AppKit
 
-/// Circular container that hosts a template image centered inside.
-/// Uses rounded corners matching Layout.cornerRadius.
-/// - Inactive: clear background, primary tint.
-/// - Active: filled with `controlAccentColor`, white glyph.
+/// Icon that changes color based on state.
+/// - Inactive: uses inactiveTintColor
+/// - Active: uses controlAccentColor
 final class IconView: NSView {
   let imageView = NSImageView()
   private let spinner = NSProgressIndicator()
@@ -15,7 +14,6 @@ final class IconView: NSView {
   override init(frame frameRect: NSRect = .zero) {
     super.init(frame: frameRect)
     translatesAutoresizingMaskIntoConstraints = false
-    wantsLayer = true
 
     imageView.translatesAutoresizingMaskIntoConstraints = false
     imageView.symbolConfiguration = .init(pointSize: Layout.iconSize, weight: .regular)
@@ -29,8 +27,8 @@ final class IconView: NSView {
     addSubview(imageView)
     addSubview(spinner)
     NSLayoutConstraint.activate([
-      widthAnchor.constraint(equalToConstant: Layout.iconViewSize),
-      heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
+      widthAnchor.constraint(equalToConstant: Layout.iconSize),
+      heightAnchor.constraint(equalToConstant: Layout.iconSize),
       imageView.centerXAnchor.constraint(equalTo: centerXAnchor),
       imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
       imageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.iconSize),
@@ -43,11 +41,6 @@ final class IconView: NSView {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override func layout() {
-    super.layout()
-    layer?.cornerRadius = Layout.cornerRadius
-  }
-
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     refresh()
@@ -58,7 +51,7 @@ final class IconView: NSView {
     refresh()
   }
 
-  /// Show or hide a spinner centered inside the container.
+  /// Show or hide a spinner centered in place of the icon.
   func setLoading(_ loading: Bool) {
     isLoading = loading
     if loading {
@@ -69,18 +62,13 @@ final class IconView: NSView {
   }
 
   private func refresh() {
-    guard let layer else { return }
     // Spinner appears in the center and the glyph hides while loading.
     imageView.isHidden = isLoading
     spinner.isHidden = !isLoading
 
     if isActive {
-      layer.setBackgroundColor(.controlAccentColor, in: self)
-      imageView.contentTintColor = .white
-      // Spinner always white on blue background regardless of theme
-      spinner.appearance = NSAppearance(named: .darkAqua)
+      imageView.contentTintColor = .controlAccentColor
     } else {
-      layer.setBackgroundColor(.lbSubtleBackground, in: self)
       imageView.contentTintColor = inactiveTintColor
     }
   }

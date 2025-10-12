@@ -60,11 +60,11 @@ final class FamilyItemView: ItemView {
     textColumn.spacing = 2
     textColumn.alignment = .leading
 
-    // Center icon vertically against two-line text to match InstalledModelMenuItemView layout.
+    // Align icon with first text line
     let leadingStack = NSStackView(views: [iconView, textColumn])
     leadingStack.orientation = .horizontal
     leadingStack.spacing = 6
-    leadingStack.alignment = .centerY
+    leadingStack.alignment = .top
 
     // Main row with flexible space between leading content and chevron
     let hStack = NSStackView(views: [leadingStack, NSView(), chevron])
@@ -76,8 +76,11 @@ final class FamilyItemView: ItemView {
     contentView.addSubview(hStack)
 
     NSLayoutConstraint.activate([
-      iconView.widthAnchor.constraint(equalToConstant: Layout.iconViewSize),
-      iconView.heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
+      iconView.widthAnchor.constraint(equalToConstant: Layout.iconSize),
+      iconView.heightAnchor.constraint(equalToConstant: Layout.iconSize),
+      // Align icon center with first text line center
+      iconView.centerYAnchor.constraint(equalTo: familyLabel.centerYAnchor),
+
       chevron.widthAnchor.constraint(equalToConstant: Layout.iconSize),
       chevron.heightAnchor.constraint(equalToConstant: Layout.iconSize),
       hStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),

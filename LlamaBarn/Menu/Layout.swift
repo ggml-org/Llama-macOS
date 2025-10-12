@@ -8,12 +8,10 @@ enum Layout {
   static let innerHorizontalPadding: CGFloat = 8
   /// Vertical spacing between content and background edge (used in ItemView).
   static let verticalPadding: CGFloat = 4
-  /// Rounded corner radius for highlights and icon containers.
+  /// Rounded corner radius for highlights.
   static let cornerRadius: CGFloat = 6
-  /// Size for small icons (status indicators, chevrons, cancel buttons).
+  /// Size for icons (model icons, status indicators, chevrons, cancel buttons).
   static let iconSize: CGFloat = 16
-  /// Size for IconView containers (circular backgrounds that hold model icons).
-  static let iconViewSize: CGFloat = 28
   /// Maximum width for download progress labels.
   static let progressWidth: CGFloat = 48
 }

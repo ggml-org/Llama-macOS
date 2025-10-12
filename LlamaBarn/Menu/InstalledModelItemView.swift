@@ -77,9 +77,8 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     let leading = NSStackView(views: [iconView, nameStack])
     leading.orientation = .horizontal
-    // Vertically center the icon relative to the two-line text, like Wi‑Fi menu
-    leading.alignment = .centerY
     leading.spacing = 6
+    leading.alignment = .top
 
     // Right: status/progress/cancel in a row, delete label positioned separately
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
@@ -102,8 +101,11 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     contentView.addSubview(deleteLabel)
 
     NSLayoutConstraint.activate([
-      iconView.widthAnchor.constraint(equalToConstant: Layout.iconViewSize),
-      iconView.heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
+      iconView.widthAnchor.constraint(equalToConstant: Layout.iconSize),
+      iconView.heightAnchor.constraint(equalToConstant: Layout.iconSize),
+      // Align icon center with first text line center
+      iconView.centerYAnchor.constraint(equalTo: modelNameLabel.centerYAnchor),
+
       cancelImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.iconSize),
       cancelImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.iconSize),
 
