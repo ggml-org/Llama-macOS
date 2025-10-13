@@ -1,5 +1,4 @@
 import AppKit
-import Foundation
 
 /// Interactive menu item that triggers a submenu for a model family, showing model size indicators with download/compatibility status.
 ///
@@ -12,7 +11,6 @@ final class FamilyItemView: ItemView {
   private let sortedModels: [CatalogEntry]
   private unowned let modelManager: ModelManager
 
-  private let iconView = NSImageView()
   private let familyLabel = Typography.makePrimaryLabel()
   private let metadataLabel = Typography.makeSecondaryLabel()
   private let chevron = NSImageView()
@@ -39,15 +37,11 @@ final class FamilyItemView: ItemView {
   private func setup() {
     wantsLayer = true
 
-    // Configure icon view
-    iconView.image = NSImage(named: sortedModels.first?.icon ?? "")
-    iconView.contentTintColor = Typography.primaryColor
-
     // Configure family name label
     familyLabel.stringValue = family
 
     // Configure metadata label (second line showing all available model sizes)
-    // Contains all size entries in a single attributed string (e.g., "✓ 270M · 1B · ✓ 4B · 12B")
+    // Contains all size entries in a single attributed string (e.g., "270M · 1B · 4B · 12B")
 
     // Configure chevron indicator
     chevron.image = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)
@@ -55,20 +49,14 @@ final class FamilyItemView: ItemView {
     chevron.symbolConfiguration = .init(pointSize: 14, weight: .regular)
     chevron.contentTintColor = Typography.primaryColor
 
-    // Build layout hierarchy: icon + text column on left, chevron on right
+    // Build layout hierarchy: text column on left, chevron on right
     let textColumn = NSStackView(views: [familyLabel, metadataLabel])
     textColumn.orientation = .vertical
     textColumn.spacing = 2
     textColumn.alignment = .leading
 
-    // Align icon with first text line
-    let leadingStack = NSStackView(views: [iconView, textColumn])
-    leadingStack.orientation = .horizontal
-    leadingStack.spacing = 6
-    leadingStack.alignment = .top
-
     // Main row with flexible space between leading content and chevron
-    let hStack = NSStackView(views: [leadingStack, NSView(), chevron])
+    let hStack = NSStackView(views: [textColumn, NSView(), chevron])
     hStack.translatesAutoresizingMaskIntoConstraints = false
     hStack.orientation = .horizontal
     hStack.spacing = 6
@@ -77,11 +65,6 @@ final class FamilyItemView: ItemView {
     contentView.addSubview(hStack)
 
     NSLayoutConstraint.activate([
-      iconView.widthAnchor.constraint(equalToConstant: Layout.uiIconSize),
-      iconView.heightAnchor.constraint(equalToConstant: Layout.uiIconSize),
-      // Align icon center with first text line center
-      iconView.centerYAnchor.constraint(equalTo: familyLabel.centerYAnchor),
-
       chevron.widthAnchor.constraint(equalToConstant: Layout.uiIconSize),
       chevron.heightAnchor.constraint(equalToConstant: Layout.uiIconSize),
       hStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -126,41 +109,21 @@ final class FamilyItemView: ItemView {
   }
 
   /// Creates an attributed string for a model size label.
-  /// Shows status icon (checkmark for installed, arrow.down for available, nosign for incompatible).
   /// Unsupported models use a dimmed tertiary label color.
   private func attributedSizeLabel(
     for model: CatalogEntry,
     downloaded: Bool
   ) -> NSAttributedString {
-    let result = NSMutableAttributedString()
-
     let isSupported = Catalog.isModelCompatible(model)
     let textColor: NSColor = isSupported ? Typography.secondaryColor : Typography.tertiaryColor
 
-    // Add status icon matching CatalogModelItemView
-    let icon: NSImage?
-    if downloaded {
-      icon = NSImage(systemSymbolName: "checkmark", accessibilityDescription: nil)
-    } else if isSupported {
-      icon = NSImage(systemSymbolName: "arrow.down", accessibilityDescription: nil)
-    } else {
-      icon = NSImage(systemSymbolName: "nosign", accessibilityDescription: nil)
-    }
-
-    if let icon = icon {
-      result.append(MetadataLabel.makeIconOnly(icon: icon, color: textColor))
-      result.append(NSAttributedString(string: " "))
-    }
-
     // Use sizeLabel property which includes quantization suffix (e.g., "27B" or "27B-Q4")
-    result.append(
-      NSAttributedString(
-        string: model.sizeLabel,
-        attributes: [
-          .font: Typography.secondary,
-          .foregroundColor: textColor,
-        ]
-      ))
-    return result
+    return NSAttributedString(
+      string: model.sizeLabel,
+      attributes: [
+        .font: Typography.secondary,
+        .foregroundColor: textColor,
+      ]
+    )
   }
 }
