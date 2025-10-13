@@ -219,11 +219,12 @@ final class CatalogSection {
     let families = Catalog.families
 
     // Filter and group all entries once, avoiding N×M work in the family loop
-    // Exclude installed and downloading models from catalog
+    // Exclude installed, downloading, and incompatible models from catalog
     let allEntries = Catalog.allEntries().filter { model in
       let status = modelManager.status(for: model)
       let isAvailable = status == .available
-      return isAvailable && (showQuantized || model.isFullPrecision)
+      let isCompatible = Catalog.isModelCompatible(model)
+      return isAvailable && isCompatible && (showQuantized || model.isFullPrecision)
     }
     let modelsByFamily = Dictionary(grouping: allEntries, by: \.family)
 
