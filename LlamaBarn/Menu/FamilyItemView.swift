@@ -109,6 +109,7 @@ final class FamilyItemView: ItemView {
 
     // Toggle expansion state
     isExpanded.toggle()
+    metadataLabel.isHidden = isExpanded
     updateChevron()
     onToggle(family)
   }
@@ -118,6 +119,7 @@ final class FamilyItemView: ItemView {
   /// Updates the metadata line with current model size states.
   func refresh() {
     metadataLabel.attributedStringValue = makeMetadataLine()
+    metadataLabel.isHidden = isExpanded
     updateChevron()
     needsDisplay = true
   }
