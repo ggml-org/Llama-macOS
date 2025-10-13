@@ -151,10 +151,7 @@ final class InstalledSection {
 final class CatalogSection {
   private let modelManager: ModelManager
   private let onDownloadStatusChange: (CatalogEntry) -> Void
-  private var familyViews: [FamilyItemView] = []
   private var catalogViews: [CatalogModelItemView] = []
-  private var expandedFamilies: Set<String> = []
-  private weak var menu: NSMenu?
   private weak var headerItem: NSMenuItem?
 
   init(
@@ -166,20 +163,15 @@ final class CatalogSection {
   }
 
   func add(to menu: NSMenu) {
-    self.menu = menu
-    let families = Catalog.families
-
-    guard !families.isEmpty else { return }
+    let availableModels = filterAvailableModels()
+    guard !availableModels.isEmpty else { return }
 
     menu.addItem(.separator())
     let header = makeSectionHeaderItem("Available")
     headerItem = header
     menu.addItem(header)
 
-    buildCatalogItems { familyItem, modelItems in
-      menu.addItem(familyItem)
-      modelItems.forEach { menu.addItem($0) }
-    }
+    buildCatalogItems(availableModels).forEach { menu.addItem($0) }
   }
 
   /// Rebuilds the catalog section to reflect current model availability.
@@ -189,7 +181,7 @@ final class CatalogSection {
       return
     }
 
-    // Remove all catalog items (family items and their expanded models)
+    // Remove all catalog items
     let indexToRemove = sectionHeaderIndex + 1
     while indexToRemove < menu.items.count {
       let item = menu.items[indexToRemove]
@@ -198,90 +190,44 @@ final class CatalogSection {
       menu.removeItem(at: indexToRemove)
     }
 
-    // Re-add all catalog items with current expansion state and filtered models
+    // Re-add all catalog items
+    let availableModels = filterAvailableModels()
+    let items = buildCatalogItems(availableModels)
     var insertIndex = sectionHeaderIndex + 1
-    buildCatalogItems { familyItem, modelItems in
-      menu.insertItem(familyItem, at: insertIndex)
+    for item in items {
+      menu.insertItem(item, at: insertIndex)
       insertIndex += 1
-      for modelItem in modelItems {
-        menu.insertItem(modelItem, at: insertIndex)
-        insertIndex += 1
-      }
     }
   }
 
-  /// Builds catalog family items and their associated model items, invoking the handler for each family.
-  /// The handler receives the family menu item and an array of model menu items (empty if family is collapsed).
-  private func buildCatalogItems(
-    handler: (NSMenuItem, [NSMenuItem]) -> Void
-  ) {
+  /// Filters catalog to show only compatible models that haven't been installed
+  private func filterAvailableModels() -> [CatalogEntry] {
     let showQuantized = UserSettings.showQuantizedModels
-    let families = Catalog.families
-
-    // Filter and group all entries once, avoiding N×M work in the family loop
-    // Exclude installed, downloading, and incompatible models from catalog
-    let allEntries = Catalog.allEntries().filter { model in
+    return Catalog.allEntries().filter { model in
       let status = modelManager.status(for: model)
       let isAvailable = status == .available
       let isCompatible = Catalog.isModelCompatible(model)
       return isAvailable && isCompatible && (showQuantized || model.isFullPrecision)
     }
-    let modelsByFamily = Dictionary(grouping: allEntries, by: \.family)
-
-    familyViews.removeAll()
-    catalogViews.removeAll()
-
-    for family in families {
-      guard let models = modelsByFamily[family.name], !models.isEmpty else { continue }
-
-      let sortedModels = models.sorted(by: CatalogEntry.familyDisplayOrder(_:_:))
-
-      let familyView = FamilyItemView(
-        family: family.name,
-        sortedModels: sortedModels,
-        modelManager: modelManager,
-        isExpanded: expandedFamilies.contains(family.name)
-      ) { [weak self] familyName in
-        self?.toggleFamily(familyName)
-      }
-      familyViews.append(familyView)
-
-      let familyItem = NSMenuItem.viewItem(with: familyView)
-      familyItem.isEnabled = true
-
-      // Build model items if this family is expanded
-      let modelItems: [NSMenuItem] =
-        if expandedFamilies.contains(family.name) {
-          sortedModels.map { model in
-            let view = CatalogModelItemView(model: model, modelManager: modelManager) {
-              [weak self] in
-              self?.onDownloadStatusChange(model)
-            }
-            catalogViews.append(view)
-            return NSMenuItem.viewItem(with: view)
-          }
-        } else {
-          []
-        }
-
-      handler(familyItem, modelItems)
-    }
   }
 
-  private func toggleFamily(_ familyName: String) {
-    if expandedFamilies.contains(familyName) {
-      expandedFamilies.remove(familyName)
-    } else {
-      expandedFamilies.insert(familyName)
-    }
+  /// Builds a flat list of catalog model items
+  private func buildCatalogItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
+    catalogViews.removeAll()
 
-    // Rebuild menu to reflect expansion state
-    guard let menu = self.menu else { return }
-    rebuild(in: menu)
+    let sortedModels = models.sorted(by: CatalogEntry.displayOrder(_:_:))
+
+    return sortedModels.map { model in
+      let view = CatalogModelItemView(model: model, modelManager: modelManager) {
+        [weak self] in
+        self?.onDownloadStatusChange(model)
+      }
+      catalogViews.append(view)
+      return NSMenuItem.viewItem(with: view)
+    }
   }
 
   func refresh() {
-    familyViews.forEach { $0.refresh() }
     catalogViews.forEach { $0.refresh() }
   }
 }
