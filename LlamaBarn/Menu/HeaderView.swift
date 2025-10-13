@@ -60,7 +60,8 @@ final class HeaderView: NSView {
     // Update server status based on server state.
     if server.isRunning {
       let linkText = "localhost:\(LlamaServer.defaultPort)"
-      let full = "Running on \(linkText)"
+      let modelName = server.activeModelName ?? "model"
+      let full = "\(modelName) is running on \(linkText)"
       let url = URL(string: "http://\(linkText)/")!
 
       let attributed = NSMutableAttributedString(
@@ -70,6 +71,11 @@ final class HeaderView: NSView {
           .foregroundColor: Typography.primaryColor,
         ]
       )
+      // Color the model name with llamaGreen
+      if let modelRange = full.range(of: modelName) {
+        let nsRange = NSRange(modelRange, in: full)
+        attributed.addAttribute(.foregroundColor, value: NSColor.llamaGreen, range: nsRange)
+      }
       // Use .link attribute so NSTextField handles clicks automatically.
       if let range = full.range(of: linkText) {
         let nsRange = NSRange(range, in: full)
@@ -87,7 +93,7 @@ final class HeaderView: NSView {
         string: "Select a model to run",
         attributes: [
           .font: Typography.secondary,
-          .foregroundColor: Typography.primaryColor,
+          .foregroundColor: Typography.secondaryColor,
         ]
       )
       serverStatusLabel.toolTip = nil

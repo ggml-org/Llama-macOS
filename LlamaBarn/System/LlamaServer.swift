@@ -62,6 +62,7 @@ class LlamaServer {
     didSet { NotificationCenter.default.post(name: .LBServerStateDidChange, object: self) }
   }
   var activeModelPath: String?
+  var activeModelName: String?
   private(set) var activeCtxWindow: Int?
   var memoryUsageMb: Double = 0 {
     didSet { NotificationCenter.default.post(name: .LBServerMemoryDidChange, object: self) }
@@ -146,6 +147,7 @@ class LlamaServer {
 
     stateLock.lock()
     activeModelPath = modelPath
+    activeModelName = modelName
     activeCtxWindow = appliedCtxWindow
     stateLock.unlock()
 
@@ -220,6 +222,7 @@ class LlamaServer {
       DispatchQueue.main.async {
         self.state = .error(.launchFailed(errorMessage))
         self.activeModelPath = nil
+        self.activeModelName = nil
         self.activeCtxWindow = nil
       }
       return
@@ -235,6 +238,7 @@ class LlamaServer {
 
     stateLock.lock()
     activeModelPath = nil
+    activeModelName = nil
     activeCtxWindow = nil
     stateLock.unlock()
 
