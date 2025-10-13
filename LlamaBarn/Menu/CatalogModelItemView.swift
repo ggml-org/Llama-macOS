@@ -140,7 +140,7 @@ final class CatalogModelItemView: ItemView {
 
     // Metadata text (second line)
     if compatible {
-      metadataLabel.attributedStringValue = ModelMetadataFormatters.makeMetadataText(for: model)
+      metadataLabel.attributedStringValue = ModelMetadataFormatters.makeMetadataTextOnly(for: model)
     } else {
       metadataLabel.attributedStringValue = NSAttributedString(
         string: "Won't run on this device.",
