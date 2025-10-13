@@ -151,7 +151,7 @@ enum ModelMetadataFormatters {
   }
 
   /// Formats model metadata text without icons (text only).
-  /// Format: "2.53 GB · 3.1 GB · 128k" (or "32k capped" if limited by memory).
+  /// Format: "2.53 GB · 3.1 GB mem · 128k ctx" (or "32k ctx capped" if limited).
   static func makeMetadataTextOnly(for model: CatalogEntry) -> NSAttributedString {
     let result = NSMutableAttributedString()
     let usableCtx = Catalog.usableCtxWindow(for: model)
@@ -168,17 +168,18 @@ enum ModelMetadataFormatters {
     )
     result.append(
       NSAttributedString(
-        string: MemoryFormatters.gbOneDecimal(memoryMb), attributes: Typography.secondaryAttributes
+        string: MemoryFormatters.gbOneDecimal(memoryMb) + " mem",
+        attributes: Typography.secondaryAttributes
       ))
     result.append(MetadataLabel.makeSeparator())
 
     // Context window: show "usable capped" if limited by memory, otherwise show full value
     if let usable = usableCtx, usable < model.ctxWindow {
-      let text = TokenFormatters.shortTokens(usable) + " capped"
+      let text = TokenFormatters.shortTokens(usable) + " ctx capped"
       result.append(
         NSAttributedString(string: text, attributes: Typography.secondaryAttributes))
     } else {
-      let text = model.ctxWindow > 0 ? TokenFormatters.shortTokens(model.ctxWindow) : "—"
+      let text = model.ctxWindow > 0 ? TokenFormatters.shortTokens(model.ctxWindow) + " ctx" : "—"
       result.append(
         NSAttributedString(string: text, attributes: Typography.secondaryAttributes))
     }
