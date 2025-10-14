@@ -181,7 +181,14 @@ final class CatalogSection {
     separatorItem = separator
     menu.addItem(separator)
 
-    buildCatalogItems(availableModels).forEach { menu.addItem($0) }
+    if UserSettings.catalogCollapsed {
+      // Only show toggle button when collapsed
+      menu.addItem(makeToggleItem())
+    } else {
+      // Show catalog items + toggle button when expanded
+      buildCatalogItems(availableModels).forEach { menu.addItem($0) }
+      menu.addItem(makeToggleItem())
+    }
   }
 
   /// Rebuilds the catalog section to reflect current model availability.
@@ -205,12 +212,17 @@ final class CatalogSection {
         menu.removeItem(at: separatorIndex)
         self.separatorItem = nil
       } else {
-        // Re-add catalog items
-        let items = buildCatalogItems(availableModels)
+        // Re-add catalog items or just toggle button based on collapsed state
         var insertIndex = separatorIndex + 1
-        for item in items {
-          menu.insertItem(item, at: insertIndex)
-          insertIndex += 1
+        if UserSettings.catalogCollapsed {
+          menu.insertItem(makeToggleItem(), at: insertIndex)
+        } else {
+          let items = buildCatalogItems(availableModels)
+          for item in items {
+            menu.insertItem(item, at: insertIndex)
+            insertIndex += 1
+          }
+          menu.insertItem(makeToggleItem(), at: insertIndex)
         }
       }
       return
@@ -233,11 +245,16 @@ final class CatalogSection {
     separatorItem = separator
     menu.insertItem(separator, at: insertIndex)
 
-    let items = buildCatalogItems(availableModels)
     var itemInsertIndex = insertIndex + 1
-    for item in items {
-      menu.insertItem(item, at: itemInsertIndex)
-      itemInsertIndex += 1
+    if UserSettings.catalogCollapsed {
+      menu.insertItem(makeToggleItem(), at: itemInsertIndex)
+    } else {
+      let items = buildCatalogItems(availableModels)
+      for item in items {
+        menu.insertItem(item, at: itemInsertIndex)
+        itemInsertIndex += 1
+      }
+      menu.insertItem(makeToggleItem(), at: itemInsertIndex)
     }
   }
 
@@ -283,6 +300,13 @@ final class CatalogSection {
 
   func refresh() {
     catalogViews.forEach { $0.refresh() }
+  }
+
+  private func makeToggleItem() -> NSMenuItem {
+    let toggleView = CatalogToggleView()
+    let item = NSMenuItem.viewItem(with: toggleView)
+    item.isEnabled = true
+    return item
   }
 }
 
