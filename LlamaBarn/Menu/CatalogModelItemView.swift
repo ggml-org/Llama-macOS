@@ -144,7 +144,7 @@ final class CatalogModelItemView: ItemView {
       .font: Typography.primary,
       .foregroundColor: sizeColor,
     ]
-    result.append(NSAttributedString(string: " - \(model.sizeLabel)", attributes: sizeAttributes))
+    result.append(NSAttributedString(string: " \(model.sizeLabel)", attributes: sizeAttributes))
 
     return result
   }

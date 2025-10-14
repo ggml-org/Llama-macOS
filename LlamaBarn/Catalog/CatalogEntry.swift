@@ -60,7 +60,7 @@ struct CatalogEntry: Identifiable, Codable {
 
   /// Display name combining family and size
   var displayName: String {
-    "\(family) - \(size)"
+    "\(family) \(size)"
   }
 
   /// Full name including quantization suffix (e.g., "Gemma 3 27B-Q4")
