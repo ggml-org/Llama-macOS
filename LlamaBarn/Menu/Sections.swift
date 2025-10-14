@@ -164,6 +164,7 @@ final class CatalogSection {
   private let onDownloadStatusChange: (CatalogEntry) -> Void
   private var catalogViews: [CatalogModelItemView] = []
   private weak var separatorItem: NSMenuItem?
+  private var collapsedFamilies: Set<String> = []
 
   init(
     modelManager: ModelManager,
@@ -277,24 +278,41 @@ final class CatalogSection {
 
     for model in sortedModels {
       // Insert family header when family changes
-      if let prev = previousFamily, prev != model.family {
-        items.append(makeSectionHeaderItem(model.family))
-      } else if previousFamily == nil {
-        // First model - always add header
-        items.append(makeSectionHeaderItem(model.family))
+      if previousFamily != model.family {
+        let headerView = FamilyHeaderView(
+          family: model.family,
+          isCollapsed: collapsedFamilies.contains(model.family)
+        ) { [weak self] family in
+          self?.toggleFamilyCollapsed(family)
+        }
+        let headerItem = NSMenuItem.viewItem(with: headerView)
+        headerItem.isEnabled = true
+        items.append(headerItem)
       }
 
-      let view = CatalogModelItemView(model: model, modelManager: modelManager) {
-        [weak self] in
-        self?.onDownloadStatusChange(model)
+      // Only add model if family is not collapsed
+      if !collapsedFamilies.contains(model.family) {
+        let view = CatalogModelItemView(model: model, modelManager: modelManager) {
+          [weak self] in
+          self?.onDownloadStatusChange(model)
+        }
+        catalogViews.append(view)
+        items.append(NSMenuItem.viewItem(with: view))
       }
-      catalogViews.append(view)
-      items.append(NSMenuItem.viewItem(with: view))
 
       previousFamily = model.family
     }
 
     return items
+  }
+
+  private func toggleFamilyCollapsed(_ family: String) {
+    if collapsedFamilies.contains(family) {
+      collapsedFamilies.remove(family)
+    } else {
+      collapsedFamilies.insert(family)
+    }
+    NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
   }
 
   func refresh() {
