@@ -222,12 +222,12 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     ]
     result.append(NSAttributedString(string: model.family, attributes: familyAttributes))
 
-    // Em dash and size in primary font with secondary color
+    // Size in primary font with secondary color
     let sizeAttributes: [NSAttributedString.Key: Any] = [
       .font: Typography.primary,
       .foregroundColor: sizeColor,
     ]
-    result.append(NSAttributedString(string: " — \(model.sizeLabel)", attributes: sizeAttributes))
+    result.append(NSAttributedString(string: " \(model.sizeLabel)", attributes: sizeAttributes))
 
     return result
   }
