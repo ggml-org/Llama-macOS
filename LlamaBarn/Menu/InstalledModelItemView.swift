@@ -153,21 +153,16 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   }
 
   private func toggle() {
-    let status = modelManager.status(for: model)
-    switch status {
-    case .installed:
+    if modelManager.isInstalled(model) {
       if server.isActive(model: model) { server.stop() } else { server.start(model: model) }
-    case .downloading:
+    } else if modelManager.isDownloading(model) {
       modelManager.cancelModelDownload(model)
       membershipChanged(model)
-    case .available:
-      break
     }
     refresh()
   }
 
   func refresh() {
-    let status = modelManager.status(for: model)
     let isActive = server.isActive(model: model)
     let isLoading = isActive && server.isLoading
 
@@ -175,7 +170,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     metadataLabel.attributedStringValue = ModelMetadataFormatters.makeMetadataTextOnly(for: model)
 
     // Progress and cancel button only for downloading
-    if case .downloading(let progress) = status {
+    if let progress = modelManager.downloadProgress(for: model) {
       modelNameLabel.textColor = Typography.secondaryColor
       progressLabel.stringValue = ProgressFormatters.percentText(progress)
       cancelImageView.isHidden = false
@@ -188,7 +183,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
 
     // Delete button only for installed models on hover
-    deleteLabel.isHidden = status != .installed || !isHighlighted
+    deleteLabel.isHidden = !modelManager.isInstalled(model) || !isHighlighted
 
     // Update icon state
     iconView.setLoading(isLoading)
@@ -198,8 +193,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   }
 
   override func highlightDidChange(_ highlighted: Bool) {
-    let status = modelManager.status(for: model)
-    deleteLabel.isHidden = status != .installed || !highlighted
+    deleteLabel.isHidden = !modelManager.isInstalled(model) || !highlighted
   }
 
   override func viewDidChangeEffectiveAppearance() {
@@ -212,8 +206,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   }
 
   @objc private func performDelete() {
-    let status = modelManager.status(for: model)
-    guard case .installed = status else { return }
+    guard modelManager.isInstalled(model) else { return }
     modelManager.deleteDownloadedModel(model)
     membershipChanged(model)
   }

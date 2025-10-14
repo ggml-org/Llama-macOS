@@ -26,7 +26,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   private var isSettingsVisible = false
   private var menuWidth: CGFloat = 260
-  private var observers: [NSObjectProtocol] = []
+  private let observer = NotificationObserver()
   private weak var currentlyHighlightedView: ItemView?
 
   init(modelManager: ModelManager? = nil, server: LlamaServer? = nil) {
@@ -35,10 +35,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     self.server = server ?? .shared
     super.init()
     configureStatusItem()
-  }
-
-  deinit {
-    observers.forEach { NotificationCenter.default.removeObserver($0) }
   }
 
   private func configureStatusItem() {
@@ -72,7 +68,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     guard menu === statusItem.menu else { return }
     currentlyHighlightedView?.setHighlight(false)
     currentlyHighlightedView = nil
-    removeObservers()
+    observer.removeAll()
     isSettingsVisible = false
   }
 
@@ -125,78 +121,60 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // Observe server and download changes while the menu is open.
   private func addObservers() {
-    removeObservers()
-    let center = NotificationCenter.default
+    observer.removeAll()
 
     // Server started/stopped - update icon and views
-    observers.append(
-      center.addObserver(forName: .LBServerStateDidChange, object: nil, queue: .main) {
-        [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.refresh()
-        }
-      })
+    observer.observe(.LBServerStateDidChange) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.refresh()
+      }
+    }
 
     // Server memory usage changed - update running model stats
-    observers.append(
-      center.addObserver(forName: .LBServerMemoryDidChange, object: nil, queue: .main) {
-        [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.refresh()
-        }
-      })
+    observer.observe(.LBServerMemoryDidChange) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.refresh()
+      }
+    }
 
     // Download progress updated - refresh progress indicators
-    observers.append(
-      center.addObserver(forName: .LBModelDownloadsDidChange, object: nil, queue: .main) {
-        [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.refresh()
-        }
-      })
+    observer.observe(.LBModelDownloadsDidChange) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.refresh()
+      }
+    }
 
     // Model downloaded or deleted - rebuild both installed and catalog sections
-    observers.append(
-      center.addObserver(forName: .LBModelDownloadedListDidChange, object: nil, queue: .main) {
-        [weak self] _ in
-        MainActor.assumeIsolated {
-          if let menu = self?.statusItem.menu {
-            self?.installedSection.rebuild(in: menu)
-            self?.catalogSection.rebuild(in: menu)
-          }
-          self?.refresh()
+    observer.observe(.LBModelDownloadedListDidChange) { [weak self] _ in
+      MainActor.assumeIsolated {
+        if let menu = self?.statusItem.menu {
+          self?.installedSection.rebuild(in: menu)
+          self?.catalogSection.rebuild(in: menu)
         }
-      })
+        self?.refresh()
+      }
+    }
 
     // Settings visibility toggled - rebuild menu
-    observers.append(
-      center.addObserver(forName: .LBToggleSettingsVisibility, object: nil, queue: .main) {
-        [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.isSettingsVisible.toggle()
-          if let menu = self?.statusItem.menu {
-            self?.rebuildMenu(menu)
-          }
+    observer.observe(.LBToggleSettingsVisibility) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.isSettingsVisible.toggle()
+        if let menu = self?.statusItem.menu {
+          self?.rebuildMenu(menu)
         }
-      })
+      }
+    }
 
     // User settings changed (e.g., show quantized models) - rebuild menu
-    observers.append(
-      center.addObserver(forName: .LBUserSettingsDidChange, object: nil, queue: .main) {
-        [weak self] _ in
-        MainActor.assumeIsolated {
-          if let menu = self?.statusItem.menu {
-            self?.rebuildMenu(menu)
-          }
+    observer.observe(.LBUserSettingsDidChange) { [weak self] _ in
+      MainActor.assumeIsolated {
+        if let menu = self?.statusItem.menu {
+          self?.rebuildMenu(menu)
         }
-      })
+      }
+    }
 
     refresh()
-  }
-
-  private func removeObservers() {
-    observers.forEach { NotificationCenter.default.removeObserver($0) }
-    observers.removeAll()
   }
 
   private func refresh() {

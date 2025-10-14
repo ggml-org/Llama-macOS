@@ -35,16 +35,12 @@ class ModelManager: NSObject {
 
   private let downloader = ModelDownloader.shared
   private let logger = Logger(subsystem: Logging.subsystem, category: "ModelManager")
-  private var observers: [NSObjectProtocol] = []
+  private let observer = NotificationObserver()
 
   override init() {
     super.init()
     refreshDownloadedModels()
     addObservers()
-  }
-
-  deinit {
-    observers.forEach { NotificationCenter.default.removeObserver($0) }
   }
 
   /// Downloads a model by delegating to the downloader.
@@ -62,11 +58,6 @@ class ModelManager: NSObject {
       return downloadStatus
     }
     return .available
-  }
-
-  /// Checks if a model has been completely downloaded.
-  func isModelDownloaded(_ model: CatalogEntry) -> Bool {
-    downloadedModelIds.contains(model.id)
   }
 
   /// Safely deletes a downloaded model and its associated files.
@@ -128,17 +119,32 @@ class ModelManager: NSObject {
     downloader.cancelModelDownload(model)
   }
 
+  // MARK: - Convenience Methods
+
+  /// Returns true if the model is installed (fully downloaded).
+  func isInstalled(_ model: CatalogEntry) -> Bool {
+    status(for: model) == .installed
+  }
+
+  /// Returns true if the model is currently downloading.
+  func isDownloading(_ model: CatalogEntry) -> Bool {
+    if case .downloading = status(for: model) { return true }
+    return false
+  }
+
+  /// Returns the download progress if the model is currently downloading, nil otherwise.
+  func downloadProgress(for model: CatalogEntry) -> Progress? {
+    if case .downloading(let progress) = status(for: model) { return progress }
+    return nil
+  }
+
   private func addObservers() {
-    let center = NotificationCenter.default
     // When the downloader finishes a set of files for a model, it posts this notification.
     // We observe it to refresh our list of fully downloaded models.
-    observers.append(
-      center.addObserver(forName: .LBModelDownloadFinished, object: downloader, queue: .main) {
-        [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.refreshDownloadedModels()
-        }
+    observer.observe(.LBModelDownloadFinished, object: downloader) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.refreshDownloadedModels()
       }
-    )
+    }
   }
 }

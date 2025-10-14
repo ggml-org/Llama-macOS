@@ -136,10 +136,7 @@ final class InstalledSection {
   }
 
   private func installedModels() -> [CatalogEntry] {
-    let downloading = Catalog.allEntries().filter {
-      if case .downloading = modelManager.status(for: $0) { return true }
-      return false
-    }
+    let downloading = Catalog.allEntries().filter { modelManager.isDownloading($0) }
     return (modelManager.downloadedModels + downloading)
       .sorted(by: CatalogEntry.displayOrder(_:_:))
   }
@@ -261,8 +258,7 @@ final class CatalogSection {
   private func filterAvailableModels() -> [CatalogEntry] {
     let showQuantized = UserSettings.showQuantizedModels
     return Catalog.allEntries().filter { model in
-      let status = modelManager.status(for: model)
-      let isAvailable = status == .available
+      let isAvailable = !modelManager.isInstalled(model) && !modelManager.isDownloading(model)
       let isCompatible = Catalog.isModelCompatible(model)
       return isAvailable && isCompatible && (showQuantized || model.isFullPrecision)
     }
