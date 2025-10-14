@@ -679,7 +679,7 @@ enum CatalogFamilies {
     ),
     // MARK: Qwen3 2507 (migrated to hierarchical form)
     ModelFamily(
-      name: "Qwen3 2507",
+      name: "Qwen 3 2507",
       series: "qwen",
       blurb:
         "Alibaba's latest Qwen3 refresh focused on instruction following, multilingual coverage, and long contexts across sizes.",
@@ -758,7 +758,7 @@ enum CatalogFamilies {
     ),
     // MARK: Qwen3 2507 Thinking (migrated)
     ModelFamily(
-      name: "Qwen3 2507 Thinking",
+      name: "Qwen 3 2507 Thinking",
       series: "qwen",
       blurb:
         "Qwen3 models biased toward deliberate reasoning and step‑by‑step answers; useful for analysis and planning tasks.",
