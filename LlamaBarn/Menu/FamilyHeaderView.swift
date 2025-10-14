@@ -21,7 +21,7 @@ final class FamilyHeaderView: ItemView {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: 260, height: 26) }
+  override var intrinsicContentSize: NSSize { NSSize(width: 260, height: 22) }
 
   private func setup() {
     label.translatesAutoresizingMaskIntoConstraints = false
