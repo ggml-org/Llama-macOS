@@ -46,10 +46,6 @@ final class MenuSettingsSection {
 
 @MainActor
 final class InstalledSection {
-  private enum Constants {
-    static let placeholderTitle = "No installed models"
-  }
-
   private let modelManager: ModelManager
   private let server: LlamaServer
   private let onMembershipChanged: (CatalogEntry) -> Void
@@ -68,42 +64,75 @@ final class InstalledSection {
   }
 
   func add(to menu: NSMenu) {
+    let models = installedModels()
+    guard !models.isEmpty else { return }
+
     let header = makeSectionHeaderItem("Installed")
     headerItem = header
     menu.addItem(header)
-    populateSection(in: menu)
+
+    buildInstalledItems(models).forEach { menu.addItem($0) }
   }
 
-  /// Rebuilds the installed section.
+  /// Rebuilds the installed section to reflect current model state.
   /// Called during live updates to keep the UI in sync while menu stays open.
   func rebuild(in menu: NSMenu) {
-    guard let range = sectionRange(in: menu) else { return }
-    for index in range.reversed() {
-      menu.removeItem(at: index)
+    let models = installedModels()
+
+    // Case 1: Section exists
+    if let headerItem, let headerIndex = menu.items.firstIndex(of: headerItem) {
+      // Remove all installed items
+      let indexToRemove = headerIndex + 1
+      while indexToRemove < menu.items.count {
+        let item = menu.items[indexToRemove]
+        // Stop when we hit a separator (which marks the end of our section)
+        if item.isSeparatorItem { break }
+        menu.removeItem(at: indexToRemove)
+      }
+
+      if models.isEmpty {
+        // No models left - remove the header
+        menu.removeItem(at: headerIndex)
+        self.headerItem = nil
+      } else {
+        // Re-add installed items
+        let items = buildInstalledItems(models)
+        var insertIndex = headerIndex + 1
+        for item in items {
+          menu.insertItem(item, at: insertIndex)
+          insertIndex += 1
+        }
+      }
+      return
     }
-    populateSection(in: menu)
+
+    // Case 2: Section doesn't exist - add it if there are models
+    guard !models.isEmpty else { return }
+
+    // Find the insertion point after the header separator.
+    // The Installed section comes right after the menu header and its separator.
+    var insertIndex = 0
+    for (index, item) in menu.items.enumerated() {
+      if item.isSeparatorItem {
+        insertIndex = index + 1
+        break
+      }
+    }
+
+    let header = makeSectionHeaderItem("Installed")
+    headerItem = header
+    menu.insertItem(header, at: insertIndex)
+
+    let items = buildInstalledItems(models)
+    var itemInsertIndex = insertIndex + 1
+    for item in items {
+      menu.insertItem(item, at: itemInsertIndex)
+      itemInsertIndex += 1
+    }
   }
 
   func refresh() {
     installedViews.forEach { $0.refresh() }
-  }
-
-  private func populateSection(in menu: NSMenu) {
-    guard let range = sectionRange(in: menu) else { return }
-    let models = installedModels()
-
-    installedViews.removeAll()
-
-    guard !models.isEmpty else {
-      menu.insertItem(makePlaceholderItem(), at: range.startIndex)
-      return
-    }
-
-    models.enumerated().forEach { offset, model in
-      let (item, view) = makeInstalledRow(for: model)
-      installedViews.append(view)
-      menu.insertItem(item, at: range.startIndex + offset)
-    }
   }
 
   private func installedModels() -> [CatalogEntry] {
@@ -115,35 +144,20 @@ final class InstalledSection {
       .sorted(by: CatalogEntry.displayOrder(_:_:))
   }
 
-  private func makePlaceholderItem() -> NSMenuItem {
-    let item = NSMenuItem()
-    item.title = Constants.placeholderTitle
-    item.isEnabled = false
-    return item
-  }
+  private func buildInstalledItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
+    installedViews.removeAll()
 
-  private func makeInstalledRow(for model: CatalogEntry) -> (NSMenuItem, InstalledModelItemView) {
-    let view = InstalledModelItemView(
-      model: model,
-      server: server,
-      modelManager: modelManager
-    ) { [weak self] entry in
-      self?.onMembershipChanged(entry)
+    return models.map { model in
+      let view = InstalledModelItemView(
+        model: model,
+        server: server,
+        modelManager: modelManager
+      ) { [weak self] entry in
+        self?.onMembershipChanged(entry)
+      }
+      installedViews.append(view)
+      return NSMenuItem.viewItem(with: view)
     }
-    let item = NSMenuItem.viewItem(with: view)
-    return (item, view)
-  }
-
-  private func sectionRange(in menu: NSMenu) -> Range<Int>? {
-    guard let headerItem, let headerIndex = menu.items.firstIndex(of: headerItem) else {
-      return nil
-    }
-    // Find the range of items between the section header and the next separator.
-    // The section starts immediately after the header (headerIndex + 1).
-    // It ends at the first separator found, or at the end of the menu if this is the last section.
-    let start = headerIndex + 1
-    let end = menu.items[start...].firstIndex(where: \.isSeparatorItem) ?? menu.items.endIndex
-    return start..<end
   }
 }
 
