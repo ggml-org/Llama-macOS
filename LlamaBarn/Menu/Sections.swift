@@ -34,11 +34,11 @@ final class MenuHeaderSection {
 
 @MainActor
 final class MenuSettingsSection {
-  func add(to menu: NSMenu, menuWidth: CGFloat) {
+  func add(to menu: NSMenu) {
     let rootView = SettingsView()
     let view = NSHostingView(rootView: rootView)
     let height = view.fittingSize.height
-    view.frame = NSRect(x: 0, y: 0, width: menuWidth, height: height)
+    view.frame = NSRect(x: 0, y: 0, width: Layout.menuWidth, height: height)
     let item = NSMenuItem.viewItem(with: view)
     menu.addItem(item)
   }
@@ -333,7 +333,7 @@ final class CatalogSection {
 
 @MainActor
 final class FooterSection {
-  func add(to menu: NSMenu, menuWidth: CGFloat) {
+  func add(to menu: NSMenu) {
     menu.addItem(.separator())
 
     let container = NSView()
@@ -371,11 +371,8 @@ final class FooterSection {
 
     let horizontalPadding = Layout.outerHorizontalPadding + Layout.innerHorizontalPadding
 
-    if menuWidth > 0 {
-      container.widthAnchor.constraint(equalToConstant: menuWidth).isActive = true
-    }
-
     NSLayoutConstraint.activate([
+      container.widthAnchor.constraint(equalToConstant: Layout.menuWidth),
       container.heightAnchor.constraint(greaterThanOrEqualToConstant: 28),
       versionLabel.leadingAnchor.constraint(
         equalTo: container.leadingAnchor, constant: horizontalPadding),

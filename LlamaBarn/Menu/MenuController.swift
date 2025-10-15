@@ -27,7 +27,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   private let footerSection = FooterSection()
 
   private var isSettingsVisible = false
-  private var menuWidth: CGFloat = 260
   private let observer = NotificationObserver()
   private weak var currentlyHighlightedView: ItemView?
   private var preservingHighlightForFamily: String?
@@ -105,15 +104,11 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     installedSection.add(to: menu)
     catalogSection.add(to: menu)
-    footerSection.add(to: menu, menuWidth: menuWidth)
+    footerSection.add(to: menu)
 
     if isSettingsVisible {
       menu.addItem(.separator())
-      settingsSection.add(to: menu, menuWidth: menuWidth)
-    }
-
-    if menu.size.width > 0 {
-      menuWidth = menu.size.width
+      settingsSection.add(to: menu)
     }
   }
 

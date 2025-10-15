@@ -2,6 +2,8 @@ import AppKit
 
 /// Shared UI layout constants and helpers for NSMenu custom rows.
 enum Layout {
+  /// Standard menu width for all items.
+  static let menuWidth: CGFloat = 320
   /// Distance from menu edge to background view (used in all menu items and headers).
   static let outerHorizontalPadding: CGFloat = 5
   /// Distance from background edge to content (used in all menu items and headers).

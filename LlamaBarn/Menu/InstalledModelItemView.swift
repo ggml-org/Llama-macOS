@@ -40,7 +40,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: 320, height: 40) }
+  override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 40) }
 
   private func setup() {
     wantsLayer = true

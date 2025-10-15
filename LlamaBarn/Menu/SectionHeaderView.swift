@@ -13,7 +13,7 @@ final class SectionHeaderView: NSView {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: 260, height: 18) }
+  override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 18) }
 
   private func setup(title: String) {
     // Accessibility
