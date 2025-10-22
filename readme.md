@@ -6,6 +6,24 @@ Get it from [Releases ↗](https://github.com/ggml-org/LlamaBarn/releases)
 
 ![LlamaBarn](https://github.com/user-attachments/assets/9ff133d8-6a65-43d5-9672-5eb58da0dd0e)
 
+## Installation
+
+### Homebrew
+
+```shell
+brew install --cask llamabarn
+```
+
+The formula is automatically updated with new LlamaBarn releases. Running the command above installs LlamaBarn in the `Applications` directory. 
+
+### GitHub Releases
+
+1. Download `LlamaBarn.dmg` from the [latest GitHub Release]() and open it.
+2. Drag the LlamaBarn app over the `Applications` folder to install it.
+3. Use <kbd>cmd + e</kbd> to eject the DMG.
+
+Read the [Quick start](#quick-start) guide to start using LlamaBarn.
+
 ## Goals
 
 <!-- what we hope to achieve -->
