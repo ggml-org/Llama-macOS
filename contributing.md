@@ -1,6 +1,6 @@
 ## Issues
 
-Found a bug? [Open an issue](https://github.com/ggml-org/LlamaBarn/issues).
+Found a bug? Open an issue.
 
 **Feature requests:** This is an early stage product. Only open issues for high priority work that makes sense for the current state of the project - either easy wins or major improvements. The tracker is for actionable work that matters now, not "someday" features or wishlists.
 
