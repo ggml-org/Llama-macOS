@@ -612,9 +612,9 @@ enum CatalogFamilies {
         ),
       ]
     ),
-    // MARK: Qwen 3 Coder (migrated)
+    // MARK: Qwen3 Coder (migrated)
     ModelFamily(
-      name: "Qwen 3 Coder",
+      name: "Qwen3 Coder",
       series: "qwen",
       blurb:
         "Qwen3 optimized for software tasks: strong code completion, instruction following, and long-context coding.",
@@ -660,7 +660,7 @@ enum CatalogFamilies {
     ),
     // MARK: Qwen3 2507 (migrated to hierarchical form)
     ModelFamily(
-      name: "Qwen 3 2507",
+      name: "Qwen3 2507",
       series: "qwen",
       blurb:
         "Alibaba's latest Qwen3 refresh focused on instruction following, multilingual coverage, and long contexts across sizes.",
@@ -740,7 +740,7 @@ enum CatalogFamilies {
     ),
     // MARK: Qwen3 2507 Thinking (migrated)
     ModelFamily(
-      name: "Qwen 3 2507 Thinking",
+      name: "Qwen3 2507 Thinking",
       series: "qwen",
       blurb:
         "Qwen3 models biased toward deliberate reasoning and step‑by‑step answers; useful for analysis and planning tasks.",

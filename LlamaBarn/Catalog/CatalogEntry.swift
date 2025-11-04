@@ -3,7 +3,7 @@ import Foundation
 /// Represents a complete AI model configuration with metadata and file locations
 struct CatalogEntry: Identifiable, Codable {
   let id: String  // Unique identifier for the model
-  let family: String  // Model family name (e.g., "Qwen 3", "Gemma 3n")
+  let family: String  // Model family name (e.g., "Qwen3", "Gemma 3n")
   let size: String  // Model size (e.g., "8B", "E4B")
   let releaseDate: Date  // Model release date
   let ctxWindow: Int  // Maximum context window in tokens
