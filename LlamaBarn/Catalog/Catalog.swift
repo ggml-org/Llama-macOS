@@ -10,32 +10,29 @@ enum Catalog {
 
   // MARK: - Model Structures
 
-  struct ModelBuild {
-    let id: String  // unique identifier
-    let quantization: String
-    let fileSize: Int64
-    /// Estimated KV-cache bytes needed for a 1k-token context.
-    let ctxBytesPer1kTokens: Int
-    let downloadUrl: URL
-    let additionalParts: [URL]?
-    let serverArgs: [String]?
+  struct ModelFamily {
+    let name: String  // e.g. "Qwen3 2507"
+    let series: String  // e.g. "qwen"
+    let serverArgs: [String]?  // optional defaults for all models/builds
+    let overheadMultiplier: Double  // overhead multiplier for file size
+    let sizes: [ModelSize]
 
     init(
-      id: String,
-      quantization: String,
-      fileSize: Int64,
-      ctxBytesPer1kTokens: Int,
-      downloadUrl: URL,
-      additionalParts: [URL]? = nil,
-      serverArgs: [String]? = nil
+      name: String,
+      series: String,
+      serverArgs: [String]? = nil,
+      overheadMultiplier: Double = 1.05,
+      sizes: [ModelSize]
     ) {
-      self.id = id
-      self.quantization = quantization
-      self.fileSize = fileSize
-      self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
-      self.downloadUrl = downloadUrl
-      self.additionalParts = additionalParts
+      self.name = name
+      self.series = series
       self.serverArgs = serverArgs
+      self.overheadMultiplier = overheadMultiplier
+      self.sizes = sizes
+    }
+
+    var iconName: String {
+      "ModelLogos/\(series.lowercased())"
     }
   }
 
@@ -75,29 +72,32 @@ enum Catalog {
     }
   }
 
-  struct ModelFamily {
-    let name: String  // e.g. "Qwen3 2507"
-    let series: String  // e.g. "qwen"
-    let serverArgs: [String]?  // optional defaults for all models/builds
-    let overheadMultiplier: Double  // overhead multiplier for file size
-    let sizes: [ModelSize]
+  struct ModelBuild {
+    let id: String  // unique identifier
+    let quantization: String
+    let fileSize: Int64
+    /// Estimated KV-cache bytes needed for a 1k-token context.
+    let ctxBytesPer1kTokens: Int
+    let downloadUrl: URL
+    let additionalParts: [URL]?
+    let serverArgs: [String]?
 
     init(
-      name: String,
-      series: String,
-      serverArgs: [String]? = nil,
-      overheadMultiplier: Double = 1.05,
-      sizes: [ModelSize]
+      id: String,
+      quantization: String,
+      fileSize: Int64,
+      ctxBytesPer1kTokens: Int,
+      downloadUrl: URL,
+      additionalParts: [URL]? = nil,
+      serverArgs: [String]? = nil
     ) {
-      self.name = name
-      self.series = series
+      self.id = id
+      self.quantization = quantization
+      self.fileSize = fileSize
+      self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
+      self.downloadUrl = downloadUrl
+      self.additionalParts = additionalParts
       self.serverArgs = serverArgs
-      self.overheadMultiplier = overheadMultiplier
-      self.sizes = sizes
-    }
-
-    var iconName: String {
-      "ModelLogos/\(series.lowercased())"
     }
   }
 
