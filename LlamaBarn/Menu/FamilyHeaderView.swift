@@ -30,6 +30,8 @@ final class FamilyHeaderView: ItemView {
     sizesLabel.translatesAutoresizingMaskIntoConstraints = false
     sizesLabel.stringValue = isCollapsed ? formatSizes() : ""
     sizesLabel.isHidden = !isCollapsed
+    sizesLabel.lineBreakMode = .byTruncatingTail
+    sizesLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
     chevronImageView.translatesAutoresizingMaskIntoConstraints = false
     chevronImageView.contentTintColor = .tertiaryLabelColor
