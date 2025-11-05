@@ -44,6 +44,7 @@ enum Catalog {
   }
 
   struct Model {
+    let paramCountB: Double  // Model size in billions of parameters (e.g., 4.0, 30.0, 0.27)
     let label: String  // e.g. "4B", "30B"
     let releaseDate: Date
     let ctxWindow: Int
@@ -53,6 +54,7 @@ enum Catalog {
     let quantizedBuilds: [ModelBuild]
 
     init(
+      paramCountB: Double,
       label: String,
       releaseDate: Date,
       ctxWindow: Int,
@@ -61,6 +63,7 @@ enum Catalog {
       build: ModelBuild,
       quantizedBuilds: [ModelBuild] = []
     ) {
+      self.paramCountB = paramCountB
       self.label = label
       self.releaseDate = releaseDate
       self.ctxWindow = ctxWindow
@@ -152,6 +155,7 @@ enum Catalog {
     return CatalogEntry(
       id: build.id,
       family: family.name,
+      paramCountB: model.paramCountB,
       size: model.label,
       releaseDate: model.releaseDate,
       ctxWindow: model.ctxWindow,
@@ -221,6 +225,7 @@ enum Catalog {
       serverArgs: ["-c", "0"],
       models: [
         Model(
+          paramCountB: 20,
           label: "20B",
           releaseDate: date(2025, 8, 2),
           ctxWindow: 131_072,
@@ -236,6 +241,7 @@ enum Catalog {
           )
         ),
         Model(
+          paramCountB: 120,
           label: "120B",
           releaseDate: date(2025, 8, 2),
           ctxWindow: 131_072,
@@ -270,6 +276,7 @@ enum Catalog {
       overheadMultiplier: 1.3,
       models: [
         Model(
+          paramCountB: 27,
           label: "27B",
           releaseDate: date(2025, 4, 24),
           ctxWindow: 131_072,
@@ -285,6 +292,7 @@ enum Catalog {
           )
         ),
         Model(
+          paramCountB: 12,
           label: "12B",
           releaseDate: date(2025, 4, 21),
           ctxWindow: 131_072,
@@ -300,6 +308,7 @@ enum Catalog {
           )
         ),
         Model(
+          paramCountB: 4,
           label: "4B",
           releaseDate: date(2025, 4, 22),
           ctxWindow: 131_072,
@@ -315,6 +324,7 @@ enum Catalog {
           )
         ),
         Model(
+          paramCountB: 1,
           label: "1B",
           releaseDate: date(2025, 8, 27),
           ctxWindow: 131_072,
@@ -330,6 +340,7 @@ enum Catalog {
           )
         ),
         Model(
+          paramCountB: 0.27,
           label: "270M",
           releaseDate: date(2025, 8, 14),
           ctxWindow: 32_768,
@@ -354,6 +365,7 @@ enum Catalog {
       serverArgs: ["-c", "0", "-ot", "per_layer_token_embd.weight=CPU", "--no-mmap"],
       models: [
         Model(
+          paramCountB: 2.0,
           label: "E4B",
           releaseDate: date(2024, 1, 15),
           ctxWindow: 32_768,
@@ -381,6 +393,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 0.5,
           label: "E2B",
           releaseDate: date(2024, 1, 1),
           ctxWindow: 32_768,
@@ -417,6 +430,7 @@ enum Catalog {
       overheadMultiplier: 1.1,
       models: [
         Model(
+          paramCountB: 30,
           label: "30B",
           releaseDate: date(2025, 7, 31),
           ctxWindow: 262_144,
@@ -453,6 +467,7 @@ enum Catalog {
       overheadMultiplier: 1.1,
       models: [
         Model(
+          paramCountB: 30,
           label: "30B",
           releaseDate: date(2025, 7, 1),
           ctxWindow: 262_144,
@@ -480,6 +495,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 4,
           label: "4B",
           releaseDate: date(2025, 7, 1),
           ctxWindow: 262_144,
@@ -516,6 +532,7 @@ enum Catalog {
       overheadMultiplier: 1.1,
       models: [
         Model(
+          paramCountB: 30,
           label: "30B",
           releaseDate: date(2025, 7, 1),
           ctxWindow: 262_144,
@@ -543,6 +560,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 4,
           label: "4B",
           releaseDate: date(2025, 7, 1),
           ctxWindow: 262_144,
@@ -579,6 +597,7 @@ enum Catalog {
       overheadMultiplier: 1.1,
       models: [
         Model(
+          paramCountB: 32,
           label: "32B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -610,6 +629,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 30,
           label: "30B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -641,6 +661,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 8,
           label: "8B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -672,6 +693,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 4,
           label: "4B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -703,6 +725,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 2,
           label: "2B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -743,6 +766,7 @@ enum Catalog {
       overheadMultiplier: 1.1,
       models: [
         Model(
+          paramCountB: 32,
           label: "32B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -774,6 +798,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 30,
           label: "30B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -805,6 +830,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 8,
           label: "8B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -836,6 +862,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 4,
           label: "4B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -867,6 +894,7 @@ enum Catalog {
           ]
         ),
         Model(
+          paramCountB: 2,
           label: "2B",
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
