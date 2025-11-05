@@ -168,16 +168,16 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Use secondary color for downloading models, primary for installed
     let familyColor: NSColor = isDownloading ? Typography.secondaryColor : Typography.primaryColor
-    modelNameLabel.attributedStringValue = ModelMetadataFormatters.makeModelName(
+    modelNameLabel.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
       familyColor: familyColor
     )
 
-    metadataLabel.attributedStringValue = ModelMetadataFormatters.makeMetadataTextOnly(for: model)
+    metadataLabel.attributedStringValue = Format.modelMetadata(for: model)
 
     if let progress = modelManager.downloadProgress(for: model) {
-      progressLabel.stringValue = ProgressFormatters.percentText(progress)
+      progressLabel.stringValue = Format.progressText(progress)
       cancelImageView.isHidden = false
       iconView.inactiveTintColor = Typography.secondaryColor
     } else {

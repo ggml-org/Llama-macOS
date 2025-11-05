@@ -66,7 +66,7 @@ struct CatalogEntry: Identifiable, Codable {
   var fullName: String {
     var name = displayName
     if !isFullPrecision,
-      let quantLabel = QuantizationFormatters.short(quantization).nilIfEmpty
+      let quantLabel = Format.quantization(quantization).nilIfEmpty
     {
       name += "-\(quantLabel)"
     }
@@ -76,7 +76,7 @@ struct CatalogEntry: Identifiable, Codable {
   /// Size label with quantization suffix (e.g., "27B" or "27B-Q4")
   var sizeLabel: String {
     guard !isFullPrecision,
-      let quantLabel = QuantizationFormatters.short(quantization).nilIfEmpty
+      let quantLabel = Format.quantization(quantization).nilIfEmpty
     else {
       return size
     }
@@ -87,7 +87,7 @@ struct CatalogEntry: Identifiable, Codable {
 
   /// Total size including all model files
   var totalSize: String {
-    ByteFormatters.gbOneDecimal(fileSize)
+    Format.gigabytes(fileSize)
   }
 
   /// Simplified quantization display (e.g., "Q4" from "Q4_K_M")

@@ -124,7 +124,7 @@ final class CatalogModelItemView: ItemView {
 
     // Use secondary color for catalog models, tertiary for incompatible models
     let textColor = compatible ? Typography.secondaryColor : Typography.tertiaryColor
-    labelField.attributedStringValue = ModelMetadataFormatters.makeModelName(
+    labelField.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
       familyColor: textColor,
@@ -133,7 +133,7 @@ final class CatalogModelItemView: ItemView {
 
     // Metadata text (second line)
     if compatible {
-      metadataLabel.attributedStringValue = ModelMetadataFormatters.makeMetadataTextOnly(for: model)
+      metadataLabel.attributedStringValue = Format.modelMetadata(for: model)
     } else {
       metadataLabel.attributedStringValue = NSAttributedString(
         string: "Won't run on this device.",
