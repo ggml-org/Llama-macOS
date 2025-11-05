@@ -61,4 +61,4 @@ Find the complete reference in the [`llama-server` docs ↗](https://github.com/
 - [ ] Completion models
 - [ ] Run multiple models at once
 - [ ] Parallel requests
-- [ ] Vision for models that support it
+- [x] Vision for models that support it
