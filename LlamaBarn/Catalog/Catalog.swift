@@ -3,12 +3,7 @@ import Foundation
 /// Static catalog of available AI models with their configurations and metadata
 enum Catalog {
 
-  /// Helper to create dates concisely for model release dates
-  private static func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
-    Calendar.current.date(from: DateComponents(year: year, month: month, day: day))!
-  }
-
-  // MARK: - Model Structures
+  // MARK: - Data Structures
 
   struct ModelFamily {
     let name: String  // e.g. "Qwen3 2507"
@@ -101,10 +96,12 @@ enum Catalog {
     }
   }
 
+  // MARK: - Public Data
+
   /// Pre-sorted by name to avoid runtime sorting.
   static let families: [ModelFamily] = familiesUnsorted.sorted(by: { $0.name < $1.name })
 
-  // MARK: - Accessors
+  // MARK: - Public Accessors
 
   /// Returns all catalog entries by traversing the hierarchy
   static func allModels() -> [CatalogEntry] {
@@ -128,6 +125,52 @@ enum Catalog {
     }
     return nil
   }
+
+  /// Gets system memory in Mb using shared system memory utility
+  static var systemMemoryMb: UInt64 {
+    SystemMemory.memoryMb
+  }
+
+  // MARK: - Memory Calculations
+
+  /// Delegated to MemoryCalculator for centralized memory management logic
+
+  static func availableMemoryFraction(forSystemMemoryMb systemMemoryMb: UInt64) -> Double {
+    MemoryCalculator.availableMemoryFraction(forSystemMemoryMb: systemMemoryMb)
+  }
+
+  static let compatibilityCtxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
+  static let minimumCtxWindowTokens: Double = MemoryCalculator.minimumCtxWindowTokens
+
+  static func usableCtxWindow(
+    for model: CatalogEntry,
+    desiredTokens: Int? = nil
+  ) -> Int? {
+    MemoryCalculator.usableContextWindow(for: model, desiredTokens: desiredTokens)
+  }
+
+  static func isModelCompatible(
+    _ model: CatalogEntry,
+    ctxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
+  ) -> Bool {
+    MemoryCalculator.isModelCompatible(model, ctxWindowTokens: ctxWindowTokens)
+  }
+
+  static func incompatibilitySummary(
+    _ model: CatalogEntry,
+    ctxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
+  ) -> String? {
+    MemoryCalculator.incompatibilitySummary(model, ctxWindowTokens: ctxWindowTokens)
+  }
+
+  static func runtimeMemoryUsageMb(
+    for model: CatalogEntry,
+    ctxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
+  ) -> UInt64 {
+    MemoryCalculator.runtimeMemoryUsage(for: model, ctxWindowTokens: ctxWindowTokens)
+  }
+
+  // MARK: - Private Helpers
 
   /// Builds a CatalogEntry from hierarchy components
   private static func entry(family: ModelFamily, size: ModelSize, build: ModelBuild)
@@ -169,49 +212,12 @@ enum Catalog {
     )
   }
 
-  /// Gets system memory in Mb using shared system memory utility
-  static var systemMemoryMb: UInt64 {
-    SystemMemory.memoryMb
+  /// Helper to create dates concisely for model release dates
+  private static func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+    Calendar.current.date(from: DateComponents(year: year, month: month, day: day))!
   }
 
-  // MARK: - Memory Calculations (delegated to MemoryCalculator)
-
-  static func availableMemoryFraction(forSystemMemoryMb systemMemoryMb: UInt64) -> Double {
-    MemoryCalculator.availableMemoryFraction(forSystemMemoryMb: systemMemoryMb)
-  }
-
-  static let compatibilityCtxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
-  static let minimumCtxWindowTokens: Double = MemoryCalculator.minimumCtxWindowTokens
-
-  static func usableCtxWindow(
-    for model: CatalogEntry,
-    desiredTokens: Int? = nil
-  ) -> Int? {
-    MemoryCalculator.usableContextWindow(for: model, desiredTokens: desiredTokens)
-  }
-
-  static func isModelCompatible(
-    _ model: CatalogEntry,
-    ctxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
-  ) -> Bool {
-    MemoryCalculator.isModelCompatible(model, ctxWindowTokens: ctxWindowTokens)
-  }
-
-  static func incompatibilitySummary(
-    _ model: CatalogEntry,
-    ctxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
-  ) -> String? {
-    MemoryCalculator.incompatibilitySummary(model, ctxWindowTokens: ctxWindowTokens)
-  }
-
-  static func runtimeMemoryUsageMb(
-    for model: CatalogEntry,
-    ctxWindowTokens: Double = MemoryCalculator.compatibilityCtxWindowTokens
-  ) -> UInt64 {
-    MemoryCalculator.runtimeMemoryUsage(for: model, ctxWindowTokens: ctxWindowTokens)
-  }
-
-  // MARK: - Model Families
+  // MARK: - Model Catalog Data
 
   /// Families expressed with shared metadata to reduce duplication.
   private static let familiesUnsorted: [ModelFamily] = [
