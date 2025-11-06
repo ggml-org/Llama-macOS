@@ -60,7 +60,7 @@ Find the complete reference in the [`llama-server` docs ↗](https://github.com/
 - [ ] Embedding models
 - [ ] Completion models
 - [ ] Run multiple models at once
-- [ ] Parallel requests
+- [x] Parallel requests
 - [x] Vision for models that support it
 
 ## Questions
