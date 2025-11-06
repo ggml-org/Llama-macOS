@@ -62,3 +62,8 @@ Find the complete reference in the [`llama-server` docs ↗](https://github.com/
 - [ ] Run multiple models at once
 - [ ] Parallel requests
 - [x] Vision for models that support it
+
+## Questions
+
+- **How does LlamaBarn compare to llama.cpp webUI?** — LlamaBarn doesn't replace the llama.cpp webUI, it builds on top of it — when you run a model in LlamaBarn it starts both the llama.cpp server and the llama.cpp webUI at `http://localhost:2276`.
+- **How to use LlamaBarn with other apps?** — LlamaBarn exposes a standard REST API at `http://localhost:2276`. You can connect it to any app that supports custom LLM APIs. See the `API endpoints` section for example requests.
