@@ -53,7 +53,7 @@ curl http://localhost:2276/v1/chat/completions \
   -d '{"messages": [{"role": "user", "content": "Hi"}]}'
 ```
 
-Find the complete reference in the [`llama-server` docs ↗](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints)
+Find the complete reference in the `llama-server` [docs ↗](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints)
 
 ## Roadmap
 
