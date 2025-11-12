@@ -51,11 +51,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       userDriverDelegate: self
     )
 
-    // Check for updates on app launch (in addition to automatic hourly checks)
-    #if !DEBUG
-      updaterController?.updater.checkForUpdatesInBackground()
-    #endif
-
     // Initialize the shared model library manager to scan for existing models
     _ = ModelManager.shared
 
