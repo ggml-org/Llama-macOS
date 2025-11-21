@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 
 /// Controls the status bar item and its AppKit menu.
 /// Breaks menu construction into section helpers so each concern stays focused.
@@ -9,8 +10,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   private let modelManager: ModelManager
   private let server: LlamaServer
 
-  private lazy var headerSection = MenuHeaderSection(server: server)
-  private let settingsSection = MenuSettingsSection()
+  private var headerView: HeaderView?
   private lazy var installedSection = InstalledSection(
     modelManager: modelManager,
     server: server
@@ -24,7 +24,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   } onRebuild: { [weak self] in
     self?.rebuildCatalogSection()
   }
-  private let footerSection = FooterSection()
 
   private var isSettingsVisible = false
   private let observer = NotificationObserver()
@@ -116,15 +115,23 @@ final class MenuController: NSObject, NSMenuDelegate {
   private func rebuildMenu(_ menu: NSMenu) {
     menu.removeAllItems()
 
-    headerSection.add(to: menu)
+    let view = HeaderView(server: server)
+    headerView = view
+    menu.addItem(NSMenuItem.viewItem(with: view))
+    menu.addItem(.separator())
 
     installedSection.add(to: menu)
     catalogSection.add(to: menu)
-    footerSection.add(to: menu)
+    addFooter(to: menu)
 
     if isSettingsVisible {
       menu.addItem(.separator())
-      settingsSection.add(to: menu)
+      let rootView = SettingsView()
+      let view = NSHostingView(rootView: rootView)
+      let height = view.fittingSize.height
+      view.frame = NSRect(x: 0, y: 0, width: Layout.menuWidth, height: height)
+      let item = NSMenuItem.viewItem(with: view)
+      menu.addItem(item)
     }
   }
 
@@ -213,16 +220,6 @@ final class MenuController: NSObject, NSMenuDelegate {
       }
     }
 
-    // Settings visibility toggled - rebuild menu
-    observer.observe(.LBToggleSettingsVisibility) { [weak self] _ in
-      MainActor.assumeIsolated {
-        self?.isSettingsVisible.toggle()
-        if let menu = self?.statusItem.menu {
-          self?.rebuildMenu(menu)
-        }
-      }
-    }
-
     // User settings changed (e.g., show quantized models) - rebuild menu
     observer.observe(.LBUserSettingsDidChange) { [weak self] _ in
       MainActor.assumeIsolated {
@@ -245,8 +242,105 @@ final class MenuController: NSObject, NSMenuDelegate {
       }
     }
 
-    headerSection.refresh()
+    headerView?.refresh()
     installedSection.refresh()
     catalogSection.refresh()
+  }
+
+  private func addFooter(to menu: NSMenu) {
+    menu.addItem(.separator())
+
+    let container = NSView()
+    container.translatesAutoresizingMaskIntoConstraints = false
+
+    let appVersionText: String
+    #if DEBUG
+      // Debug builds show hammer emoji
+      appVersionText = "🔨"
+    #else
+      appVersionText =
+        AppInfo.shortVersion == "0.0.0"
+        // Internal builds (0.0.0) show build number
+        ? "build \(AppInfo.buildNumber)"
+        // Public builds show marketing version
+        : AppInfo.shortVersion
+    #endif
+
+    let versionButton = NSButton(title: "", target: self, action: #selector(checkForUpdates))
+    versionButton.isBordered = false
+    versionButton.translatesAutoresizingMaskIntoConstraints = false
+    versionButton.lineBreakMode = .byTruncatingMiddle
+    versionButton.attributedTitle = NSAttributedString(
+      string: appVersionText,
+      attributes: [
+        .font: Typography.primary,
+        .foregroundColor: NSColor.tertiaryLabelColor,
+      ])
+    (versionButton.cell as? NSButtonCell)?.highlightsBy = []
+
+    let llamaCppLabel = Typography.makePrimaryLabel(" · llama.cpp \(AppInfo.llamaCppVersion)")
+    llamaCppLabel.textColor = .tertiaryLabelColor
+    llamaCppLabel.lineBreakMode = .byTruncatingMiddle
+    llamaCppLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    let settingsButton = NSButton(
+      title: "Settings", target: self, action: #selector(toggleSettings))
+    settingsButton.font = Typography.secondary
+    settingsButton.bezelStyle = .texturedRounded
+    settingsButton.translatesAutoresizingMaskIntoConstraints = false
+    settingsButton.keyEquivalent = ","
+
+    let quitButton = NSButton(title: "Quit", target: self, action: #selector(quitApp))
+    quitButton.font = Typography.secondary
+    quitButton.bezelStyle = .texturedRounded
+    quitButton.translatesAutoresizingMaskIntoConstraints = false
+
+    container.addSubview(versionButton)
+    container.addSubview(llamaCppLabel)
+    container.addSubview(settingsButton)
+    container.addSubview(quitButton)
+
+    let horizontalPadding = Layout.outerHorizontalPadding + Layout.innerHorizontalPadding
+
+    NSLayoutConstraint.activate([
+      container.widthAnchor.constraint(equalToConstant: Layout.menuWidth),
+      container.heightAnchor.constraint(greaterThanOrEqualToConstant: 28),
+      versionButton.leadingAnchor.constraint(
+        equalTo: container.leadingAnchor, constant: horizontalPadding),
+      versionButton.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+
+      llamaCppLabel.leadingAnchor.constraint(equalTo: versionButton.trailingAnchor),
+      llamaCppLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+
+      settingsButton.trailingAnchor.constraint(
+        equalTo: quitButton.leadingAnchor, constant: -8),
+      settingsButton.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+
+      quitButton.trailingAnchor.constraint(
+        equalTo: container.trailingAnchor, constant: -horizontalPadding),
+      quitButton.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+
+      llamaCppLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: settingsButton.leadingAnchor, constant: -8),
+    ])
+
+    let item = NSMenuItem.viewItem(with: container)
+    item.isEnabled = true
+    menu.addItem(item)
+  }
+
+  @objc private func checkForUpdates() {
+    NotificationCenter.default.post(name: .LBCheckForUpdates, object: nil)
+  }
+
+  @objc private func toggleSettings() {
+    isSettingsVisible.toggle()
+    if let menu = statusItem.menu {
+      rebuildMenu(menu)
+    }
+  }
+
+  @objc private func quitApp() {
+    NSApplication.shared.terminate(nil)
   }
 }
