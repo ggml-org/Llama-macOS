@@ -7,7 +7,7 @@ final class CatalogModelItemView: ItemView {
   private unowned let modelManager: ModelManager
   private let membershipChanged: () -> Void
 
-  private let iconView = CatalogIconView()
+  private let iconView = IconView()
   private let statusIndicator = NSImageView()
   private let labelField = Typography.makePrimaryLabel()
   private let metadataLabel = Typography.makeSecondaryLabel()
@@ -44,6 +44,7 @@ final class CatalogModelItemView: ItemView {
   private func setup() {
     wantsLayer = true
     iconView.imageView.image = NSImage(named: model.icon)
+    iconView.inactiveTintColor = Typography.secondaryColor
     statusIndicator.symbolConfiguration = .init(pointSize: 12, weight: .regular)
 
     labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
