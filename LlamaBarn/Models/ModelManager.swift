@@ -6,23 +6,6 @@ enum ModelStatus: Equatable {
   case available
   case downloading(Progress)
   case installed
-
-  static func == (lhs: ModelStatus, rhs: ModelStatus) -> Bool {
-    switch (lhs, rhs) {
-    case (.available, .available), (.installed, .installed):
-      return true
-    case (.downloading(let lhsProgress), .downloading(let rhsProgress)):
-      // Custom equality: compare Progress by value, not reference identity.
-      // Progress is a reference type (NSObject subclass), so default equality would compare
-      // object identity (===), which would always return false when the same download's
-      // Progress instance gets wrapped in new ModelStatus values during refresh cycles.
-      // We need value-based comparison to detect actual progress changes for UI updates.
-      return lhsProgress.completedUnitCount == rhsProgress.completedUnitCount
-        && lhsProgress.totalUnitCount == rhsProgress.totalUnitCount
-    default:
-      return false
-    }
-  }
 }
 
 /// Manages the high-level state of available and downloaded models.
@@ -35,7 +18,6 @@ class ModelManager: NSObject {
 
   private let downloader = ModelDownloader.shared
   private let logger = Logger(subsystem: Logging.subsystem, category: "ModelManager")
-  private let observer = NotificationObserver()
 
   override init() {
     super.init()
@@ -164,7 +146,11 @@ class ModelManager: NSObject {
   private func addObservers() {
     // When the downloader finishes a set of files for a model, it posts this notification.
     // We observe it to refresh our list of fully downloaded models.
-    observer.observe(.LBModelDownloadFinished, object: downloader) { [weak self] _ in
+    NotificationCenter.default.addObserver(
+      forName: .LBModelDownloadFinished,
+      object: downloader,
+      queue: .main
+    ) { [weak self] _ in
       MainActor.assumeIsolated {
         self?.refreshDownloadedModels()
       }
