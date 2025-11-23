@@ -17,13 +17,6 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
       refreshProgress()
     }
 
-    mutating func cancelAllTasks() {
-      tasks.values.forEach { $0.cancel() }
-      tasks.removeAll()
-      completedFilesBytes = 0
-      refreshProgress()
-    }
-
     mutating func removeTask(with identifier: Int) {
       tasks.removeValue(forKey: identifier)
       refreshProgress()
@@ -59,6 +52,9 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
   }
 
   var activeDownloads: [String: ActiveDownload] = [:]
+
+  // Store resume data for failed downloads to allow resuming later
+  private var resumeData: [URL: Data] = [:]
 
   private var urlSession: URLSession!
   private let logger = Logger(subsystem: Logging.subsystem, category: "ModelDownloader")
@@ -110,7 +106,13 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     )
 
     for fileUrl in filesToDownload {
-      let task = urlSession.downloadTask(with: fileUrl)
+      let task: URLSessionDownloadTask
+      if let data = resumeData[fileUrl] {
+        logger.info("Resuming download for \(fileUrl.lastPathComponent)")
+        task = urlSession.downloadTask(withResumeData: data)
+      } else {
+        task = urlSession.downloadTask(with: fileUrl)
+      }
       task.taskDescription = modelId
       aggregate.addTask(task)
       task.resume()
@@ -123,9 +125,8 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
 
   /// Cancels an ongoing download and removes it from tracking
   func cancelModelDownload(_ model: CatalogEntry) {
-    if let download = activeDownloads[model.id] {
-      var mutable = download
-      mutable.cancelAllTasks()
+    if activeDownloads[model.id] != nil {
+      cancelTasks(for: model.id)
       activeDownloads.removeValue(forKey: model.id)
       lastNotificationTime.removeValue(forKey: model.id)
     }
@@ -221,6 +222,12 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
       // Update state on main queue (activeDownloads dict must be accessed from main queue)
       DispatchQueue.main.async { [weak self] in
         guard let self = self else { return }
+
+        // Clear resume data on success
+        if let originalURL = downloadTask.originalRequest?.url {
+          self.resumeData.removeValue(forKey: originalURL)
+        }
+
         let wasCompleted = self.updateActiveDownload(modelId: modelId) { aggregate in
           aggregate.markTaskFinished(downloadTask, fileSize: fileSize)
         }
@@ -304,9 +311,32 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     }
 
     if let error = error {
+      // Ignore cancellation errors as they are expected when user cancels
+      if (error as NSError).code == NSURLErrorCancelled {
+        return
+      }
+
       logger.error("Model download failed: \(error.localizedDescription)")
+
+      let resumeData = (error as NSError).userInfo[NSURLSessionDownloadTaskResumeData] as? Data
+      let originalURL = task.originalRequest?.url
+
       DispatchQueue.main.async { [weak self] in
         guard let self = self else { return }
+
+        // Save resume data if available
+        if let originalURL {
+          if let resumeData {
+            self.resumeData[originalURL] = resumeData
+            self.logger.info("Saved resume data for \(originalURL.lastPathComponent)")
+          } else if self.resumeData[originalURL] != nil {
+            self.logger.warning(
+              "Download failed without resume data, clearing existing resume data for \(originalURL.lastPathComponent)"
+            )
+            self.resumeData.removeValue(forKey: originalURL)
+          }
+        }
+
         if self.activeDownloads[modelId] != nil {
           _ = self.updateActiveDownload(modelId: modelId) { aggregate in
             aggregate.removeTask(with: task.taskIdentifier)
@@ -318,6 +348,20 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
   }
 
   // MARK: - Helpers
+
+  private func cancelTasks(for modelId: String) {
+    guard let download = activeDownloads[modelId] else { return }
+
+    for task in download.tasks.values {
+      task.cancel(byProducingResumeData: { [weak self] data in
+        guard let self = self, let data = data, let url = task.originalRequest?.url else { return }
+        DispatchQueue.main.async {
+          self.resumeData[url] = data
+          self.logger.info("Saved resume data for cancelled download: \(url.lastPathComponent)")
+        }
+      })
+    }
+  }
 
   /// Updates an active download by applying a modification and removing it if empty.
   /// Returns true if the download was removed (completed or cancelled), false if still in progress.
@@ -341,10 +385,11 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
 
   /// Cancels all tasks for a model and removes it from active downloads.
   private func cancelActiveDownload(modelId: String) {
-    guard var aggregate = activeDownloads[modelId] else { return }
-    aggregate.cancelAllTasks()
-    activeDownloads.removeValue(forKey: modelId)
-    lastNotificationTime.removeValue(forKey: modelId)
+    if activeDownloads[modelId] != nil {
+      cancelTasks(for: modelId)
+      activeDownloads.removeValue(forKey: modelId)
+      lastNotificationTime.removeValue(forKey: modelId)
+    }
   }
 
   private func prepareDownload(for model: CatalogEntry) throws -> [URL] {
