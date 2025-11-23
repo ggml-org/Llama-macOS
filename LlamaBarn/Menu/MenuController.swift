@@ -10,15 +10,10 @@ final class MenuController: NSObject, NSMenuDelegate {
   private let modelManager: ModelManager
   private let server: LlamaServer
 
-  // Installed Section State
-  private var installedViews: [InstalledModelItemView] = []
-
   // Catalog Section State
-  private var catalogViews: [CatalogModelItemView] = []
   private var collapsedFamilies: Set<String> = []
   private var knownFamilies: Set<String> = []
 
-  private var headerView: HeaderView?
   private var isSettingsVisible = false
   private let observer = NotificationObserver()
   private weak var currentlyHighlightedView: ItemView?
@@ -108,7 +103,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.removeAllItems()
 
     let view = HeaderView(server: server)
-    headerView = view
     menu.addItem(NSMenuItem.viewItem(with: view))
     menu.addItem(.separator())
 
@@ -230,9 +224,16 @@ final class MenuController: NSObject, NSMenuDelegate {
       }
     }
 
-    headerView?.refresh()
-    installedViews.forEach { $0.refresh() }
-    catalogViews.forEach { $0.refresh() }
+    guard let menu = statusItem.menu else { return }
+    for item in menu.items {
+      if let view = item.view as? HeaderView {
+        view.refresh()
+      } else if let view = item.view as? InstalledModelItemView {
+        view.refresh()
+      } else if let view = item.view as? CatalogModelItemView {
+        view.refresh()
+      }
+    }
   }
 
   private func addFooter(to menu: NSMenu) {
@@ -351,8 +352,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func buildInstalledItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
-    installedViews.removeAll()
-
     return models.map { model in
       let view = InstalledModelItemView(
         model: model,
@@ -361,7 +360,6 @@ final class MenuController: NSObject, NSMenuDelegate {
       ) { [weak self] entry in
         self?.didChangeDownloadStatus(for: entry)
       }
-      installedViews.append(view)
       return NSMenuItem.viewItem(with: view)
     }
   }
@@ -402,8 +400,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func buildCatalogItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
-    catalogViews.removeAll()
-
     let sortedModels = models.sorted(by: CatalogEntry.displayOrder(_:_:))
 
     // Group models by family to collect unique sizes
@@ -439,7 +435,6 @@ final class MenuController: NSObject, NSMenuDelegate {
           [weak self] in
           self?.didChangeDownloadStatus(for: model)
         }
-        catalogViews.append(view)
         items.append(NSMenuItem.viewItem(with: view))
       }
 
