@@ -1,45 +1,28 @@
 # LlamaBarn 🦙 🌾
 
-Run local LLMs on your Mac with a simple menu bar app. Launch any model with a single click, then chat with it via the built-in web UI or connect to it via the built-in REST API. LlamaBarn automatically configures models based on your Mac's hardware to ensure optimal performance and stability.
+LlamaBarn is like Wi-Fi but for local LLMs. Pick a model from the menu bar, and it becomes available to all your apps through a standard REST API.
+  
+**Install** with `brew install --cask llamabarn` or download from [Releases ↗](https://github.com/ggml-org/LlamaBarn/releases)
 
-Install with `brew install --cask llamabarn` or download from [Releases ↗](https://github.com/ggml-org/LlamaBarn/releases)
+<br>
 
 ![LlamaBarn](https://github.com/user-attachments/assets/9ff133d8-6a65-43d5-9672-5eb58da0dd0e)
 
-## Goals
+<br>
 
-<!-- what we hope to achieve -->
+## How it works
 
-- **Make it easy for everyone to use local LLMs.** Using local LLMs should not require technical knowledge. You should be able to just select a model from a list and start using it. Technical customizations should be possible, but not required.
-- **Make it easy for developers to add support for local LLMs to their apps.** Adding support for local LLMs should be just as easy as adding support for cloud-based LLMs. You shouldn't have to implement custom UIs for managing models, starting servers, etc.
+LlamaBarn runs as a tiny menu bar app on your Mac.
 
-## Features
+- Select a model to install it
+- Select an installed model to run it -- LlamaBarn figures out the optimal settings for your Mac and starts a server at `http://localhost:2276`
+- Use the running model in any app that supports custom LLM APIs -- or chat with it in your browser
 
-<!-- what people like about it -->
-
-- Tiny (`~12 MB`) macOS app built in Swift
-- Curated model catalog
-- Automatic server configuration based on your Mac's hardware
-- Simple web UI that lets you chat with the running models
-- Familiar REST API that lets you use the running models from other apps
-- No side effects -- installed models live in `~/.llamabarn` and nothing is installed system-wide
-
-## Quick start
-
-To get started:
-
-- Click on the menu bar icon to open the menu
-- Select a model from the catalog to install it
-- Select an installed model to run it — the app will figure out the optimal model settings for your Mac and start a local server at `http://localhost:2276`
-
-Use the running models in two ways:
-
-- In the browser via the built‑in web UI
-- In other apps via the REST API
+Under the hood, LlamaBarn is a thin wrapper around `llama.cpp` and the `llama-server` that comes with it.
 
 ## API endpoints
 
-LlamaBarn builds on the `llama.cpp` server (`llama-server`) and supports the same API endpoints:
+LlamaBarn builds on `llama-server` and supports the same API endpoints:
 
 ```sh
 # check server health
