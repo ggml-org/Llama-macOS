@@ -67,4 +67,5 @@ Find the complete reference in the `llama-server` [docs ↗](https://github.com/
 
 - **How does LlamaBarn compare to llama.cpp webUI?** — LlamaBarn doesn't replace the llama.cpp webUI, it builds on top of it — when you run a model in LlamaBarn it starts both the llama.cpp server and the llama.cpp webUI at `http://localhost:2276`.
 - **How to use LlamaBarn with other apps?** — LlamaBarn exposes a standard REST API at `http://localhost:2276`. You can connect it to any app that supports custom LLM APIs. See the `API endpoints` section for example requests.
+- **Why don't I see all models in the catalog?** — LlamaBarn shows only models that can run on your Mac based on its available memory. If a model you're looking for isn't in the catalog, it requires more memory than your system can provide.
 - **Can I load models that aren't in the catalog?** — LlamaBarn uses a curated catalog where each model is tested and configured to work optimally across different Mac hardware setups. Loading arbitrary models isn't currently supported, but if there's a specific model you'd like to see added, feel free to open a feature request.
