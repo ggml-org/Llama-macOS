@@ -8,7 +8,6 @@ final class CatalogModelItemView: ItemView {
   private let membershipChanged: () -> Void
 
   private let iconView = IconView()
-  private let statusIndicator = NSImageView()
   private let labelField = Typography.makePrimaryLabel()
   private let metadataLabel = Typography.makeSecondaryLabel()
   private var rowClickRecognizer: NSClickGestureRecognizer?
@@ -29,12 +28,12 @@ final class CatalogModelItemView: ItemView {
 
   override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 40) }
 
-  // Only allow highlight for available/compatible models.
+  // Only allow highlight for available models.
   // Catalog items should never show downloading or installed states.
   override var highlightEnabled: Bool {
     let status = modelManager.status(for: model)
     guard case .available = status else { return false }
-    return Catalog.isModelCompatible(model)
+    return true
   }
 
   override func highlightDidChange(_ highlighted: Bool) {
@@ -45,7 +44,6 @@ final class CatalogModelItemView: ItemView {
     wantsLayer = true
     iconView.imageView.image = NSImage(named: model.icon)
     iconView.inactiveTintColor = Typography.secondaryColor
-    statusIndicator.symbolConfiguration = .init(pointSize: 12, weight: .regular)
 
     labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
@@ -61,26 +59,13 @@ final class CatalogModelItemView: ItemView {
     leading.alignment = .centerY
     leading.spacing = 6
 
-    // Spacer expands so trailing visuals sit flush right
-    let spacer = NSView()
-    spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-    spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    contentView.addSubview(leading)
 
-    // Main horizontal row
-    let hStack = NSStackView(views: [leading, spacer, statusIndicator])
-    hStack.orientation = .horizontal
-    hStack.spacing = 6
-    hStack.alignment = .centerY
-
-    contentView.addSubview(hStack)
-
-    hStack.pinToSuperview()
+    leading.pinToSuperview()
 
     NSLayoutConstraint.activate([
       iconView.widthAnchor.constraint(equalToConstant: Layout.iconViewSize),
       iconView.heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
-      statusIndicator.widthAnchor.constraint(equalToConstant: Layout.uiIconSize),
-      statusIndicator.heightAnchor.constraint(equalToConstant: Layout.uiIconSize),
     ])
   }
 
@@ -121,40 +106,14 @@ final class CatalogModelItemView: ItemView {
   }
 
   func refresh() {
-    let compatible = Catalog.isModelCompatible(model)
-
-    // Use secondary color for catalog models, tertiary for incompatible models
-    let textColor = compatible ? Typography.secondaryColor : Typography.tertiaryColor
     labelField.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
-      familyColor: textColor,
-      sizeColor: textColor
+      familyColor: Typography.secondaryColor,
+      sizeColor: Typography.secondaryColor
     )
 
-    // Metadata text (second line)
-    if compatible {
-      metadataLabel.attributedStringValue = Format.modelMetadata(for: model)
-    } else {
-      metadataLabel.attributedStringValue = NSAttributedString(
-        string: "Won't run on this device.",
-        attributes: Typography.tertiaryAttributes
-      )
-    }
-
-    // Status-specific display
-    // Catalog items only show available models (compatible or incompatible)
-    // Show nosign indicator for incompatible models, hide for compatible
-    if compatible {
-      statusIndicator.isHidden = true
-    } else {
-      statusIndicator.isHidden = false
-      statusIndicator.image = NSImage(systemSymbolName: "nosign", accessibilityDescription: nil)
-      statusIndicator.contentTintColor = Typography.tertiaryColor
-    }
-
-    // No tooltips for catalog items
-    toolTip = nil
+    metadataLabel.attributedStringValue = Format.modelMetadata(for: model)
 
     // Clear highlight if no longer actionable
     if !highlightEnabled { setHighlight(false) }
