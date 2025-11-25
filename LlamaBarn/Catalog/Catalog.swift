@@ -60,11 +60,6 @@ enum Catalog {
       self.build = build
       self.quantizedBuilds = quantizedBuilds
     }
-
-    /// All builds for this model size (full precision + quantized variants)
-    var allBuilds: [ModelBuild] {
-      [build] + quantizedBuilds
-    }
   }
 
   struct ModelBuild {
@@ -107,7 +102,9 @@ enum Catalog {
   static func allModels() -> [CatalogEntry] {
     families.flatMap { family in
       family.sizes.flatMap { size in
-        size.allBuilds.map { build in entry(family: family, size: size, build: build) }
+        ([size.build] + size.quantizedBuilds).map { build in
+          entry(family: family, size: size, build: build)
+        }
       }
     }
   }
@@ -116,7 +113,7 @@ enum Catalog {
   static func findModel(id: String) -> CatalogEntry? {
     for family in families {
       for size in family.sizes {
-        for build in size.allBuilds {
+        for build in [size.build] + size.quantizedBuilds {
           if build.id == id {
             return entry(family: family, size: size, build: build)
           }
