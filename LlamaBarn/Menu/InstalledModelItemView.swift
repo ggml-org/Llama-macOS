@@ -18,7 +18,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let metadataLabel = Typography.makeSecondaryLabel()
   private let progressLabel = Typography.makeSecondaryLabel()
   private let cancelImageView = NSImageView()
-  private let deleteLabel = Typography.makeSecondaryLabel()
+  private let deleteImageView = NSImageView()
 
   // Hover handling is provided by MenuItemView
   private var rowClickRecognizer: NSClickGestureRecognizer?
@@ -56,8 +56,12 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     cancelImageView.contentTintColor = .systemRed
     cancelImageView.isHidden = true
 
-    deleteLabel.attributedStringValue = makeDeleteButtonText()
-    deleteLabel.isHidden = true
+    // Configure delete button
+    deleteImageView.image = Symbols.trash
+    deleteImageView.contentTintColor = .tertiaryLabelColor
+    deleteImageView.symbolConfiguration = .init(
+      pointSize: Layout.metadataIconSize, weight: .regular)
+    deleteImageView.isHidden = true
 
     // Spacer expands so trailing visuals sit flush right.
     let spacer = NSView()
@@ -96,9 +100,9 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     rootStack.alignment = .centerY
     contentView.addSubview(rootStack)
 
-    // Add delete label separately so we can position it at the bottom
-    deleteLabel.translatesAutoresizingMaskIntoConstraints = false
-    contentView.addSubview(deleteLabel)
+    // Add delete button separately so we can position it at the bottom
+    deleteImageView.translatesAutoresizingMaskIntoConstraints = false
+    contentView.addSubview(deleteImageView)
 
     rootStack.pinToSuperview()
 
@@ -111,13 +115,15 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.progressWidth),
 
-      // Position delete label at the bottom right, aligned with line 2
-      deleteLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      deleteLabel.bottomAnchor.constraint(equalTo: metadataLabel.bottomAnchor),
+      // Position delete button at the bottom right, aligned with line 2
+      deleteImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+      deleteImageView.centerYAnchor.constraint(equalTo: metadataLabel.centerYAnchor),
+      deleteImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.metadataIconSize),
+      deleteImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.metadataIconSize),
     ])
   }
 
-  // Row click recognizer to toggle, letting the delete label handle its own action.
+  // Row click recognizer to toggle, letting the delete button handle its own action.
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
     if rowClickRecognizer == nil {
@@ -128,7 +134,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
     if deleteClickRecognizer == nil {
       let click = NSClickGestureRecognizer(target: self, action: #selector(didClickDelete))
-      deleteLabel.addGestureRecognizer(click)
+      deleteImageView.addGestureRecognizer(click)
       deleteClickRecognizer = click
     }
   }
@@ -137,13 +143,13 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   @objc private func didClickDelete() { performDelete() }
 
-  // Prevent row toggle when clicking the delete label.
+  // Prevent row toggle when clicking the delete button.
   func gestureRecognizer(
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
     let loc = event.locationInWindow
-    let localPoint = deleteLabel.convert(loc, from: nil)
-    if deleteLabel.bounds.contains(localPoint) && !deleteLabel.isHidden {
+    let localPoint = deleteImageView.convert(loc, from: nil)
+    if deleteImageView.bounds.contains(localPoint) && !deleteImageView.isHidden {
       return false
     }
     return true
@@ -187,7 +193,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
 
     // Delete button only for installed models on hover
-    deleteLabel.isHidden = !modelManager.isInstalled(model) || !isHighlighted
+    deleteImageView.isHidden = !modelManager.isInstalled(model) || !isHighlighted
 
     // Update icon state
     iconView.setLoading(isLoading)
@@ -197,16 +203,13 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   }
 
   override func highlightDidChange(_ highlighted: Bool) {
-    deleteLabel.isHidden = !modelManager.isInstalled(model) || !highlighted
+    deleteImageView.isHidden = !modelManager.isInstalled(model) || !highlighted
   }
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .systemRed
-  }
-
-  private func makeDeleteButtonText() -> NSAttributedString {
-    MetadataLabel.makeIconOnly(icon: Symbols.trash, color: Typography.tertiaryColor)
+    deleteImageView.contentTintColor = .tertiaryLabelColor
   }
 
   @objc private func performDelete() {
