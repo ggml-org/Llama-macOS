@@ -154,7 +154,15 @@ enum Catalog {
     let fileSizeWithOverheadMb = fileSizeWithOverhead(for: model)
     if fileSizeWithOverheadMb > budgetMb { return nil }
 
-    let effectiveDesired = desiredTokens.flatMap { $0 > 0 ? $0 : nil } ?? model.ctxWindow
+    var effectiveDesired = desiredTokens.flatMap { $0 > 0 ? $0 : nil } ?? model.ctxWindow
+
+    // Cap desired context if env var is set
+    if let maxCtxStr = ProcessInfo.processInfo.environment["BARN_MAX_CTX_K"],
+      let maxCtxK = Int(maxCtxStr), maxCtxK > 0
+    {
+      effectiveDesired = min(effectiveDesired, maxCtxK * 1_024)
+    }
+
     let desiredTokensDouble = Double(effectiveDesired)
 
     let ctxBytesPerToken = Double(model.ctxBytesPer1kTokens) / 1_000.0
