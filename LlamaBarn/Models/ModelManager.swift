@@ -94,20 +94,19 @@ class ModelManager: NSObject {
       }
       let fileSet = Set(files)
 
-      let allModels = Catalog.allModels()
-      let downloaded = allModels.filter { model in
-        guard fileSet.contains(model.downloadUrl.lastPathComponent) else {
-          return false
-        }
+      // Optimization: Iterate over files instead of models to avoid O(N) catalog scan.
+      // This scales with the number of installed models (small), not the catalog size (large).
+      let downloaded = files.compactMap { file -> CatalogEntry? in
+        guard let model = Catalog.modelsByFilename[file] else { return nil }
 
         if let additionalParts = model.additionalParts {
           for part in additionalParts {
             if !fileSet.contains(part.lastPathComponent) {
-              return false
+              return nil
             }
           }
         }
-        return true
+        return model
       }
 
       await MainActor.run {

@@ -109,6 +109,16 @@ enum Catalog {
     }
   }
 
+  /// Map of filename -> CatalogEntry for O(1) lookup.
+  /// Used to efficiently identify installed models from files on disk.
+  static let modelsByFilename: [String: CatalogEntry] = {
+    var map = [String: CatalogEntry]()
+    for model in allModels() {
+      map[model.downloadUrl.lastPathComponent] = model
+    }
+    return map
+  }()
+
   /// Finds a catalog entry by ID by traversing the hierarchy
   static func findModel(id: String) -> CatalogEntry? {
     for family in families {
