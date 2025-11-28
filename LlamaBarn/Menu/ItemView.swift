@@ -57,6 +57,16 @@ class ItemView: NSView {
     let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
     trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
     addTrackingArea(trackingArea!)
+
+    // Manually check if mouse is already inside to restore highlight immediately
+    // (NSTrackingArea doesn't trigger mouseEntered if created while mouse is inside)
+    if let window = window {
+      let mouseLocation = window.mouseLocationOutsideOfEventStream
+      let localPoint = convert(mouseLocation, from: nil)
+      if bounds.contains(localPoint) && !usesMenuManagedHighlight {
+        setHighlight(true)
+      }
+    }
   }
 
   override func mouseEntered(with event: NSEvent) {

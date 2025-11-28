@@ -298,7 +298,10 @@ final class MenuController: NSObject, NSMenuDelegate {
         self?.toggleFamilyCollapsed(familyName)
       }
       let headerItem = NSMenuItem.viewItem(with: headerView)
-      headerItem.isEnabled = true
+      // Disable menu management for this item so ItemView handles highlighting via tracking areas.
+      // This prevents flicker during menu rebuilds because tracking areas with .initial
+      // restore the highlight immediately, whereas NSMenu clears it on rebuild.
+      headerItem.isEnabled = false
       items.append(headerItem)
 
       if !collapsedFamilies.contains(family.name) {
@@ -340,6 +343,15 @@ final class MenuController: NSObject, NSMenuDelegate {
       collapsedFamilies.insert(family)
     }
     rebuildCatalogSection()
+  }
+
+  private func getVisibleModels(for family: Catalog.ModelFamily) -> [CatalogEntry] {
+    return family.allModels.filter { model in
+      let isAvailable = !modelManager.isInstalled(model) && !modelManager.isDownloading(model)
+      let isCompatible = Catalog.isModelCompatible(model)
+      let showQuantized = UserSettings.showQuantizedModels
+      return isAvailable && isCompatible && (showQuantized || model.isFullPrecision)
+    }
   }
 
   private func makeSectionHeaderItem(_ title: String) -> NSMenuItem {
