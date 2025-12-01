@@ -76,6 +76,10 @@ final class MenuController: NSObject, NSMenuDelegate {
     currentlyHighlightedView = nil
     isSettingsVisible = false
     stopModifierTimer()
+
+    // Reset catalog collapse state
+    collapsedFamilies.removeAll()
+    knownFamilies.removeAll()
   }
 
   private func startModifierTimer() {
@@ -299,12 +303,25 @@ final class MenuController: NSObject, NSMenuDelegate {
   // MARK: - Catalog Section
 
   private func addCatalogSection(to menu: NSMenu) {
+    // Calculate visible families first
+    let visibleFamilies = Set(Catalog.families.map { $0.name })
+
+    // Initialize families as collapsed when menu first opens.
+    // On subsequent rebuilds during the same session (e.g., toggling settings),
+    // preserve the collapse state and collapse any newly appearing families.
+    if collapsedFamilies.isEmpty && knownFamilies.isEmpty {
+      collapsedFamilies = visibleFamilies
+    } else {
+      // Add newly appearing families to collapsed state
+      let newFamilies = visibleFamilies.subtracting(knownFamilies)
+      collapsedFamilies.formUnion(newFamilies)
+      collapsedFamilies.formIntersection(visibleFamilies)  // Remove families no longer in catalog
+    }
+    knownFamilies = visibleFamilies
+
     var items: [NSMenuItem] = []
-    var visibleFamilies: Set<String> = []
 
     for family in Catalog.families {
-      visibleFamilies.insert(family.name)
-
       let showQuantized = UserSettings.showQuantizedModels
       let validModels = family.allModels.filter {
         Catalog.isModelCompatible($0) && (showQuantized || $0.isFullPrecision)
@@ -354,19 +371,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     guard !items.isEmpty else { return }
-
-    // Initialize families as collapsed when menu first opens.
-    // On subsequent rebuilds during the same session (e.g., toggling settings),
-    // preserve the collapse state and collapse any newly appearing families.
-    if collapsedFamilies.isEmpty && knownFamilies.isEmpty {
-      collapsedFamilies = visibleFamilies
-    } else {
-      // Add newly appearing families to collapsed state
-      let newFamilies = visibleFamilies.subtracting(knownFamilies)
-      collapsedFamilies.formUnion(newFamilies)
-      collapsedFamilies.formIntersection(visibleFamilies)  // Remove families no longer in catalog
-    }
-    knownFamilies = visibleFamilies
 
     let separator = NSMenuItem.separator()
     menu.addItem(separator)
