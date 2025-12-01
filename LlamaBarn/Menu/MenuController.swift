@@ -303,15 +303,19 @@ final class MenuController: NSObject, NSMenuDelegate {
     var visibleFamilies: Set<String> = []
 
     for family in Catalog.families {
-      let models = getVisibleModels(for: family)
-
-      guard !models.isEmpty else { continue }
       visibleFamilies.insert(family.name)
 
-      // Collect unique sizes for header
+      let showQuantized = UserSettings.showQuantizedModels
+      let validModels = family.allModels.filter {
+        Catalog.isModelCompatible($0) && (showQuantized || $0.isFullPrecision)
+      }
+
+      // Collect unique sizes for header from valid models (excluding installed)
       var sizes: [String] = []
       var seenSizes: Set<String> = []
-      for model in models {
+      for model in validModels {
+        if modelManager.isInstalled(model) || modelManager.isDownloading(model) { continue }
+
         if !seenSizes.contains(model.sizeLabel) {
           seenSizes.insert(model.sizeLabel)
           sizes.append(model.sizeLabel)
@@ -327,18 +331,24 @@ final class MenuController: NSObject, NSMenuDelegate {
       }
       let headerItem = NSMenuItem.viewItem(with: headerView)
       // Disable menu management for this item so ItemView handles highlighting via tracking areas.
-      // This prevents flicker during menu rebuilds because tracking areas with .initial
-      // restore the highlight immediately, whereas NSMenu clears it on rebuild.
       headerItem.isEnabled = false
       items.append(headerItem)
 
       if !collapsedFamilies.contains(family.name) {
-        for model in models {
-          let view = CatalogModelItemView(model: model, modelManager: modelManager) {
-            [weak self] in
-            self?.didChangeDownloadStatus(for: model)
+        if validModels.isEmpty {
+          let view = IncompatibleFamilyMessageView()
+          let item = NSMenuItem.viewItem(with: view)
+          item.isEnabled = false
+          items.append(item)
+        } else {
+          for model in validModels
+          where !modelManager.isInstalled(model) && !modelManager.isDownloading(model) {
+            let view = CatalogModelItemView(model: model, modelManager: modelManager) {
+              [weak self] in
+              self?.didChangeDownloadStatus(for: model)
+            }
+            items.append(NSMenuItem.viewItem(with: view))
           }
-          items.append(NSMenuItem.viewItem(with: view))
         }
       }
     }
@@ -371,15 +381,6 @@ final class MenuController: NSObject, NSMenuDelegate {
       collapsedFamilies.insert(family)
     }
     rebuildCatalogSection()
-  }
-
-  private func getVisibleModels(for family: Catalog.ModelFamily) -> [CatalogEntry] {
-    return family.allModels.filter { model in
-      let isAvailable = !modelManager.isInstalled(model) && !modelManager.isDownloading(model)
-      let isCompatible = Catalog.isModelCompatible(model)
-      let showQuantized = UserSettings.showQuantizedModels
-      return isAvailable && isCompatible && (showQuantized || model.isFullPrecision)
-    }
   }
 
   private func makeSectionHeaderItem(_ title: String) -> NSMenuItem {
