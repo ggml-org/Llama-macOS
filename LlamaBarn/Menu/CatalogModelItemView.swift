@@ -10,6 +10,7 @@ final class CatalogModelItemView: ItemView {
   private let iconView = IconView()
   private let labelField = Typography.makePrimaryLabel()
   private let metadataLabel = Typography.makeSecondaryLabel()
+  private let visionImageView = NSImageView()
   private var rowClickRecognizer: NSClickGestureRecognizer?
 
   init(
@@ -60,12 +61,27 @@ final class CatalogModelItemView: ItemView {
     leading.spacing = 6
 
     contentView.addSubview(leading)
-
     leading.pinToSuperview()
+
+    // Vision icon
+    visionImageView.image = NSImage(
+      systemSymbolName: "eyeglasses", accessibilityDescription: "Vision Support")
+    visionImageView.contentTintColor = Typography.secondaryColor
+    visionImageView.symbolConfiguration = .init(
+      pointSize: Typography.primary.pointSize, weight: .regular)
+    visionImageView.isHidden = true
+    visionImageView.translatesAutoresizingMaskIntoConstraints = false
+    contentView.addSubview(visionImageView)
 
     NSLayoutConstraint.activate([
       iconView.widthAnchor.constraint(equalToConstant: Layout.iconViewSize),
       iconView.heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
+
+      // Position vision icon at the top right, aligned with line 1
+      visionImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+      visionImageView.centerYAnchor.constraint(equalTo: labelField.centerYAnchor),
+      visionImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
+      visionImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
     ])
   }
 
@@ -116,6 +132,8 @@ final class CatalogModelItemView: ItemView {
     let showMaxContext = NSEvent.modifierFlags.contains(.option)
     metadataLabel.attributedStringValue = Format.modelMetadata(
       for: model, showMaxContext: showMaxContext)
+
+    visionImageView.isHidden = !model.hasVisionSupport
 
     // Clear highlight if no longer actionable
     if !highlightEnabled { setHighlight(false) }
