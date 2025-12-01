@@ -229,7 +229,7 @@ extension Catalog {
     ),
     // MARK: Qwen3-Coder
     ModelFamily(
-      name: "Qwen3-Coder",
+      name: "Qwen3 Coder",
       series: "qwen",
       serverArgs: ["--temp", "0.7", "--top-p", "0.8", "--top-k", "20"],
       overheadMultiplier: 1.1,
@@ -396,7 +396,7 @@ extension Catalog {
     ),
     // MARK: Qwen3-VL
     ModelFamily(
-      name: "Qwen3-VL",
+      name: "Qwen3 VL",
       series: "qwen",
       serverArgs: ["--temp", "0.7", "--top-p", "0.8", "--top-k", "20"],
       overheadMultiplier: 1.1,
@@ -533,7 +533,7 @@ extension Catalog {
     ),
     // MARK: Qwen3-VL Thinking
     ModelFamily(
-      name: "Qwen3-VL Thinking",
+      name: "Qwen3 VL Thinking",
       series: "qwen",
       serverArgs: ["--temp", "0.6", "--top-p", "0.95", "--top-k", "20"],
       overheadMultiplier: 1.1,
