@@ -83,46 +83,38 @@ enum Format {
 
   // MARK: - Model Metadata (composite)
 
-  /// Formats model metadata text without icons (text only).
-  /// Format: "2.53 GB · 3.1 GB mem · 128k ctx" (or "32k ctx capped" if limited).
-  /// Vision models include " · vision" at the end.
-  static func modelMetadata(
-    for model: CatalogEntry,
-    showMaxContext: Bool = false,
-    activeContext: Int? = nil
-  ) -> NSAttributedString {
+  /// Formats model metadata text.
+  /// Format: "2.53 GB" or "2.53 GB · 👓"
+  static func modelMetadata(for model: CatalogEntry) -> NSAttributedString {
     let result = NSMutableAttributedString()
-
-    let resolvedCtx: Int
-    if let active = activeContext {
-      resolvedCtx = active
-    } else {
-      resolvedCtx =
-        Catalog.usableCtxWindow(for: model, maximizeContext: showMaxContext) ?? model.ctxWindow
-    }
 
     // Size
     result.append(
       NSAttributedString(string: model.totalSize, attributes: Typography.secondaryAttributes))
-    result.append(Format.metadataSeparator())
 
-    // Memory (estimated)
-    let memoryMb = Catalog.runtimeMemoryUsageMb(
-      for: model,
-      ctxWindowTokens: Double(resolvedCtx)
-    )
-    result.append(
-      NSAttributedString(
-        string: Format.memory(mb: memoryMb) + " mem",
-        attributes: Typography.secondaryAttributes))
-    result.append(Format.metadataSeparator())
+    // Vision support
+    if model.hasVisionSupport {
+      result.append(Format.metadataSeparator())
 
-    // Context window
-    if resolvedCtx > 0 {
-      let text = Format.tokens(resolvedCtx) + " ctx"
-      result.append(NSAttributedString(string: text, attributes: Typography.secondaryAttributes))
-    } else {
-      result.append(NSAttributedString(string: "—", attributes: Typography.secondaryAttributes))
+      // Add eyeglasses symbol
+      let attachment = NSTextAttachment()
+      if let image = NSImage(
+        systemSymbolName: "eyeglasses", accessibilityDescription: "Vision Support")
+      {
+        let config = NSImage.SymbolConfiguration(
+          pointSize: Typography.secondary.pointSize, weight: .regular)
+        attachment.image = image.withSymbolConfiguration(config)
+      }
+
+      let visionIcon = NSMutableAttributedString(attachment: attachment)
+
+      // Set color for the symbol
+      visionIcon.addAttribute(
+        .foregroundColor,
+        value: Typography.secondaryColor,
+        range: NSRange(location: 0, length: visionIcon.length))
+
+      result.append(visionIcon)
     }
 
     return result

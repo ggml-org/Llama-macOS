@@ -17,7 +17,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let modelNameLabel = Typography.makePrimaryLabel()
   private let metadataLabel = Typography.makeSecondaryLabel()
   private let progressLabel = Typography.makeSecondaryLabel()
-  private let visionImageView = NSImageView()
   private let cancelImageView = NSImageView()
   private let deleteImageView = NSImageView()
 
@@ -64,15 +63,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
       pointSize: Layout.metadataIconSize, weight: .regular)
     deleteImageView.isHidden = true
 
-    // Configure vision icon
-    visionImageView.image = NSImage(
-      systemSymbolName: "eyeglasses", accessibilityDescription: "Vision Support")
-    visionImageView.contentTintColor = Typography.secondaryColor
-    visionImageView.symbolConfiguration = .init(
-      pointSize: Typography.primary.pointSize, weight: .regular)
-    visionImageView.isHidden = true
-    visionImageView.translatesAutoresizingMaskIntoConstraints = false
-
     // Spacer expands so trailing visuals sit flush right.
     let spacer = NSView()
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -114,9 +104,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     deleteImageView.translatesAutoresizingMaskIntoConstraints = false
     contentView.addSubview(deleteImageView)
 
-    // Add vision icon separately so we can position it at the top
-    contentView.addSubview(visionImageView)
-
     rootStack.pinToSuperview()
 
     NSLayoutConstraint.activate([
@@ -133,12 +120,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
       deleteImageView.centerYAnchor.constraint(equalTo: metadataLabel.centerYAnchor),
       deleteImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.metadataIconSize),
       deleteImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.metadataIconSize),
-
-      // Position vision icon at the top right, aligned with line 1
-      visionImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      visionImageView.centerYAnchor.constraint(equalTo: modelNameLabel.centerYAnchor),
-      visionImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
-      visionImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
     ])
   }
 
@@ -205,26 +186,16 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
       sizeColor: familyColor
     )
 
-    let showMaxContext = NSEvent.modifierFlags.contains(.option)
-    let activeContext = server.isActive(model: model) ? server.activeCtxWindow : nil
-
-    metadataLabel.attributedStringValue = Format.modelMetadata(
-      for: model,
-      showMaxContext: showMaxContext,
-      activeContext: activeContext
-    )
+    metadataLabel.attributedStringValue = Format.modelMetadata(for: model)
 
     if let progress = modelManager.downloadProgress(for: model) {
       progressLabel.stringValue = Format.progressText(progress)
       cancelImageView.isHidden = false
       iconView.inactiveTintColor = Typography.secondaryColor
-      // Hide vision icon when downloading to avoid overlap with progress
-      visionImageView.isHidden = true
     } else {
       progressLabel.stringValue = ""
       cancelImageView.isHidden = true
       iconView.inactiveTintColor = Typography.primaryColor
-      visionImageView.isHidden = !model.hasVisionSupport
     }
 
     // Delete button only for installed models on hover
