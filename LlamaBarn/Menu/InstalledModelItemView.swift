@@ -177,8 +177,15 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Progress and cancel button only for downloading
     let isDownloading = modelManager.downloadProgress(for: model) != nil
 
-    // Use tertiary color for downloading models, secondary for installed
-    let familyColor: NSColor = isDownloading ? Typography.tertiaryColor : Typography.secondaryColor
+    // Use tertiary for downloading, primary for running, secondary for installed
+    let familyColor: NSColor
+    if isDownloading {
+      familyColor = Typography.tertiaryColor
+    } else if isActive && !isLoading {
+      familyColor = Typography.primaryColor
+    } else {
+      familyColor = Typography.secondaryColor
+    }
     modelNameLabel.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
