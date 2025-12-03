@@ -31,14 +31,14 @@
 		1501F0C42E26D55600040CD6 /* Exceptions for "llama-cpp" folder in "LlamaBarn" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"libggml-base.dylib",
-				"libggml-blas.dylib",
-				"libggml-cpu.dylib",
-				"libggml-metal.dylib",
-				"libggml-rpc.dylib",
-				libggml.dylib,
-				libllama.dylib,
-				libmtmd.dylib,
+				"libggml-base.0.dylib",
+				"libggml-blas.0.dylib",
+				"libggml-cpu.0.dylib",
+				"libggml-metal.0.dylib",
+				"libggml-rpc.0.dylib",
+				libggml.0.dylib,
+				libllama.0.dylib,
+				libmtmd.0.dylib,
 				"llama-server",
 			);
 			target = 1568919B2E2685F700F71BD4 /* LlamaBarn */;
@@ -49,26 +49,26 @@
 		1501F0C32E26D4D100040CD6 /* Exceptions for "llama-cpp" folder in "Copy Files" phase from "LlamaBarn" target */ = {
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			attributesByRelativePath = {
-				"libggml-base.dylib" = (CodeSignOnCopy, );
-				"libggml-blas.dylib" = (CodeSignOnCopy, );
-				"libggml-cpu.dylib" = (CodeSignOnCopy, );
-				"libggml-metal.dylib" = (CodeSignOnCopy, );
-				"libggml-rpc.dylib" = (CodeSignOnCopy, );
-				libggml.dylib = (CodeSignOnCopy, );
-				libllama.dylib = (CodeSignOnCopy, );
-				libmtmd.dylib = (CodeSignOnCopy, );
+				"libggml-base.0.dylib" = (CodeSignOnCopy, );
+				"libggml-blas.0.dylib" = (CodeSignOnCopy, );
+				"libggml-cpu.0.dylib" = (CodeSignOnCopy, );
+				"libggml-metal.0.dylib" = (CodeSignOnCopy, );
+				"libggml-rpc.0.dylib" = (CodeSignOnCopy, );
+				libggml.0.dylib = (CodeSignOnCopy, );
+				libllama.0.dylib = (CodeSignOnCopy, );
+				libmtmd.0.dylib = (CodeSignOnCopy, );
 				"llama-server" = (CodeSignOnCopy, );
 			};
 			buildPhase = 1501F0B92E26D4C700040CD6 /* CopyFiles */;
 			membershipExceptions = (
-				"libggml-base.dylib",
-				"libggml-blas.dylib",
-				"libggml-cpu.dylib",
-				"libggml-metal.dylib",
-				"libggml-rpc.dylib",
-				libggml.dylib,
-				libllama.dylib,
-				libmtmd.dylib,
+				"libggml-base.0.dylib",
+				"libggml-blas.0.dylib",
+				"libggml-cpu.0.dylib",
+				"libggml-metal.0.dylib",
+				"libggml-rpc.0.dylib",
+				libggml.0.dylib,
+				libllama.0.dylib,
+				libmtmd.0.dylib,
 				"llama-server",
 			);
 		};
