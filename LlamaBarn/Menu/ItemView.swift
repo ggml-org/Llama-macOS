@@ -3,11 +3,9 @@ import AppKit
 /// Minimal base class for interactive menu items.
 /// Provides a shared background container with selection highlight and a content area for subclasses.
 ///
-/// Highlights work in two modes:
-/// 1. Menu-managed: For enabled items in the root menu, highlights are controlled by
-///    NSMenuDelegate.menu(_:willHighlight:). The highlight persists on parent items while their submenu is open.
-/// 2. Self-managed: For disabled items (typical in submenus), uses NSTrackingArea to handle hover events.
-///    This mode is necessary because the menu system only sends delegate callbacks for enabled items.
+/// Uses NSTrackingArea to handle hover events for highlighting.
+/// This is necessary because we use disabled NSMenuItems (to prevent menu closing on click),
+/// which do not receive standard NSMenu highlighting events.
 class ItemView: NSView {
   let backgroundView = NSView()
   let contentView = NSView()
@@ -63,7 +61,7 @@ class ItemView: NSView {
     if let window = window {
       let mouseLocation = window.mouseLocationOutsideOfEventStream
       let localPoint = convert(mouseLocation, from: nil)
-      if bounds.contains(localPoint) && !usesMenuManagedHighlight {
+      if bounds.contains(localPoint) {
         setHighlight(true)
       }
     }
@@ -71,7 +69,6 @@ class ItemView: NSView {
 
   override func mouseEntered(with event: NSEvent) {
     super.mouseEntered(with: event)
-    guard !usesMenuManagedHighlight else { return }
     // Early exit when highlight is disabled - avoids unnecessary work compared to checking only in setHighlight
     guard highlightEnabled else { return }
     setHighlight(true)
@@ -79,25 +76,15 @@ class ItemView: NSView {
 
   override func mouseExited(with event: NSEvent) {
     super.mouseExited(with: event)
-    guard !usesMenuManagedHighlight else { return }
     setHighlight(false)
   }
 
   /// Programmatically set selection highlight.
-  /// Used by MenuController for menu-managed highlights and internally for self-managed hover.
   func setHighlight(_ highlighted: Bool) {
     let shouldHighlight = highlighted && highlightEnabled
     guard shouldHighlight != isHighlighted else { return }
     isHighlighted = shouldHighlight
     backgroundView.setHighlight(shouldHighlight, cornerRadius: Layout.cornerRadius)
     highlightDidChange(shouldHighlight)
-  }
-
-  /// Returns true if this view's highlight is managed by NSMenuDelegate.menu(_:willHighlight:).
-  /// Only enabled items in menus trigger delegate callbacks, so disabled items
-  /// (like submenu model items) handle their own hover via tracking areas.
-  private var usesMenuManagedHighlight: Bool {
-    guard let item = enclosingMenuItem else { return false }
-    return item.isEnabled && item.menu != nil
   }
 }

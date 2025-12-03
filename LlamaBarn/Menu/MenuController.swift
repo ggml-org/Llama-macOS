@@ -15,7 +15,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   private var collapsedFamilies: Set<String> = []
   private var hasInitializedCollapseState = false
 
-  private weak var currentlyHighlightedView: ItemView?
   private var welcomePopover: WelcomePopover?
 
   init(modelManager: ModelManager? = nil, server: LlamaServer? = nil) {
@@ -69,28 +68,12 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   func menuDidClose(_ menu: NSMenu) {
     guard menu === statusItem.menu else { return }
-    currentlyHighlightedView?.setHighlight(false)
-    currentlyHighlightedView = nil
 
     // Reset section collapse state
     isInstalledCollapsed = false
     isSettingsOpen = false
     collapsedFamilies.removeAll()
     hasInitializedCollapseState = false
-  }
-
-  func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
-    // Only manage highlights for enabled items in the root menu (family items, settings, footer).
-    // Submenu model items remain disabled and use their own tracking areas for hover.
-    // This optimization reduces highlight updates from O(n) to O(1) by tracking only the current view.
-    guard menu === statusItem.menu else { return }
-    let highlighted = item?.view as? ItemView
-
-    if currentlyHighlightedView !== highlighted {
-      currentlyHighlightedView?.setHighlight(false)
-      highlighted?.setHighlight(true)
-      currentlyHighlightedView = highlighted
-    }
   }
 
   // MARK: - Menu Construction
@@ -226,7 +209,6 @@ final class MenuController: NSObject, NSMenuDelegate {
       self?.toggleInstalledCollapsed()
     }
     let headerItem = NSMenuItem.viewItem(with: headerView)
-    headerItem.isEnabled = false
     menu.addItem(headerItem)
 
     // Only show models if not collapsed
@@ -307,8 +289,6 @@ final class MenuController: NSObject, NSMenuDelegate {
         self?.toggleFamilyCollapsed(familyName)
       }
       let headerItem = NSMenuItem.viewItem(with: headerView)
-      // Disable menu management for this item so ItemView handles highlighting via tracking areas.
-      headerItem.isEnabled = false
       items.append(headerItem)
 
       if !collapsedFamilies.contains(family.name) {
