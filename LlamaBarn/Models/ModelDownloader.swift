@@ -353,13 +353,9 @@ class ModelDownloader: NSObject, URLSessionDownloadDelegate {
     guard let download = activeDownloads[modelId] else { return }
 
     for task in download.tasks.values {
-      task.cancel(byProducingResumeData: { [weak self] data in
-        guard let self = self, let data = data, let url = task.originalRequest?.url else { return }
-        DispatchQueue.main.async {
-          self.resumeData[url] = data
-          self.logger.info("Saved resume data for cancelled download: \(url.lastPathComponent)")
-        }
-      })
+      // Cancel immediately without producing resume data.
+      // This triggers the system to delete the temporary file, freeing up disk space.
+      task.cancel()
     }
   }
 
