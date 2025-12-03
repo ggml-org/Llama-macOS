@@ -1,6 +1,9 @@
 {
   "fill" : {
-    "automatic-gradient" : "srgb:0.00000,0.51765,0.81961,1.00000"
+    "linear-gradient" : [
+      "display-p3:0.19216,0.19216,0.19216,1.00000",
+      "srgb:0.07843,0.07843,0.07843,1.00000"
+    ]
   },
   "groups" : [
     {
@@ -9,7 +12,7 @@
           "glass" : false,
           "image-name" : "llama.svg",
           "name" : "llama",
-          "opacity" : 0.95,
+          "opacity" : 1,
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
