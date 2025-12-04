@@ -276,7 +276,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
       metadata.append(Format.metadataSeparator())
       metadata.append(
         NSAttributedString(
-          string: "\(ctxString) ctx · \(memText) mem",
+          string: "\(memText) mem · \(ctxString) ctx",
           attributes: [
             .font: Typography.secondary,
             .foregroundColor: Typography.tertiaryColor,
