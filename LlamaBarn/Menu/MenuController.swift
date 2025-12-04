@@ -139,7 +139,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // Model downloaded or deleted - rebuild both installed and catalog sections
     observeAndRebuild(.LBModelDownloadedListDidChange)
 
-    // User settings changed (e.g., show quantized models) - rebuild menu
+    // User settings changed (e.g., prefer quantized models) - rebuild menu
     observeAndRebuild(.LBUserSettingsDidChange)
 
     refresh()
@@ -253,10 +253,23 @@ final class MenuController: NSObject, NSMenuDelegate {
     var items: [NSMenuItem] = []
 
     for family in Catalog.families {
-      let showQuantized = UserSettings.showQuantizedModels
-      let validModels = family.allModels.filter {
-        Catalog.isModelCompatible($0) && (showQuantized || $0.isFullPrecision)
-      }
+      let preferQuantized = UserSettings.preferQuantizedModels
+      let compatibleModels = family.allModels.filter { Catalog.isModelCompatible($0) }
+
+      // Group by size (e.g., "27B") to pick the preferred version
+      let modelsBySize = Dictionary(grouping: compatibleModels, by: { $0.size })
+
+      let validModels = modelsBySize.values.compactMap { models -> CatalogEntry? in
+        if preferQuantized {
+          // Prefer quantized, fallback to full precision
+          return models.first(where: { !$0.isFullPrecision })
+            ?? models.first(where: { $0.isFullPrecision })
+        } else {
+          // Prefer full precision, fallback to quantized
+          return models.first(where: { $0.isFullPrecision })
+            ?? models.first(where: { !$0.isFullPrecision })
+        }
+      }.sorted(by: CatalogEntry.displayOrder(_:_:))
 
       // Only show family if there are models available to install
       let availableModels = validModels.filter {
@@ -300,12 +313,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     guard !items.isEmpty else { return }
 
-    let dividerView = DividerWithActionView {
-      UserSettings.showQuantizedModels.toggle()
-    }
-    let dividerItem = NSMenuItem.viewItem(with: dividerView)
-    dividerItem.isEnabled = true
-    menu.addItem(dividerItem)
+    menu.addItem(.separator())
 
     items.forEach { menu.addItem($0) }
   }
@@ -338,6 +346,18 @@ final class MenuController: NSObject, NSMenuDelegate {
         }
       ))
     menu.addItem(launchAtLoginItem)
+
+    // Prefer Quantized Models
+    let preferQuantizedItem = NSMenuItem.viewItem(
+      with: SettingsItemView(
+        title: "Prefer Quantized Models",
+        subtitle: "Use compressed models to save memory and disk space",
+        getValue: { UserSettings.preferQuantizedModels },
+        onToggle: { newValue in
+          UserSettings.preferQuantizedModels = newValue
+        }
+      ))
+    menu.addItem(preferQuantizedItem)
 
     #if DEBUG
       // Expose to Network

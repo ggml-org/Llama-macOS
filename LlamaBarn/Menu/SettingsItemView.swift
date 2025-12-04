@@ -23,6 +23,13 @@ final class SettingsItemView: ItemView {
     titleLabel.stringValue = title
     if let subtitle = subtitle {
       subtitleLabel.stringValue = subtitle
+      subtitleLabel.cell?.wraps = true
+      subtitleLabel.cell?.isScrollable = false
+      subtitleLabel.usesSingleLineMode = false
+      subtitleLabel.maximumNumberOfLines = 0
+      subtitleLabel.lineBreakMode = .byWordWrapping
+      // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - 40 (toggle) - 8 (spacing) = ~226
+      subtitleLabel.preferredMaxLayoutWidth = 220
     } else {
       subtitleLabel.isHidden = true
     }
@@ -34,8 +41,12 @@ final class SettingsItemView: ItemView {
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
   override var intrinsicContentSize: NSSize {
-    let height: CGFloat = subtitleLabel.isHidden ? 30 : 44
-    return NSSize(width: Layout.menuWidth, height: height)
+    // Calculate height based on content
+    let width = Layout.menuWidth
+    // Force layout to get accurate height
+    layoutSubtreeIfNeeded()
+    let height = contentView.fittingSize.height + (Layout.verticalPadding * 2)
+    return NSSize(width: width, height: max(30, height))
   }
 
   private func setup() {
@@ -55,8 +66,11 @@ final class SettingsItemView: ItemView {
 
     NSLayoutConstraint.activate([
       textStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-      textStack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
       textStack.trailingAnchor.constraint(lessThanOrEqualTo: toggle.leadingAnchor, constant: -8),
+
+      // Pin text stack to top/bottom to drive content height
+      textStack.topAnchor.constraint(equalTo: contentView.topAnchor),
+      textStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
 
       toggle.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
       toggle.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),

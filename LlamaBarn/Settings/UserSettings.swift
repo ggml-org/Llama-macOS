@@ -3,22 +3,26 @@ import Foundation
 /// Centralized access to simple persisted preferences.
 enum UserSettings {
   private enum Keys {
-    static let showQuantizedModels = "showQuantizedModels"
+    static let preferQuantizedModels = "preferQuantizedModels"
     static let hasSeenWelcome = "hasSeenWelcome"
     static let exposeToNetwork = "exposeToNetwork"
   }
 
   private static let defaults = UserDefaults.standard
 
-  /// Whether quantized model builds should appear in the catalog.
-  /// Defaults to `false` to emphasize full-precision models for most users.
-  static var showQuantizedModels: Bool {
+  /// Whether to prefer quantized models over full-precision ones when both are available.
+  /// Defaults to `true` to save memory and disk space.
+  static var preferQuantizedModels: Bool {
     get {
-      defaults.bool(forKey: Keys.showQuantizedModels)
+      // Default to true if not set
+      if defaults.object(forKey: Keys.preferQuantizedModels) == nil {
+        return true
+      }
+      return defaults.bool(forKey: Keys.preferQuantizedModels)
     }
     set {
-      guard defaults.bool(forKey: Keys.showQuantizedModels) != newValue else { return }
-      defaults.set(newValue, forKey: Keys.showQuantizedModels)
+      guard defaults.bool(forKey: Keys.preferQuantizedModels) != newValue else { return }
+      defaults.set(newValue, forKey: Keys.preferQuantizedModels)
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
     }
   }
