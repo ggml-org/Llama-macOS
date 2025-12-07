@@ -44,17 +44,21 @@ enum Catalog {
       // Group by size (e.g., "27B") to pick the preferred version
       let modelsBySize = Dictionary(grouping: compatibleModels, by: { $0.size })
 
-      return modelsBySize.values.compactMap { models -> CatalogEntry? in
-        if preferQuantized {
-          // Prefer quantized, fallback to full precision
-          return models.first(where: { !$0.isFullPrecision })
-            ?? models.first(where: { $0.isFullPrecision })
-        } else {
-          // Prefer full precision, fallback to quantized
-          return models.first(where: { $0.isFullPrecision })
-            ?? models.first(where: { !$0.isFullPrecision })
-        }
+      return modelsBySize.values.compactMap { models in
+        bestModel(in: models, preferQuantized: preferQuantized)
       }.sorted(by: CatalogEntry.displayOrder(_:_:))
+    }
+
+    private func bestModel(in models: [CatalogEntry], preferQuantized: Bool) -> CatalogEntry? {
+      if preferQuantized {
+        // Prefer quantized, fallback to full precision
+        return models.first(where: { !$0.isFullPrecision })
+          ?? models.first(where: { $0.isFullPrecision })
+      } else {
+        // Prefer full precision, fallback to quantized
+        return models.first(where: { $0.isFullPrecision })
+          ?? models.first(where: { !$0.isFullPrecision })
+      }
     }
   }
 

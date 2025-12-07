@@ -10,7 +10,7 @@ enum Format {
   /// Uses period separator (US format) for consistency with memory formatting.
   static func gigabytes(_ bytes: Int64) -> String {
     let gb = Double(bytes) / 1_000_000_000.0
-    return gbOneDecimalString(gb)
+    return formatDecimal(gb, unit: " GB")
   }
 
   // MARK: - Token Formatting (binary: 1k = 1024)
@@ -21,15 +21,11 @@ enum Format {
   /// Uses binary units since context windows represent memory allocation.
   static func tokens(_ tokens: Int) -> String {
     if tokens >= 1_048_576 {
-      let m = Double(tokens) / 1_048_576.0
-      let format = tokens % 1_048_576 == 0 ? "%.0fm" : "%.1fm"
-      return String(format: format, m)
+      return formatDecimal(Double(tokens) / 1_048_576.0, unit: "m")
     } else if tokens >= 10_240 {
       return String(format: "%.0fk", Double(tokens) / 1_024.0)
     } else if tokens >= 1_024 {
-      let k = Double(tokens) / 1_024.0
-      let format = tokens % 1_024 == 0 ? "%.0fk" : "%.1fk"
-      return String(format: format, k)
+      return formatDecimal(Double(tokens) / 1_024.0, unit: "k")
     } else {
       return "\(tokens)"
     }
@@ -42,7 +38,7 @@ enum Format {
   /// Uses binary units (1 GB = 1024 MB) to match Activity Monitor and system memory reporting.
   static func memory(mb: UInt64) -> String {
     let gb = Double(mb) / 1024.0
-    return gbOneDecimalString(gb)
+    return formatDecimal(gb, unit: " GB")
   }
 
   // MARK: - Metadata Formatting
@@ -147,10 +143,10 @@ enum Format {
 
   // MARK: - Private Helpers
 
-  /// Formats a gigabyte value with one decimal place, omitting ".0" for whole numbers.
-  private static func gbOneDecimalString(_ gb: Double) -> String {
-    let rounded = (gb * 10).rounded() / 10
-    let format = rounded.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f GB" : "%.1f GB"
-    return String(format: format, rounded)
+  /// Formats a value with one decimal place, omitting ".0" for whole numbers.
+  private static func formatDecimal(_ value: Double, unit: String) -> String {
+    let rounded = (value * 10).rounded() / 10
+    let format = rounded.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f"
+    return String(format: format + unit, rounded)
   }
 }

@@ -266,14 +266,10 @@ final class MenuController: NSObject, NSMenuDelegate {
       }
 
       // Collect unique sizes for header from available models
-      var sizes: [String] = []
-      var seenSizes: Set<String> = []
-      for model in availableModels {
-        if !seenSizes.contains(model.sizeLabel) {
-          seenSizes.insert(model.sizeLabel)
-          sizes.append(model.sizeLabel)
+      let sizes = availableModels.map { $0.sizeLabel }
+        .reduce(into: [String]()) { result, size in
+          if result.last != size { result.append(size) }
         }
-      }
 
       let headerView = FamilyHeaderView(
         family: family.name,
