@@ -243,12 +243,12 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Progress and cancel button only for downloading
     let isDownloading = modelManager.downloadProgress(for: model) != nil
 
-    // Use tertiary for downloading, secondary for installed/running
+    // Use secondary for downloading, primary for installed/running
     let line1Color: NSColor
     if isDownloading {
-      line1Color = Typography.tertiaryColor
-    } else {
       line1Color = Typography.secondaryColor
+    } else {
+      line1Color = Typography.primaryColor
     }
     let nameAttr = Format.modelName(
       family: model.family,
@@ -259,11 +259,11 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     modelNameLabel.attributedStringValue = nameAttr
 
-    // Line 2 uses tertiary for downloading, secondary otherwise
+    // Line 2 uses secondary for downloading, primary otherwise
     let line2Color: NSColor =
       isDownloading
-      ? Typography.tertiaryColor
-      : Typography.secondaryColor
+      ? Typography.secondaryColor
+      : Typography.primaryColor
 
     let metadata = NSMutableAttributedString(
       attributedString: Format.modelMetadata(for: model, color: line2Color))
@@ -279,7 +279,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
           string: "\(memText) mem · \(ctxString) ctx",
           attributes: [
             .font: Typography.secondary,
-            .foregroundColor: Typography.tertiaryColor,
+            .foregroundColor: Typography.secondaryColor,
           ]
         )
       )

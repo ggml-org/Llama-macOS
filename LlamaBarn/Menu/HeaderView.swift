@@ -62,7 +62,7 @@ final class HeaderView: NSView {
     copyImageView.image = NSImage(
       systemSymbolName: "doc.on.doc", accessibilityDescription: "Copy URL")
     copyImageView.toolTip = "Copy URL"
-    copyImageView.contentTintColor = Typography.tertiaryColor
+    copyImageView.contentTintColor = Typography.secondaryColor
     copyImageView.symbolConfiguration = .init(pointSize: 11, weight: .regular)
     copyImageView.setContentHuggingPriority(.init(251), for: .horizontal)
 
@@ -90,7 +90,7 @@ final class HeaderView: NSView {
       self.currentUrl = url
 
       statusLabel.stringValue = "Running on "
-      statusLabel.textColor = Typography.secondaryColor
+      statusLabel.textColor = Typography.primaryColor
 
       let attrTitle = NSAttributedString(
         string: linkText,
@@ -110,7 +110,7 @@ final class HeaderView: NSView {
         systemSymbolName: iconName, accessibilityDescription: "Copy URL")
     } else {
       statusLabel.stringValue = "Select a model to run"
-      statusLabel.textColor = Typography.secondaryColor
+      statusLabel.textColor = Typography.primaryColor
       linkButton.isHidden = true
       linkButton.toolTip = nil
       copyImageView.isHidden = true

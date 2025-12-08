@@ -43,7 +43,7 @@ final class CatalogModelItemView: ItemView {
   private func setup() {
     wantsLayer = true
     iconView.imageView.image = NSImage(named: model.icon)
-    iconView.inactiveTintColor = Typography.secondaryColor
+    iconView.inactiveTintColor = Typography.primaryColor
 
     labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
@@ -108,8 +108,8 @@ final class CatalogModelItemView: ItemView {
     labelField.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
-      familyColor: Typography.secondaryColor,
-      sizeColor: Typography.secondaryColor
+      familyColor: Typography.primaryColor,
+      sizeColor: Typography.primaryColor
     )
 
     metadataLabel.attributedStringValue = Format.modelMetadata(for: model)

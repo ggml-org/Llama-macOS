@@ -92,7 +92,7 @@ extension Format {
 
   /// Formats model metadata text.
   /// Format: "2.53 GB" or "2.53 GB · 👓"
-  static func modelMetadata(for model: CatalogEntry, color: NSColor = Typography.secondaryColor)
+  static func modelMetadata(for model: CatalogEntry, color: NSColor = Typography.primaryColor)
     -> NSAttributedString
   {
     let result = NSMutableAttributedString()
@@ -140,7 +140,7 @@ extension Format {
     family: String,
     size: String,
     familyColor: NSColor,
-    sizeColor: NSColor = Typography.secondaryColor
+    sizeColor: NSColor = Typography.primaryColor
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
     result.append(

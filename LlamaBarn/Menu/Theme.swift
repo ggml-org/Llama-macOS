@@ -55,15 +55,15 @@ enum Typography {
   static let secondary = NSFont.systemFont(ofSize: 11, weight: .regular)
 
   // MARK: - Colors
-  static let secondaryColor: NSColor = .secondaryLabelColor
-  static let tertiaryColor: NSColor = .tertiaryLabelColor
+  static let primaryColor: NSColor = .secondaryLabelColor
+  static let secondaryColor: NSColor = .tertiaryLabelColor
 
   // MARK: - Label Factories
   /// Creates a label text field with primary font and proper menu text color.
   static func makePrimaryLabel(_ text: String = "") -> NSTextField {
     let label = NSTextField(labelWithString: text)
     label.font = primary
-    label.textColor = secondaryColor
+    label.textColor = primaryColor
     return label
   }
 
@@ -71,23 +71,23 @@ enum Typography {
   static func makeSecondaryLabel(_ text: String = "") -> NSTextField {
     let label = NSTextField(labelWithString: text)
     label.font = secondary
+    label.textColor = primaryColor
+    return label
+  }
+
+  /// Creates a label text field with secondary font and secondary menu text color.
+  static func makeTertiaryLabel(_ text: String = "") -> NSTextField {
+    let label = NSTextField(labelWithString: text)
+    label.font = secondary
     label.textColor = secondaryColor
     return label
   }
 
-  /// Creates a label text field with secondary font and tertiary menu text color.
-  static func makeTertiaryLabel(_ text: String = "") -> NSTextField {
-    let label = NSTextField(labelWithString: text)
-    label.font = secondary
-    label.textColor = tertiaryColor
-    return label
-  }
-
   // MARK: - Attributed String Helpers
-  /// Common attributes for tertiary text (separators, dimmed text)
+  /// Common attributes for secondary text (separators, dimmed text)
   static let tertiaryAttributes: [NSAttributedString.Key: Any] = [
     .font: secondary,
-    .foregroundColor: tertiaryColor,
+    .foregroundColor: secondaryColor,
   ]
 
   /// Creates attributes for primary font with custom color

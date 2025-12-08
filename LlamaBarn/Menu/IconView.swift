@@ -12,7 +12,7 @@ final class IconView: NSView {
 
   var isActive: Bool = false { didSet { refresh() } }
   private var isLoading: Bool = false { didSet { refresh() } }
-  var inactiveTintColor: NSColor = Typography.secondaryColor { didSet { refresh() } }
+  var inactiveTintColor: NSColor = Typography.primaryColor { didSet { refresh() } }
 
   var inactiveBackgroundColor: NSColor = .lbSubtleBackground { didSet { refresh() } }
 

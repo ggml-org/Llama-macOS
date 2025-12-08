@@ -4,7 +4,7 @@ final class SettingsItemView: ItemView {
   private let titleLabel: NSTextField = {
     let label = NSTextField(labelWithString: "")
     label.font = Typography.primary
-    label.textColor = Typography.secondaryColor
+    label.textColor = Typography.primaryColor
     return label
   }()
   private let subtitleLabel = Typography.makeSecondaryLabel()
