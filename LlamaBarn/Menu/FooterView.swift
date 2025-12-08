@@ -30,13 +30,13 @@ final class FooterView: NSView {
       title: "", target: self, action: #selector(checkForUpdatesClicked))
     versionButton.attributedTitle = NSAttributedString(
       string: appVersionText,
-      attributes: Typography.makeSecondaryAttributes(color: .secondaryLabelColor)
+      attributes: Theme.secondaryAttributes(color: Theme.Colors.textPrimary)
     )
     versionButton.isBordered = false
     versionButton.translatesAutoresizingMaskIntoConstraints = false
 
     // Llama Version Label
-    let llamaLabel = Typography.makeTertiaryLabel(" · llama.cpp \(AppInfo.llamaCppVersion)")
+    let llamaLabel = Theme.tertiaryLabel(" · llama.cpp \(AppInfo.llamaCppVersion)")
     llamaLabel.translatesAutoresizingMaskIntoConstraints = false
 
     // Settings Button
@@ -95,7 +95,7 @@ private class FooterButton: NSButton {
     super.init(frame: .zero)
     self.attributedTitle = NSAttributedString(
       string: title,
-      attributes: Typography.makeSecondaryAttributes(color: .tertiaryLabelColor)
+      attributes: Theme.secondaryAttributes(color: Theme.Colors.textSecondary)
     )
     self.target = target
     self.action = action
@@ -116,11 +116,11 @@ private class FooterButton: NSButton {
   override func updateLayer() {
     layer?.cornerRadius = 5
     layer?.borderWidth = 1
-    // Use .lbBorder instead of .separatorColor because CALayers don't support vibrancy.
+    // Use Theme.Colors.border instead of .separatorColor because CALayers don't support vibrancy.
     // See Theme.swift for details.
-    layer?.setBorderColor(.lbBorder, in: self)
+    layer?.setBorderColor(Theme.Colors.border, in: self)
 
-    let bgColor: NSColor = isHighlighted ? .lbSubtleBackground : .clear
+    let bgColor: NSColor = isHighlighted ? Theme.Colors.subtleBackground : .clear
     layer?.setBackgroundColor(bgColor, in: self)
   }
 

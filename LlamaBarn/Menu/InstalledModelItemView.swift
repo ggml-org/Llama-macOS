@@ -14,11 +14,11 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   // Subviews
   private let iconView = IconView()
-  private let modelNameLabel = Typography.makePrimaryLabel()
-  private let metadataLabel = Typography.makeSecondaryLabel()
+  private let modelNameLabel = Theme.primaryLabel()
+  private let metadataLabel = Theme.secondaryLabel()
   private let progressLabel: NSTextField = {
-    let label = Typography.makeSecondaryLabel()
-    label.font = Typography.primary
+    let label = Theme.secondaryLabel()
+    label.font = Theme.Fonts.primary
     return label
   }()
   private let cancelImageView = NSImageView()
@@ -246,9 +246,9 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Use secondary for downloading, primary for installed/running
     let line1Color: NSColor
     if isDownloading {
-      line1Color = Typography.secondaryColor
+      line1Color = Theme.Colors.textSecondary
     } else {
-      line1Color = Typography.primaryColor
+      line1Color = Theme.Colors.textPrimary
     }
     let nameAttr = Format.modelName(
       family: model.family,
@@ -262,8 +262,8 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Line 2 uses secondary for downloading, primary otherwise
     let line2Color: NSColor =
       isDownloading
-      ? Typography.secondaryColor
-      : Typography.primaryColor
+      ? Theme.Colors.textSecondary
+      : Theme.Colors.textPrimary
 
     let metadata = NSMutableAttributedString(
       attributedString: Format.modelMetadata(for: model, color: line2Color))
@@ -278,8 +278,8 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
         NSAttributedString(
           string: "\(memText) mem · \(ctxString) ctx",
           attributes: [
-            .font: Typography.secondary,
-            .foregroundColor: Typography.secondaryColor,
+            .font: Theme.Fonts.secondary,
+            .foregroundColor: Theme.Colors.textSecondary,
           ]
         )
       )

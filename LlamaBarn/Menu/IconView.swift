@@ -12,9 +12,9 @@ final class IconView: NSView {
 
   var isActive: Bool = false { didSet { refresh() } }
   private var isLoading: Bool = false { didSet { refresh() } }
-  var inactiveTintColor: NSColor = Typography.primaryColor { didSet { refresh() } }
+  var inactiveTintColor: NSColor = Theme.Colors.textPrimary { didSet { refresh() } }
 
-  var inactiveBackgroundColor: NSColor = .lbSubtleBackground { didSet { refresh() } }
+  var inactiveBackgroundColor: NSColor = Theme.Colors.subtleBackground { didSet { refresh() } }
 
   override init(frame frameRect: NSRect = .zero) {
     super.init(frame: frameRect)

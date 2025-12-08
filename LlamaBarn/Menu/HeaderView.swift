@@ -5,9 +5,9 @@ import Foundation
 final class HeaderView: NSView {
 
   private unowned let server: LlamaServer
-  private let appNameLabel = Typography.makePrimaryLabel()
+  private let appNameLabel = Theme.primaryLabel()
   private let statusStackView = NSStackView()
-  private let statusLabel = Typography.makeSecondaryLabel()
+  private let statusLabel = Theme.secondaryLabel()
   private let linkButton = NSButton()
   private let copyImageView = NSImageView()
   private let backgroundView = NSView()
@@ -73,7 +73,7 @@ final class HeaderView: NSView {
     copyImageView.image = NSImage(
       systemSymbolName: "doc.on.doc", accessibilityDescription: "Copy URL")
     copyImageView.toolTip = "Copy URL"
-    copyImageView.contentTintColor = Typography.secondaryColor
+    copyImageView.contentTintColor = Theme.Colors.textSecondary
     copyImageView.symbolConfiguration = .init(pointSize: 11, weight: .regular)
     copyImageView.setContentHuggingPriority(.init(251), for: .horizontal)
 
@@ -101,13 +101,13 @@ final class HeaderView: NSView {
       self.currentUrl = url
 
       statusLabel.stringValue = "Running on "
-      statusLabel.textColor = Typography.primaryColor
+      statusLabel.textColor = Theme.Colors.textPrimary
 
       let attrTitle = NSAttributedString(
         string: linkText,
         attributes: [
           .foregroundColor: NSColor.linkColor,
-          .font: Typography.secondary,
+          .font: Theme.Fonts.secondary,
           .underlineStyle: NSUnderlineStyle.single.rawValue,
         ]
       )
@@ -121,7 +121,7 @@ final class HeaderView: NSView {
         systemSymbolName: iconName, accessibilityDescription: "Copy URL")
     } else {
       statusLabel.stringValue = "Select a model to run"
-      statusLabel.textColor = Typography.primaryColor
+      statusLabel.textColor = Theme.Colors.textPrimary
       linkButton.isHidden = true
       linkButton.toolTip = nil
       copyImageView.isHidden = true

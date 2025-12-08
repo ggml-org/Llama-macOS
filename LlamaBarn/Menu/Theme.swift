@@ -1,102 +1,93 @@
 import AppKit
 
-// MARK: - Colors
+enum Theme {
+  enum Colors {
+    static let textPrimary = NSColor.secondaryLabelColor
+    static let textSecondary = NSColor.tertiaryLabelColor
 
-extension NSColor {
-  /// Subtle background for hover states and inactive icon containers.
-  static let lbSubtleBackground = NSColor(name: nil) { appearance in
-    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-      ? NSColor.white.withAlphaComponent(0.11)
-      : NSColor.black.withAlphaComponent(0.06)
+    static let subtleBackground = NSColor.dynamic(
+      light: NSColor.black.withAlphaComponent(0.06),
+      dark: NSColor.white.withAlphaComponent(0.11)
+    )
+
+    static let border = NSColor.dynamic(
+      light: NSColor.black.withAlphaComponent(0.15),
+      dark: NSColor.white.withAlphaComponent(0.25)
+    )
   }
 
-  /// Border color for CALayers that don't support vibrancy.
-  ///
-  /// **Why not use `.separatorColor`?**
-  /// System colors like `.separatorColor` rely on "Vibrancy" (blending with the blurred window background)
-  /// to be visible. When converted to a `CGColor` for a `CALayer` border, this vibrancy effect is lost,
-  /// leaving only the raw color value which is often too transparent (e.g., 10% opacity) to be seen.
-  ///
-  /// This color provides a "flat" opaque alternative that mimics the visual weight of a separator
-  /// without relying on vibrancy effects.
-  static let lbBorder = NSColor(name: nil) { appearance in
-    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-      ? NSColor.white.withAlphaComponent(0.25)
-      : NSColor.black.withAlphaComponent(0.15)
+  enum Fonts {
+    static let primary = NSFont.systemFont(ofSize: 13)
+    static let secondary = NSFont.systemFont(ofSize: 11)
   }
 }
 
-// Helper for using dynamic NSColors with CALayer (which requires CGColor).
+// MARK: - Label Factories
+
+extension Theme {
+  static func primaryLabel(_ text: String = "") -> NSTextField {
+    makeLabel(text, font: Fonts.primary, color: Colors.textPrimary)
+  }
+
+  static func secondaryLabel(_ text: String = "") -> NSTextField {
+    makeLabel(text, font: Fonts.secondary, color: Colors.textPrimary)
+  }
+
+  static func tertiaryLabel(_ text: String = "") -> NSTextField {
+    makeLabel(text, font: Fonts.secondary, color: Colors.textSecondary)
+  }
+
+  private static func makeLabel(_ text: String, font: NSFont, color: NSColor) -> NSTextField {
+    let label = NSTextField(labelWithString: text)
+    label.font = font
+    label.textColor = color
+    return label
+  }
+}
+
+// MARK: - Attributed String Helpers
+
+extension Theme {
+  static func primaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
+    [.font: Fonts.primary, .foregroundColor: color]
+  }
+
+  static func secondaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
+    [.font: Fonts.secondary, .foregroundColor: color]
+  }
+
+  static let tertiaryAttributes: [NSAttributedString.Key: Any] = [
+    .font: Fonts.secondary,
+    .foregroundColor: Colors.textSecondary,
+  ]
+}
+
+// MARK: - Helpers
+
+extension NSColor {
+  static func dynamic(light: NSColor, dark: NSColor) -> NSColor {
+    NSColor(name: nil) { appearance in
+      appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+    }
+  }
+}
+
 extension CALayer {
   func setBackgroundColor(_ color: NSColor, in view: NSView) {
-    var resolved: CGColor = NSColor.clear.cgColor
-    view.effectiveAppearance.performAsCurrentDrawingAppearance {
-      resolved = color.cgColor
-    }
-    backgroundColor = resolved
+    backgroundColor = color.resolvedColor(in: view)
   }
 
   func setBorderColor(_ color: NSColor, in view: NSView) {
-    var resolved: CGColor = NSColor.clear.cgColor
-    view.effectiveAppearance.performAsCurrentDrawingAppearance {
-      resolved = color.cgColor
-    }
-    borderColor = resolved
+    borderColor = color.resolvedColor(in: view)
   }
 }
 
-// MARK: - Typography
-
-/// Shared type ramp and color system for the app.
-enum Typography {
-  // MARK: - Fonts
-  static let primary = NSFont.systemFont(ofSize: 13)
-  // Secondary/line-2 text used across rows for consistency
-  static let secondary = NSFont.systemFont(ofSize: 11, weight: .regular)
-
-  // MARK: - Colors
-  static let primaryColor: NSColor = .secondaryLabelColor
-  static let secondaryColor: NSColor = .tertiaryLabelColor
-
-  // MARK: - Label Factories
-  /// Creates a label text field with primary font and proper menu text color.
-  static func makePrimaryLabel(_ text: String = "") -> NSTextField {
-    let label = NSTextField(labelWithString: text)
-    label.font = primary
-    label.textColor = primaryColor
-    return label
-  }
-
-  /// Creates a label text field with secondary font and proper menu text color.
-  static func makeSecondaryLabel(_ text: String = "") -> NSTextField {
-    let label = NSTextField(labelWithString: text)
-    label.font = secondary
-    label.textColor = primaryColor
-    return label
-  }
-
-  /// Creates a label text field with secondary font and secondary menu text color.
-  static func makeTertiaryLabel(_ text: String = "") -> NSTextField {
-    let label = NSTextField(labelWithString: text)
-    label.font = secondary
-    label.textColor = secondaryColor
-    return label
-  }
-
-  // MARK: - Attributed String Helpers
-  /// Common attributes for secondary text (separators, dimmed text)
-  static let tertiaryAttributes: [NSAttributedString.Key: Any] = [
-    .font: secondary,
-    .foregroundColor: secondaryColor,
-  ]
-
-  /// Creates attributes for primary font with custom color
-  static func makePrimaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
-    [.font: primary, .foregroundColor: color]
-  }
-
-  /// Creates attributes for secondary font with custom color
-  static func makeSecondaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
-    [.font: secondary, .foregroundColor: color]
+extension NSColor {
+  fileprivate func resolvedColor(in view: NSView) -> CGColor {
+    var resolved = NSColor.clear.cgColor
+    view.effectiveAppearance.performAsCurrentDrawingAppearance {
+      resolved = self.cgColor
+    }
+    return resolved
   }
 }

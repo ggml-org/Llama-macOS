@@ -8,8 +8,8 @@ final class CatalogModelItemView: ItemView {
   private let membershipChanged: () -> Void
 
   private let iconView = IconView()
-  private let labelField = Typography.makePrimaryLabel()
-  private let metadataLabel = Typography.makeSecondaryLabel()
+  private let labelField = Theme.primaryLabel()
+  private let metadataLabel = Theme.secondaryLabel()
   private var rowClickRecognizer: NSClickGestureRecognizer?
 
   init(
@@ -43,7 +43,7 @@ final class CatalogModelItemView: ItemView {
   private func setup() {
     wantsLayer = true
     iconView.imageView.image = NSImage(named: model.icon)
-    iconView.inactiveTintColor = Typography.primaryColor
+    iconView.inactiveTintColor = Theme.Colors.textPrimary
 
     labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
@@ -108,8 +108,8 @@ final class CatalogModelItemView: ItemView {
     labelField.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
-      familyColor: Typography.primaryColor,
-      sizeColor: Typography.primaryColor
+      familyColor: Theme.Colors.textPrimary,
+      sizeColor: Theme.Colors.textPrimary
     )
 
     metadataLabel.attributedStringValue = Format.modelMetadata(for: model)

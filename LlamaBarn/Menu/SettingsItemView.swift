@@ -3,11 +3,11 @@ import AppKit
 final class SettingsItemView: ItemView {
   private let titleLabel: NSTextField = {
     let label = NSTextField(labelWithString: "")
-    label.font = Typography.primary
-    label.textColor = Typography.primaryColor
+    label.font = Theme.Fonts.primary
+    label.textColor = Theme.Colors.textPrimary
     return label
   }()
-  private let subtitleLabel = Typography.makeSecondaryLabel()
+  private let subtitleLabel = Theme.secondaryLabel()
   private let toggle = NSSwitch()
   private let onToggle: (Bool) -> Void
   private let getValue: () -> Bool

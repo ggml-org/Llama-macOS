@@ -85,20 +85,20 @@ extension Format {
 
   /// Creates a bullet separator for metadata lines (e.g., "2.5 GB · 128k · 4 GB").
   static func metadataSeparator() -> NSAttributedString {
-    NSAttributedString(string: " · ", attributes: Typography.tertiaryAttributes)
+    NSAttributedString(string: " · ", attributes: Theme.tertiaryAttributes)
   }
 
   // MARK: - Model Metadata (composite)
 
   /// Formats model metadata text.
   /// Format: "2.53 GB" or "2.53 GB · 👓"
-  static func modelMetadata(for model: CatalogEntry, color: NSColor = Typography.primaryColor)
+  static func modelMetadata(for model: CatalogEntry, color: NSColor = Theme.Colors.textPrimary)
     -> NSAttributedString
   {
     let result = NSMutableAttributedString()
 
     let attributes: [NSAttributedString.Key: Any] = [
-      .font: Typography.secondary,
+      .font: Theme.Fonts.secondary,
       .foregroundColor: color,
     ]
 
@@ -116,7 +116,7 @@ extension Format {
         systemSymbolName: "eyeglasses", accessibilityDescription: "Vision Support")
       {
         let config = NSImage.SymbolConfiguration(
-          pointSize: Typography.secondary.pointSize, weight: .regular)
+          pointSize: Theme.Fonts.secondary.pointSize, weight: .regular)
         attachment.image = image.withSymbolConfiguration(config)
       }
 
@@ -140,15 +140,15 @@ extension Format {
     family: String,
     size: String,
     familyColor: NSColor,
-    sizeColor: NSColor = Typography.primaryColor
+    sizeColor: NSColor = Theme.Colors.textPrimary
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
     result.append(
       NSAttributedString(
-        string: family, attributes: Typography.makePrimaryAttributes(color: familyColor)))
+        string: family, attributes: Theme.primaryAttributes(color: familyColor)))
     result.append(
       NSAttributedString(
-        string: " \(size)", attributes: Typography.makePrimaryAttributes(color: sizeColor)))
+        string: " \(size)", attributes: Theme.primaryAttributes(color: sizeColor)))
     return result
   }
 }

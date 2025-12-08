@@ -2,8 +2,8 @@ import AppKit
 
 /// Interactive header for catalog families that can be collapsed or expanded.
 final class FamilyHeaderView: ItemView {
-  private let label = Typography.makeTertiaryLabel()
-  private let sizesLabel = Typography.makeTertiaryLabel()
+  private let label = Theme.tertiaryLabel()
+  private let sizesLabel = Theme.tertiaryLabel()
   let family: String
   private let sizes: [String]
   private let isCollapsed: Bool
