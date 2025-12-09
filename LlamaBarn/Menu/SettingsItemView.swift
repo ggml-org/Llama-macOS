@@ -68,9 +68,10 @@ final class SettingsItemView: ItemView {
       textStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       textStack.trailingAnchor.constraint(lessThanOrEqualTo: toggle.leadingAnchor, constant: -8),
 
-      // Pin text stack to top/bottom to drive content height
-      textStack.topAnchor.constraint(equalTo: contentView.topAnchor),
-      textStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+      // Center text stack vertically, but allow it to push bounds if content is tall
+      textStack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+      textStack.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor),
+      textStack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
 
       toggle.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
       toggle.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
