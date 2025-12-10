@@ -106,6 +106,13 @@ extension Format {
     result.append(
       NSAttributedString(string: model.totalSize, attributes: attributes))
 
+    // Quantization
+    if let quantLabel = model.quantizationLabel {
+      result.append(Format.metadataSeparator())
+      result.append(
+        NSAttributedString(string: quantLabel, attributes: attributes))
+    }
+
     // Vision support
     if model.hasVisionSupport {
       result.append(Format.metadataSeparator())

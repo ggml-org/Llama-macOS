@@ -65,13 +65,16 @@ struct CatalogEntry: Identifiable, Codable {
     "\(family) \(size)"
   }
 
-  /// Size label with quantization suffix (e.g., "27B" or "27B-Q4")
+  /// Size label (e.g., "27B")
   var sizeLabel: String {
-    let quantLabel = Format.quantization(quantization)
-    guard !isFullPrecision && !quantLabel.isEmpty else {
-      return size
-    }
-    return "\(size)-\(quantLabel)"
+    size
+  }
+
+  /// Quantization label (e.g., "Q4") - nil if full precision or empty
+  var quantizationLabel: String? {
+    guard !isFullPrecision else { return nil }
+    let label = Format.quantization(quantization)
+    return label.isEmpty ? nil : label
   }
 
   /// Total size including all model files
