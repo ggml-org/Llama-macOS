@@ -7,3 +7,5 @@ _*
 
 build
 xcuserdata
+
+*.log
