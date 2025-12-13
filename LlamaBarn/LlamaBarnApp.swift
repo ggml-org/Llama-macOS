@@ -31,6 +31,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var updatesObserver: NSObjectProtocol?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    // Enable visual debugging if LB_DEBUG_UI is set
+    NSView.swizzleDebugBehavior()
+
     // Initialize Sentry for error reporting (release builds only)
     #if !DEBUG
       SentrySDK.start { options in
