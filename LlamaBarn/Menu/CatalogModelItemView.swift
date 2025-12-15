@@ -43,7 +43,7 @@ final class CatalogModelItemView: ItemView {
   private func setup() {
     wantsLayer = true
     iconView.imageView.image = NSImage(named: model.icon)
-    iconView.inactiveTintColor = Theme.Colors.textPrimary
+    iconView.inactiveTintColor = Theme.Colors.modelIconTint
 
     labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 

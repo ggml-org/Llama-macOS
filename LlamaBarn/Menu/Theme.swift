@@ -13,6 +13,12 @@ enum Theme {
     // Tertiary text color -- used for less prominent text
     static let textSecondary = NSColor.tertiaryLabelColor
 
+    // Tint color for inactive model icons -- balanced between primary and secondary text
+    static let modelIconTint = NSColor.dynamic(
+      light: NSColor.black.withAlphaComponent(0.65),
+      dark: NSColor.white.withAlphaComponent(0.65)
+    )
+
     // Subtle background color for visual grouping -- adapts to light/dark mode
     static let subtleBackground = NSColor.dynamic(
       light: NSColor.black.withAlphaComponent(0.06),

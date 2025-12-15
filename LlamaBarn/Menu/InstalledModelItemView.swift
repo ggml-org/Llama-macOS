@@ -239,7 +239,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
       cancelImageView.isHidden = true
       rightStack.isHidden = true
     }
-    iconView.inactiveTintColor = textColor
+    iconView.inactiveTintColor = Theme.Colors.modelIconTint
 
     // Delete button only for installed models on right-click
     // Reset showingDeleteButton if model is no longer installed
