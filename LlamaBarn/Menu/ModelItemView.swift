@@ -1,12 +1,14 @@
 import AppKit
 import Foundation
 
-/// Interactive menu item representing a single installed model.
+/// Interactive menu item representing a single model (installed, downloading, or available).
 /// Visual states:
-/// - Idle: rounded square icon (inactive) + label
+/// - Available: rounded square icon (inactive) + label
+/// - Downloading: rounded square icon (inactive) + progress
+/// - Installed: rounded square icon (inactive) + label
 /// - Loading: rounded square icon (active)
 /// - Running: rounded square icon (active)
-final class InstalledModelItemView: StandardItemView, NSGestureRecognizerDelegate {
+final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
   private let model: CatalogEntry
   private unowned let server: LlamaServer
   private unowned let modelManager: ModelManager
@@ -151,6 +153,21 @@ final class InstalledModelItemView: StandardItemView, NSGestureRecognizerDelegat
     } else if modelManager.isDownloading(model) {
       modelManager.cancelModelDownload(model)
       membershipChanged(model)
+    } else {
+      // Available -> Download
+      do {
+        try modelManager.downloadModel(model)
+        membershipChanged(model)
+      } catch {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = error.localizedDescription
+        if let error = error as? LocalizedError, let recoverySuggestion = error.recoverySuggestion {
+          alert.informativeText = recoverySuggestion
+        }
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+      }
     }
     refresh()
   }

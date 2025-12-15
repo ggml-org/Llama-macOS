@@ -155,9 +155,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     for item in menu.items {
       if let view = item.view as? HeaderView {
         view.refresh()
-      } else if let view = item.view as? InstalledModelItemView {
-        view.refresh()
-      } else if let view = item.view as? CatalogModelItemView {
+      } else if let view = item.view as? ModelItemView {
         view.refresh()
       }
     }
@@ -221,7 +219,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   private func buildInstalledItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
     return models.map { model in
-      let view = InstalledModelItemView(
+      let view = ModelItemView(
         model: model,
         server: server,
         modelManager: modelManager
@@ -267,9 +265,12 @@ final class MenuController: NSObject, NSMenuDelegate {
 
       if !collapsedFamilies.contains(family.name) {
         for model in availableModels {
-          let view = CatalogModelItemView(model: model, modelManager: modelManager) {
-            [weak self] in
-            self?.didChangeDownloadStatus(for: model)
+          let view = ModelItemView(
+            model: model,
+            server: server,
+            modelManager: modelManager
+          ) { [weak self] entry in
+            self?.didChangeDownloadStatus(for: entry)
           }
           items.append(NSMenuItem.viewItem(with: view))
         }
