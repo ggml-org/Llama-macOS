@@ -61,21 +61,12 @@ final class CatalogModelItemView: ItemView {
 
     contentView.addSubview(leading)
     leading.pinToSuperview()
-
-    NSLayoutConstraint.activate([
-      iconView.widthAnchor.constraint(equalToConstant: Layout.iconViewSize),
-      iconView.heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
-    ])
   }
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
     guard rowClickRecognizer == nil else { return }
-
-    let click = NSClickGestureRecognizer(target: self, action: #selector(didClickRow(_:)))
-    click.buttonMask = 0x1  // Left mouse button only
-    addGestureRecognizer(click)
-    rowClickRecognizer = click
+    rowClickRecognizer = addGesture(action: #selector(didClickRow(_:)))
   }
 
   @objc private func didClickRow(_ recognizer: NSClickGestureRecognizer) {

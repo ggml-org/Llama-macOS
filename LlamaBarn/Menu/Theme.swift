@@ -62,6 +62,24 @@ extension Theme {
   ]
 }
 
+// MARK: - Image View Configuration
+
+extension Theme {
+  static func configure(
+    _ view: NSImageView,
+    symbol: String,
+    tooltip: String? = nil,
+    color: NSColor = Colors.textSecondary,
+    pointSize: CGFloat = 13
+  ) {
+    view.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+    view.toolTip = tooltip
+    view.contentTintColor = color
+    view.symbolConfiguration = .init(pointSize: pointSize, weight: .regular)
+    view.translatesAutoresizingMaskIntoConstraints = false
+  }
+}
+
 // MARK: - Helpers
 
 extension NSColor {

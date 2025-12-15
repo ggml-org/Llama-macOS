@@ -16,6 +16,10 @@ final class IconView: NSView {
 
   var inactiveBackgroundColor: NSColor = Theme.Colors.subtleBackground { didSet { refresh() } }
 
+  override var intrinsicContentSize: NSSize {
+    NSSize(width: Layout.iconViewSize, height: Layout.iconViewSize)
+  }
+
   override init(frame frameRect: NSRect = .zero) {
     super.init(frame: frameRect)
     translatesAutoresizingMaskIntoConstraints = false

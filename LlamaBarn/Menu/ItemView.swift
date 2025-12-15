@@ -87,4 +87,20 @@ class ItemView: NSView {
     backgroundView.setHighlight(shouldHighlight, cornerRadius: Layout.cornerRadius)
     highlightDidChange(shouldHighlight)
   }
+
+  // MARK: - Helpers
+
+  /// Helper to add a click gesture recognizer to a view (defaults to self).
+  @discardableResult
+  func addGesture(
+    to view: NSView? = nil,
+    action: Selector,
+    buttonMask: Int = 0x1
+  ) -> NSClickGestureRecognizer {
+    let targetView = view ?? self
+    let click = NSClickGestureRecognizer(target: self, action: action)
+    click.buttonMask = buttonMask
+    targetView.addGestureRecognizer(click)
+    return click
+  }
 }

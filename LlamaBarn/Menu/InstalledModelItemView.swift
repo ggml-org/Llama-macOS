@@ -55,9 +55,14 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     iconView.imageView.image = NSImage(named: model.icon)
     progressLabel.alignment = .right
 
-    configure(cancelImageView, symbol: "xmark", color: .systemRed)
-    configure(maxContextImageView, symbol: "gauge.high", tooltip: "Run at max ctx")
-    configure(deleteImageView, symbol: "trash", tooltip: "Delete model")
+    Theme.configure(cancelImageView, symbol: "xmark", color: .systemRed)
+    Theme.configure(maxContextImageView, symbol: "gauge.high", tooltip: "Run at max ctx")
+    Theme.configure(deleteImageView, symbol: "trash", tooltip: "Delete model")
+
+    // Start hidden
+    cancelImageView.isHidden = true
+    maxContextImageView.isHidden = true
+    deleteImageView.isHidden = true
 
     // Spacer expands so trailing visuals sit flush right.
     let spacer = NSView()
@@ -107,9 +112,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     rootStack.pinToSuperview()
 
     NSLayoutConstraint.activate([
-      iconView.widthAnchor.constraint(equalToConstant: Layout.iconViewSize),
-      iconView.heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
-
       cancelImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
       cancelImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
 
@@ -138,7 +140,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
     if rowClickRecognizer == nil {
-      rowClickRecognizer = addGesture(to: self, action: #selector(didClickRow))
+      rowClickRecognizer = addGesture(action: #selector(didClickRow))
       rowClickRecognizer?.delegate = self
     }
     if maxContextClickRecognizer == nil {
@@ -149,8 +151,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
       deleteClickRecognizer = addGesture(to: deleteImageView, action: #selector(didClickDelete))
     }
     if rightClickRecognizer == nil {
-      rightClickRecognizer = addGesture(to: self, action: #selector(didRightClick))
-      rightClickRecognizer?.buttonMask = 0x2  // Right mouse button
+      rightClickRecognizer = addGesture(action: #selector(didRightClick), buttonMask: 0x2)
     }
   }
 
@@ -275,24 +276,6 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
   }
 
   // MARK: - Helpers
-
-  private func configure(
-    _ view: NSImageView, symbol: String, tooltip: String? = nil,
-    color: NSColor = .tertiaryLabelColor
-  ) {
-    view.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-    view.toolTip = tooltip
-    view.contentTintColor = color
-    view.symbolConfiguration = .init(pointSize: 13, weight: .regular)
-    view.isHidden = true
-    view.translatesAutoresizingMaskIntoConstraints = false
-  }
-
-  private func addGesture(to view: NSView, action: Selector) -> NSClickGestureRecognizer {
-    let click = NSClickGestureRecognizer(target: self, action: action)
-    view.addGestureRecognizer(click)
-    return click
-  }
 
   private func appendRuntimeMetadata(to metadata: NSMutableAttributedString, ctx: Int) {
     let ctxString = Format.tokens(ctx)
