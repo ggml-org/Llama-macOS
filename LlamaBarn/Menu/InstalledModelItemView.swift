@@ -78,7 +78,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Left: icon aligned with first text line, then two-line text column
     let nameStack = NSStackView(views: [modelNameLabel, metadataLabel])
     nameStack.orientation = .vertical
-    nameStack.spacing = 2
+    nameStack.spacing = Layout.textLineSpacing
     nameStack.alignment = .leading
 
     let leading = NSStackView(views: [iconView, nameStack])

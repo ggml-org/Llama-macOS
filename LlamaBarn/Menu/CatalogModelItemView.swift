@@ -51,7 +51,7 @@ final class CatalogModelItemView: ItemView {
     let textColumn = NSStackView(views: [labelField, metadataLabel])
     textColumn.orientation = .vertical
     textColumn.alignment = .leading
-    textColumn.spacing = 2
+    textColumn.spacing = Layout.textLineSpacing
 
     // Leading: icon + text column, aligned to center vertically
     let leading = NSStackView(views: [iconView, textColumn])

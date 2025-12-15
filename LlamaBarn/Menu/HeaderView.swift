@@ -46,7 +46,7 @@ final class HeaderView: NSView {
     let mainStack = NSStackView(views: [appNameLabel, statusStackView])
     mainStack.orientation = .vertical
     mainStack.alignment = .leading
-    mainStack.spacing = 2
+    mainStack.spacing = Layout.textLineSpacing
 
     backgroundView.addSubview(mainStack)
 
