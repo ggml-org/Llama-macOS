@@ -2,14 +2,11 @@ import AppKit
 import Foundation
 
 /// Interactive menu item for a downloadable model build shown under an expanded family item.
-final class CatalogModelItemView: ItemView {
+final class CatalogModelItemView: StandardItemView {
   private let model: CatalogEntry
   private unowned let modelManager: ModelManager
   private let membershipChanged: () -> Void
 
-  private let iconView = IconView()
-  private let labelField = Theme.primaryLabel()
-  private let metadataLabel = Theme.secondaryLabel()
   private var rowClickRecognizer: NSClickGestureRecognizer?
 
   init(
@@ -19,8 +16,11 @@ final class CatalogModelItemView: ItemView {
     self.modelManager = modelManager
     self.membershipChanged = membershipChanged
     super.init(frame: .zero)
-    translatesAutoresizingMaskIntoConstraints = false
-    setup()
+
+    iconView.imageView.image = NSImage(named: model.icon)
+    iconView.inactiveTintColor = Theme.Colors.modelIconTint
+    titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
     refresh()
   }
 
@@ -38,39 +38,6 @@ final class CatalogModelItemView: ItemView {
 
   override func highlightDidChange(_ highlighted: Bool) {
     // No color changes on hover - catalog models stay with secondary colors
-  }
-
-  private func setup() {
-    wantsLayer = true
-    iconView.imageView.image = NSImage(named: model.icon)
-    iconView.inactiveTintColor = Theme.Colors.modelIconTint
-
-    labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-    // Two-line text column (title + metadata)
-    let textColumn = NSStackView(views: [labelField, metadataLabel])
-    textColumn.orientation = .vertical
-    textColumn.alignment = .leading
-    textColumn.spacing = Layout.textLineSpacing
-
-    // Leading: icon + text column, aligned to center vertically
-    let leading = NSStackView(views: [iconView, textColumn])
-    leading.orientation = .horizontal
-    leading.alignment = .centerY
-    leading.spacing = 6
-
-    // Spacer
-    let spacer = NSView()
-    spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-    // Root stack: leading + spacer
-    let rootStack = NSStackView(views: [leading, spacer])
-    rootStack.orientation = .horizontal
-    rootStack.alignment = .top
-    rootStack.spacing = 6
-
-    contentView.addSubview(rootStack)
-    rootStack.pinToSuperview()
   }
 
   override func viewDidMoveToWindow() {
@@ -106,7 +73,7 @@ final class CatalogModelItemView: ItemView {
   }
 
   func refresh() {
-    labelField.attributedStringValue = Format.modelName(
+    titleLabel.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
       familyColor: Theme.Colors.textPrimary,
@@ -115,7 +82,7 @@ final class CatalogModelItemView: ItemView {
       quantization: model.quantizationLabel
     )
 
-    metadataLabel.attributedStringValue = Format.modelMetadata(for: model)
+    subtitleLabel.attributedStringValue = Format.modelMetadata(for: model)
 
     // Clear highlight if no longer actionable
     if !highlightEnabled { setHighlight(false) }

@@ -6,23 +6,19 @@ import Foundation
 /// - Idle: rounded square icon (inactive) + label
 /// - Loading: rounded square icon (active)
 /// - Running: rounded square icon (active)
-final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
+final class InstalledModelItemView: StandardItemView, NSGestureRecognizerDelegate {
   private let model: CatalogEntry
   private unowned let server: LlamaServer
   private unowned let modelManager: ModelManager
   private let membershipChanged: (CatalogEntry) -> Void
 
   // Subviews
-  private let iconView = IconView()
-  private let modelNameLabel = Theme.primaryLabel()
-  private let metadataLabel = Theme.secondaryLabel()
   private let progressLabel: NSTextField = {
     let label = Theme.secondaryLabel()
     label.font = Theme.Fonts.primary
     return label
   }()
   private let cancelImageView = NSImageView()
-  private let rightStack = NSStackView()
   private let maxContextImageView = NSImageView()
   private let deleteImageView = NSImageView()
 
@@ -42,17 +38,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     self.modelManager = modelManager
     self.membershipChanged = membershipChanged
     super.init(frame: .zero)
-    translatesAutoresizingMaskIntoConstraints = false
-    setup()
-    refresh()
-  }
 
-  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-  override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 40) }
-
-  private func setup() {
-    wantsLayer = true
     iconView.imageView.image = NSImage(named: model.icon)
     progressLabel.alignment = .right
 
@@ -64,53 +50,12 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     cancelImageView.isHidden = true
     maxContextImageView.isHidden = true
     deleteImageView.isHidden = true
+    progressLabel.isHidden = true
 
-    // Spacer expands so trailing visuals sit flush right.
-    let spacer = NSView()
-    spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-    spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-
-    modelNameLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-    modelNameLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-    progressLabel.setContentHuggingPriority(.required, for: .horizontal)
-    progressLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
-
-    // Left: icon aligned with first text line, then two-line text column
-    let nameStack = NSStackView(views: [modelNameLabel, metadataLabel])
-    nameStack.orientation = .vertical
-    nameStack.spacing = Layout.textLineSpacing
-    nameStack.alignment = .leading
-
-    let leading = NSStackView(views: [iconView, nameStack])
-    leading.orientation = .horizontal
-    leading.spacing = 6
-    // Center icon vertically against two-line text to match Wi‑Fi menu
-    leading.alignment = .centerY
-
-    // Right: status/progress/cancel in a row, delete label positioned separately
-    cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
-    cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
-
-    rightStack.setViews([progressLabel, cancelImageView], in: .leading)
-    rightStack.translatesAutoresizingMaskIntoConstraints = false
-    rightStack.orientation = .horizontal
-    rightStack.spacing = 6
-    rightStack.alignment = .centerY
-
-    let rootStack = NSStackView(views: [leading, spacer])
-    rootStack.orientation = .horizontal
-    rootStack.spacing = 6
-    rootStack.alignment = .centerY
-    contentView.addSubview(rootStack)
-
-    // Add rightStack separately to position it manually
-    contentView.addSubview(rightStack)
-
-    // Add action buttons separately so we can position them centered vertically
-    contentView.addSubview(maxContextImageView)
-    contentView.addSubview(deleteImageView)
-
-    rootStack.pinToSuperview()
+    accessoryStack.addArrangedSubview(progressLabel)
+    accessoryStack.addArrangedSubview(cancelImageView)
+    accessoryStack.addArrangedSubview(maxContextImageView)
+    accessoryStack.addArrangedSubview(deleteImageView)
 
     NSLayoutConstraint.activate([
       cancelImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
@@ -118,24 +63,26 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
 
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.progressWidth),
 
-      // Position rightStack (progress) centered vertically
-      rightStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      rightStack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-
-      // Position delete button at the right, centered vertically
-      deleteImageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      deleteImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
       deleteImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
       deleteImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
 
-      // Position max context button to the left of delete button
-      maxContextImageView.trailingAnchor.constraint(
-        equalTo: deleteImageView.leadingAnchor, constant: -8),
-      maxContextImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
       maxContextImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
       maxContextImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
     ])
+
+    titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+    titleLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+    progressLabel.setContentHuggingPriority(.required, for: .horizontal)
+    progressLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+    cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
+    cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+    refresh()
   }
+
+  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+  override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 40) }
 
   // Row click recognizer to toggle, letting the delete button handle its own action.
   override func viewDidMoveToWindow() {
@@ -214,7 +161,7 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     let isDownloading = modelManager.downloadProgress(for: model) != nil
     let textColor = isDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
 
-    modelNameLabel.attributedStringValue = Format.modelName(
+    titleLabel.attributedStringValue = Format.modelName(
       family: model.family,
       size: model.sizeLabel,
       familyColor: textColor,
@@ -226,18 +173,16 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     let metadata = NSMutableAttributedString(
       attributedString: Format.modelMetadata(for: model, color: textColor))
 
-    // Runtime metadata removed - now shown in catalog when option is enabled
-
-    metadataLabel.attributedStringValue = metadata
+    subtitleLabel.attributedStringValue = metadata
 
     if let progress = modelManager.downloadProgress(for: model) {
       progressLabel.stringValue = Format.progressText(progress)
+      progressLabel.isHidden = false
       cancelImageView.isHidden = false
-      rightStack.isHidden = false
     } else {
       progressLabel.stringValue = ""
+      progressLabel.isHidden = true
       cancelImageView.isHidden = true
-      rightStack.isHidden = true
     }
     iconView.inactiveTintColor = Theme.Colors.modelIconTint
 
@@ -277,8 +222,4 @@ final class InstalledModelItemView: ItemView, NSGestureRecognizerDelegate {
     modelManager.deleteDownloadedModel(model)
     membershipChanged(model)
   }
-
-  // MARK: - Helpers
-
-  // Removed appendRuntimeMetadata - runtime info now shown in catalog when option is enabled
 }

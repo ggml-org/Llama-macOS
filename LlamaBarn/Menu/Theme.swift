@@ -126,6 +126,24 @@ extension Theme {
     view.symbolConfiguration = .init(pointSize: pointSize, weight: .regular)
     view.translatesAutoresizingMaskIntoConstraints = false
   }
+
+  // Configures an NSButton with an SF Symbol icon and consistent styling
+  static func configure(
+    _ button: NSButton,
+    symbol: String,
+    tooltip: String? = nil,
+    color: NSColor = Colors.textSecondary,
+    pointSize: CGFloat = 13
+  ) {
+    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+    button.toolTip = tooltip
+    button.contentTintColor = color
+    button.symbolConfiguration = .init(pointSize: pointSize, weight: .regular)
+    button.isBordered = false
+    button.title = ""
+    button.bezelStyle = .inline
+    button.translatesAutoresizingMaskIntoConstraints = false
+  }
 }
 
 // MARK: - Helpers

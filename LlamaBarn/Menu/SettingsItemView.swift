@@ -1,13 +1,6 @@
 import AppKit
 
-final class SettingsItemView: ItemView {
-  private let titleLabel: NSTextField = {
-    let label = NSTextField(labelWithString: "")
-    label.font = Theme.Fonts.primary
-    label.textColor = Theme.Colors.textPrimary
-    return label
-  }()
-  private let subtitleLabel = Theme.secondaryLabel()
+final class SettingsItemView: TitledItemView {
   private let toggle = NSSwitch()
   private let onToggle: (Bool) -> Void
   private let getValue: () -> Bool
@@ -21,18 +14,8 @@ final class SettingsItemView: ItemView {
     super.init(frame: .zero)
 
     titleLabel.stringValue = title
-    if let subtitle = subtitle {
-      subtitleLabel.stringValue = subtitle
-      subtitleLabel.cell?.wraps = true
-      subtitleLabel.cell?.isScrollable = false
-      subtitleLabel.usesSingleLineMode = false
-      subtitleLabel.maximumNumberOfLines = 0
-      subtitleLabel.lineBreakMode = .byWordWrapping
-      // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - 40 (toggle) - 8 (spacing) = ~226
-      subtitleLabel.preferredMaxLayoutWidth = 220
-    } else {
-      subtitleLabel.isHidden = true
-    }
+    // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - 40 (toggle) - 8 (spacing) = ~226
+    configureSubtitle(subtitle, width: 220)
 
     setup()
     refresh()
@@ -50,10 +33,7 @@ final class SettingsItemView: ItemView {
   }
 
   private func setup() {
-    let textStack = NSStackView(views: [titleLabel, subtitleLabel])
-    textStack.orientation = .vertical
-    textStack.alignment = .leading
-    textStack.spacing = 2
+    let textStack = makeTextStack()
     textStack.translatesAutoresizingMaskIntoConstraints = false
 
     toggle.translatesAutoresizingMaskIntoConstraints = false

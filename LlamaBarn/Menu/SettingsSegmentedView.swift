@@ -1,13 +1,6 @@
 import AppKit
 
-final class SettingsSegmentedView: ItemView {
-  private let titleLabel: NSTextField = {
-    let label = NSTextField(labelWithString: "")
-    label.font = Theme.Fonts.primary
-    label.textColor = Theme.Colors.textPrimary
-    return label
-  }()
-  private let subtitleLabel = Theme.secondaryLabel()
+final class SettingsSegmentedView: TitledItemView {
   private let segmentedControl = NSSegmentedControl()
   private let onSelect: (Int) -> Void
   private let getSelectedIndex: () -> Int
@@ -21,17 +14,7 @@ final class SettingsSegmentedView: ItemView {
     super.init(frame: .zero)
 
     titleLabel.stringValue = title
-    if let subtitle = subtitle {
-      subtitleLabel.stringValue = subtitle
-      subtitleLabel.cell?.wraps = true
-      subtitleLabel.cell?.isScrollable = false
-      subtitleLabel.usesSingleLineMode = false
-      subtitleLabel.maximumNumberOfLines = 0
-      subtitleLabel.lineBreakMode = .byWordWrapping
-      subtitleLabel.preferredMaxLayoutWidth = 270  // Balanced width to use more space without stretching the menu
-    } else {
-      subtitleLabel.isHidden = true
-    }
+    configureSubtitle(subtitle, width: 270)
 
     segmentedControl.segmentCount = labels.count
     for (index, label) in labels.enumerated() {
@@ -56,10 +39,7 @@ final class SettingsSegmentedView: ItemView {
   }
 
   private func setup() {
-    let textStack = NSStackView(views: [titleLabel, subtitleLabel])
-    textStack.orientation = .vertical
-    textStack.alignment = .leading
-    textStack.spacing = 2
+    let textStack = makeTextStack()
     textStack.translatesAutoresizingMaskIntoConstraints = false
 
     segmentedControl.translatesAutoresizingMaskIntoConstraints = false
