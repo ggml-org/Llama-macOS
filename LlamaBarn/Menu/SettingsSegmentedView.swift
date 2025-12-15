@@ -96,4 +96,6 @@ final class SettingsSegmentedView: ItemView {
   override func mouseUp(with event: NSEvent) {
     // Handle click on the view, but since it's segmented, maybe not needed
   }
+
+  override var highlightEnabled: Bool { false }
 }

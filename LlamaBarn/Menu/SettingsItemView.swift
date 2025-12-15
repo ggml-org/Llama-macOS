@@ -90,4 +90,6 @@ final class SettingsItemView: ItemView {
   override func mouseUp(with event: NSEvent) {
     toggle.performClick(nil)
   }
+
+  override var highlightEnabled: Bool { false }
 }
