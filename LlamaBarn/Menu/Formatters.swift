@@ -184,7 +184,7 @@ extension Format {
         Format.symbol(
           "eyeglasses", pointSize: Theme.Fonts.primary.pointSize, color: sizeColor))
     }
-    if let quantization = quantization {
+    if quantization != nil {
       result.append(NSAttributedString(string: " "))
       result.append(
         Format.symbol(
