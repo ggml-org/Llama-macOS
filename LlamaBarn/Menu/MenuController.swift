@@ -341,6 +341,29 @@ final class MenuController: NSObject, NSMenuDelegate {
       ))
     menu.addItem(defaultContextWindowItem)
 
+    // Memory usage cap
+    let memoryCaps = UserSettings.availableMemoryUsageCaps
+    let memoryCapLabels = memoryCaps.map { fraction -> String in
+      let gb = Double(SystemMemory.memoryMb) * fraction / 1024.0
+      return String(format: "%.0f GB", gb)
+    }
+    let memoryCapItem = NSMenuItem.viewItem(
+      with: SettingsSegmentedView(
+        title: "Memory cap",
+        subtitle: nil,
+        labels: memoryCapLabels,
+        getSelectedIndex: {
+          let current = UserSettings.memoryUsageCap
+          return memoryCaps.firstIndex { abs($0 - current) < 0.001 } ?? (memoryCaps.count - 1)
+        },
+        onSelect: { index in
+          if index >= 0 && index < memoryCaps.count {
+            UserSettings.memoryUsageCap = memoryCaps[index]
+          }
+        }
+      ))
+    menu.addItem(memoryCapItem)
+
   }
 
   private func toggleSettings() {

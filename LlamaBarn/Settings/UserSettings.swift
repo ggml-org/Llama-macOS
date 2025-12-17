@@ -23,6 +23,7 @@ enum UserSettings {
     static let exposeToNetwork = "exposeToNetwork"
     static let showEstimatedMemoryUsage = "showEstimatedMemoryUsage"
     static let defaultContextWindow = "defaultContextWindow"
+    static let memoryUsageCap = "memoryUsageCap"
   }
 
   private static let defaults = UserDefaults.standard
@@ -62,6 +63,30 @@ enum UserSettings {
       guard defaults.bool(forKey: Keys.showEstimatedMemoryUsage) != newValue else { return }
       defaults.set(newValue, forKey: Keys.showEstimatedMemoryUsage)
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+    }
+  }
+
+  /// The maximum fraction of system memory that models are allowed to use.
+  /// Defaults to 0.5 (4/8) for <128GB RAM, and 0.75 (6/8) for ≥128GB RAM.
+  static var memoryUsageCap: Double {
+    get {
+      let val = defaults.double(forKey: Keys.memoryUsageCap)
+      if val > 0 { return val }
+      return SystemMemory.memoryMb >= 128 * 1024 ? 0.75 : 0.5
+    }
+    set {
+      guard defaults.double(forKey: Keys.memoryUsageCap) != newValue else { return }
+      defaults.set(newValue, forKey: Keys.memoryUsageCap)
+      NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+    }
+  }
+
+  /// Available memory cap options based on system RAM.
+  static var availableMemoryUsageCaps: [Double] {
+    if SystemMemory.memoryMb >= 128 * 1024 {
+      return [0.25, 0.5, 0.75]  // 2/8, 4/8, 6/8
+    } else {
+      return [0.25, 0.375, 0.5]  // 2/8, 3/8, 4/8
     }
   }
 

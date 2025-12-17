@@ -3,12 +3,6 @@ import Foundation
 extension CatalogEntry {
   // MARK: - Memory Calculations
 
-  /// Fraction of system memory available for models on standard configurations.
-  /// Macs with ≥128 GB of RAM can safely allocate 75% to the model since they retain ample headroom.
-  private static let defaultAvailableMemoryFraction: Double = 0.5
-  private static let highMemoryAvailableFraction: Double = 0.75
-  private static let highMemoryThresholdMb: UInt64 = 128 * 1024  // binary units to match SystemMemory
-
   /// We evaluate compatibility assuming a 4k-token context, which is the
   /// default llama.cpp launches with when no explicit value is provided.
   static let compatibilityCtxWindowTokens: Double = 4_096
@@ -17,8 +11,7 @@ extension CatalogEntry {
   static let minimumCtxWindowTokens: Double = compatibilityCtxWindowTokens
 
   static func availableMemoryFraction(forSystemMemoryMb systemMemoryMb: UInt64) -> Double {
-    guard systemMemoryMb >= highMemoryThresholdMb else { return defaultAvailableMemoryFraction }
-    return highMemoryAvailableFraction
+    return UserSettings.memoryUsageCap
   }
 
   func usableCtxWindow(
