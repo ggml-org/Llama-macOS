@@ -145,17 +145,12 @@ extension Format {
       result.append(NSAttributedString(string: memString + " mem", attributes: attributes))
     }
 
-    // Context info
+    // Context info: displayed when the usable context is less than desired,
+    // either due to memory constraints or the model's maximum context window.
     if displayUsableCtx != desiredTokens {
       result.append(Format.metadataSeparator())
       let ctxLabel = Format.tokens(displayUsableCtx)
-      // Memory-limited ctx
-      if displayUsableCtx < model.ctxWindow {
-        result.append(NSAttributedString(string: ctxLabel + " ctx capped", attributes: attributes))
-        // Model-limited ctx
-      } else {
-        result.append(NSAttributedString(string: ctxLabel + " ctx", attributes: attributes))
-      }
+      result.append(NSAttributedString(string: ctxLabel + " ctx", attributes: attributes))
     }
 
     // Vision support removed - now shown in model name
