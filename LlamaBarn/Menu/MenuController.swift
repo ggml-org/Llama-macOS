@@ -316,6 +316,7 @@ final class MenuController: NSObject, NSMenuDelegate {
       with: SettingsSegmentedView(
         title: "Context length cap",
         subtitle: nil,
+        infoText: "Higher context lengths use more memory.",
         labels: contextWindowLabels,
         getSelectedIndex: {
           UserSettings.ContextWindowSize.allCases.firstIndex(of: UserSettings.defaultContextWindow)
@@ -339,6 +340,7 @@ final class MenuController: NSObject, NSMenuDelegate {
       with: SettingsSegmentedView(
         title: "Memory cap",
         subtitle: nil,
+        infoText: "Limits the amount of memory models can use.",
         labels: memoryCapLabels,
         getSelectedIndex: {
           let current = UserSettings.memoryUsageCap
