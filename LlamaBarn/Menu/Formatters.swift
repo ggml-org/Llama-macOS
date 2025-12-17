@@ -125,33 +125,35 @@ extension Format {
 
     // Quantization moved to model name
 
-    // Memory usage (optional) - uses the selected default context
+    // Calculate desired tokens and usable context
+    let desiredTokens: Int
+    if UserSettings.defaultContextWindow == .max {
+      desiredTokens = 131_072
+    } else {
+      desiredTokens = UserSettings.defaultContextWindow.rawValue * 1024
+    }
+
+    let displayUsableCtx =
+      model.usableCtxWindow(desiredTokens: desiredTokens, maximizeContext: false)
+      ?? Int(CatalogEntry.compatibilityCtxWindowTokens)
+
+    // Memory usage (optional)
     if UserSettings.showEstimatedMemoryUsage {
       result.append(Format.metadataSeparator())
-      let contextTokens: Double
-      let usableCtx: Int
-      if UserSettings.defaultContextWindow == .max {
-        // Use the actual context that will be used on this device (capped by memory)
-        usableCtx =
-          model.usableCtxWindow(maximizeContext: true)
-          ?? Int(CatalogEntry.compatibilityCtxWindowTokens)
-        contextTokens = Double(usableCtx)
-      } else {
-        let desiredTokens = UserSettings.defaultContextWindow.rawValue * 1024
-        usableCtx =
-          model.usableCtxWindow(desiredTokens: desiredTokens, maximizeContext: false)
-          ?? Int(CatalogEntry.compatibilityCtxWindowTokens)
-        contextTokens = Double(usableCtx)
-      }
-      let memMb = model.runtimeMemoryUsageMb(ctxWindowTokens: contextTokens)
+      let memMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(displayUsableCtx))
       let memString = Format.memory(mb: memMb)
       result.append(NSAttributedString(string: memString + " mem", attributes: attributes))
-      let desiredForDisplay =
-        UserSettings.defaultContextWindow == .max
-        ? model.ctxWindow : (UserSettings.defaultContextWindow.rawValue * 1024)
-      if usableCtx != desiredForDisplay {
-        result.append(NSAttributedString(string: " at ", attributes: attributes))
-        let ctxLabel = Format.tokens(usableCtx)
+    }
+
+    // Context info
+    if displayUsableCtx != desiredTokens {
+      result.append(Format.metadataSeparator())
+      let ctxLabel = Format.tokens(displayUsableCtx)
+      // Memory-limited ctx
+      if displayUsableCtx < model.ctxWindow {
+        result.append(NSAttributedString(string: ctxLabel + " ctx capped", attributes: attributes))
+        // Model-limited ctx
+      } else {
         result.append(NSAttributedString(string: ctxLabel + " ctx", attributes: attributes))
       }
     }
