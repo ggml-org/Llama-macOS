@@ -1,6 +1,6 @@
 import AppKit
 
-final class SettingsSegmentedView: TitledItemView {
+final class SettingsSegmentedView: StandardItemView {
   private let segmentedControl = NSSegmentedControl()
   private let onSelect: (Int) -> Void
   private let getSelectedIndex: () -> Int
@@ -16,9 +16,10 @@ final class SettingsSegmentedView: TitledItemView {
     self.infoText = infoText
     super.init(frame: .zero)
 
+    iconView.isHidden = true
     titleLabel.stringValue = title
-    // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - ~100 (segmented) - 8 (spacing) = ~166
-    configureSubtitle(nil, width: 160)
+    // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - ~100 (segmented) - 6 (spacing) = ~168
+    configureSubtitle(nil, width: 168)
 
     if infoText != nil {
       Theme.configure(
@@ -69,24 +70,8 @@ final class SettingsSegmentedView: TitledItemView {
   }
 
   private func setup() {
-    let textStack = makeTextStack()
-    textStack.translatesAutoresizingMaskIntoConstraints = false
-
-    segmentedControl.translatesAutoresizingMaskIntoConstraints = false
-
-    contentView.addSubview(textStack)
-    contentView.addSubview(segmentedControl)
-
-    NSLayoutConstraint.activate([
-      textStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-      textStack.trailingAnchor.constraint(
-        lessThanOrEqualTo: segmentedControl.leadingAnchor, constant: -8),
-      textStack.topAnchor.constraint(equalTo: contentView.topAnchor),
-      textStack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
-
-      segmentedControl.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      segmentedControl.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-    ])
+    accessoryStack.addArrangedSubview(segmentedControl)
+    rootStack.alignment = .top
   }
 
   func refresh() {

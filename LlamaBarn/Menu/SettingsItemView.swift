@@ -1,6 +1,6 @@
 import AppKit
 
-final class SettingsItemView: TitledItemView {
+final class SettingsItemView: StandardItemView {
   private let toggle = NSSwitch()
   private let onToggle: (Bool) -> Void
   private let getValue: () -> Bool
@@ -13,9 +13,10 @@ final class SettingsItemView: TitledItemView {
     self.onToggle = onToggle
     super.init(frame: .zero)
 
+    iconView.isHidden = true
     titleLabel.stringValue = title
-    // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - 40 (toggle) - 8 (spacing) = ~226
-    configureSubtitle(nil, width: 220)
+    // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - 40 (toggle) - 6 (spacing) = ~228
+    configureSubtitle(nil, width: 228)
 
     setup()
     refresh()
@@ -33,29 +34,11 @@ final class SettingsItemView: TitledItemView {
   }
 
   private func setup() {
-    let textStack = makeTextStack()
-    textStack.translatesAutoresizingMaskIntoConstraints = false
-
-    toggle.translatesAutoresizingMaskIntoConstraints = false
     toggle.target = self
     toggle.action = #selector(toggleChanged)
     toggle.controlSize = .mini
 
-    contentView.addSubview(textStack)
-    contentView.addSubview(toggle)
-
-    NSLayoutConstraint.activate([
-      textStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-      textStack.trailingAnchor.constraint(lessThanOrEqualTo: toggle.leadingAnchor, constant: -8),
-
-      // Center text stack vertically, but allow it to push bounds if content is tall
-      textStack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-      textStack.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor),
-      textStack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
-
-      toggle.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      toggle.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-    ])
+    accessoryStack.addArrangedSubview(toggle)
   }
 
   func refresh() {
