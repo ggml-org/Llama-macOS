@@ -135,13 +135,6 @@ extension Format {
       model.usableCtxWindow(desiredTokens: desiredTokens, maximizeContext: false)
       ?? Int(CatalogEntry.compatibilityCtxWindowTokens)
 
-    // Check if fits in current cap
-    if !model.fitsInCurrentCap(ctxWindowTokens: Double(displayUsableCtx)) {
-      result.append(Format.metadataSeparator())
-      result.append(NSAttributedString(string: "Exceeds memory limit", attributes: attributes))
-      return result
-    }
-
     // Context info: always displayed as the context length the model would run at
     result.append(Format.metadataSeparator())
     let ctxLabel = Format.tokens(displayUsableCtx)

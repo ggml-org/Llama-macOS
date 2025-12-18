@@ -292,7 +292,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.addItem(.separator())
     menu.addItem(makeLaunchAtLoginItem())
     menu.addItem(makeContextLengthItem())
-    menu.addItem(makeMemoryLimitItem())
   }
 
   private func makeLaunchAtLoginItem() -> NSMenuItem {
@@ -320,29 +319,6 @@ final class MenuController: NSObject, NSMenuDelegate {
         onSelect: { index in
           if index >= 0 && index < UserSettings.ContextWindowSize.allCases.count {
             UserSettings.defaultContextWindow = UserSettings.ContextWindowSize.allCases[index]
-          }
-        }
-      ))
-  }
-
-  private func makeMemoryLimitItem() -> NSMenuItem {
-    let memoryCaps = UserSettings.availableMemoryUsageCaps
-    let memoryCapLabels = memoryCaps.map { fraction -> String in
-      let gb = Double(SystemMemory.memoryMb) * fraction / 1024.0
-      return String(format: "%.0f GB", gb)
-    }
-    return NSMenuItem.viewItem(
-      with: SettingsSegmentedView(
-        title: "Memory limit",
-        infoText: "Limits the amount of memory models can use.",
-        labels: memoryCapLabels,
-        getSelectedIndex: {
-          let current = UserSettings.memoryUsageCap
-          return memoryCaps.firstIndex { abs($0 - current) < 0.001 } ?? (memoryCaps.count - 1)
-        },
-        onSelect: { index in
-          if index >= 0 && index < memoryCaps.count {
-            UserSettings.memoryUsageCap = memoryCaps[index]
           }
         }
       ))
