@@ -81,6 +81,7 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     finderImageView.setContentHuggingPriority(.required, for: .horizontal)
     finderImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
 
+    setupGestures()
     refresh()
   }
 
@@ -88,22 +89,13 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
 
   override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 40) }
 
-  // Row click recognizer to toggle, letting the delete button handle its own action.
-  override func viewDidMoveToWindow() {
-    super.viewDidMoveToWindow()
-    if rowClickRecognizer == nil {
-      rowClickRecognizer = addGesture(action: #selector(didClickRow))
-      rowClickRecognizer?.delegate = self
-    }
-    if deleteClickRecognizer == nil {
-      deleteClickRecognizer = addGesture(to: deleteImageView, action: #selector(didClickDelete))
-    }
-    if finderClickRecognizer == nil {
-      finderClickRecognizer = addGesture(to: finderImageView, action: #selector(didClickFinder))
-    }
-    if rightClickRecognizer == nil {
-      rightClickRecognizer = addGesture(action: #selector(didRightClick), buttonMask: 0x2)
-    }
+  private func setupGestures() {
+    rowClickRecognizer = addGesture(action: #selector(didClickRow))
+    rowClickRecognizer?.delegate = self
+
+    deleteClickRecognizer = addGesture(to: deleteImageView, action: #selector(didClickDelete))
+    finderClickRecognizer = addGesture(to: finderImageView, action: #selector(didClickFinder))
+    rightClickRecognizer = addGesture(action: #selector(didRightClick), buttonMask: 0x2)
   }
 
   @objc private func didClickRow() {
@@ -149,7 +141,10 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
   func refresh() {
     let isActive = server.isActive(model: model)
     let isLoading = isActive && server.isLoading
-    let isDownloading = modelManager.downloadProgress(for: model) != nil
+    let progress = modelManager.downloadProgress(for: model)
+    let isDownloading = progress != nil
+    let isInstalled = modelManager.isInstalled(model)
+
     let textColor = isDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
 
     titleLabel.attributedStringValue = Format.modelName(
@@ -161,25 +156,17 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
       quantization: model.quantizationLabel
     )
 
-    let metadata = NSMutableAttributedString(
-      attributedString: Format.modelMetadata(for: model, color: textColor))
+    subtitleLabel.attributedStringValue = Format.modelMetadata(for: model, color: textColor)
 
-    subtitleLabel.attributedStringValue = metadata
+    progressLabel.stringValue = progress.map(Format.progressText) ?? ""
+    progressLabel.isHidden = !isDownloading
+    cancelImageView.isHidden = !isDownloading
 
-    if let progress = modelManager.downloadProgress(for: model) {
-      progressLabel.stringValue = Format.progressText(progress)
-      progressLabel.isHidden = false
-      cancelImageView.isHidden = false
-    } else {
-      progressLabel.stringValue = ""
-      progressLabel.isHidden = true
-      cancelImageView.isHidden = true
-    }
     iconView.inactiveTintColor = Theme.Colors.modelIconTint
 
     // Delete and finder buttons only for installed models on right-click
     // Reset showingDeleteButton if model is no longer installed
-    if !modelManager.isInstalled(model) {
+    if !isInstalled {
       showingDeleteButton = false
     }
     deleteImageView.isHidden = !showingDeleteButton

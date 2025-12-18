@@ -289,9 +289,13 @@ final class MenuController: NSObject, NSMenuDelegate {
     guard isSettingsOpen else { return }
 
     menu.addItem(.separator())
+    menu.addItem(makeLaunchAtLoginItem())
+    menu.addItem(makeContextLengthItem())
+    menu.addItem(makeMemoryLimitItem())
+  }
 
-    // Launch at login
-    let launchAtLoginItem = NSMenuItem.viewItem(
+  private func makeLaunchAtLoginItem() -> NSMenuItem {
+    NSMenuItem.viewItem(
       with: SettingsItemView(
         title: "Launch at login",
         getValue: { LaunchAtLogin.isEnabled },
@@ -299,11 +303,11 @@ final class MenuController: NSObject, NSMenuDelegate {
           _ = LaunchAtLogin.setEnabled(newValue)
         }
       ))
-    menu.addItem(launchAtLoginItem)
+  }
 
-    // Default context length
+  private func makeContextLengthItem() -> NSMenuItem {
     let contextWindowLabels = UserSettings.ContextWindowSize.allCases.map { $0.displayName }
-    let defaultContextWindowItem = NSMenuItem.viewItem(
+    return NSMenuItem.viewItem(
       with: SettingsSegmentedView(
         title: "Context length",
         subtitle: nil,
@@ -319,15 +323,15 @@ final class MenuController: NSObject, NSMenuDelegate {
           }
         }
       ))
-    menu.addItem(defaultContextWindowItem)
+  }
 
-    // Memory usage cap
+  private func makeMemoryLimitItem() -> NSMenuItem {
     let memoryCaps = UserSettings.availableMemoryUsageCaps
     let memoryCapLabels = memoryCaps.map { fraction -> String in
       let gb = Double(SystemMemory.memoryMb) * fraction / 1024.0
       return String(format: "%.0f GB", gb)
     }
-    let memoryCapItem = NSMenuItem.viewItem(
+    return NSMenuItem.viewItem(
       with: SettingsSegmentedView(
         title: "Memory limit",
         subtitle: nil,
@@ -343,8 +347,6 @@ final class MenuController: NSObject, NSMenuDelegate {
           }
         }
       ))
-    menu.addItem(memoryCapItem)
-
   }
 
   private func toggleSettings() {
