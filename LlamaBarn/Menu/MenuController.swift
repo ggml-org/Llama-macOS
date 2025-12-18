@@ -310,7 +310,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     return NSMenuItem.viewItem(
       with: SettingsSegmentedView(
         title: "Context length",
-        subtitle: nil,
         infoText: "Higher context lengths use more memory.",
         labels: contextWindowLabels,
         getSelectedIndex: {
@@ -334,7 +333,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     return NSMenuItem.viewItem(
       with: SettingsSegmentedView(
         title: "Memory limit",
-        subtitle: nil,
         infoText: "Limits the amount of memory models can use.",
         labels: memoryCapLabels,
         getSelectedIndex: {

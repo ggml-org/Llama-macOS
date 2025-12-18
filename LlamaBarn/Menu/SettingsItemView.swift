@@ -6,7 +6,7 @@ final class SettingsItemView: TitledItemView {
   private let getValue: () -> Bool
 
   init(
-    title: String, subtitle: String? = nil, getValue: @escaping () -> Bool,
+    title: String, getValue: @escaping () -> Bool,
     onToggle: @escaping (Bool) -> Void
   ) {
     self.getValue = getValue
@@ -15,7 +15,7 @@ final class SettingsItemView: TitledItemView {
 
     titleLabel.stringValue = title
     // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - 40 (toggle) - 8 (spacing) = ~226
-    configureSubtitle(subtitle, width: 220)
+    configureSubtitle(nil, width: 220)
 
     setup()
     refresh()

@@ -8,7 +8,7 @@ final class SettingsSegmentedView: TitledItemView {
   private let infoText: String?
 
   init(
-    title: String, subtitle: String? = nil, infoText: String? = nil, labels: [String],
+    title: String, infoText: String? = nil, labels: [String],
     getSelectedIndex: @escaping () -> Int, onSelect: @escaping (Int) -> Void
   ) {
     self.getSelectedIndex = getSelectedIndex
@@ -18,7 +18,7 @@ final class SettingsSegmentedView: TitledItemView {
 
     titleLabel.stringValue = title
     // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - ~100 (segmented) - 8 (spacing) = ~166
-    configureSubtitle(subtitle, width: 160)
+    configureSubtitle(nil, width: 160)
 
     if infoText != nil {
       Theme.configure(
