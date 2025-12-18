@@ -13,6 +13,7 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
   private unowned let server: LlamaServer
   private unowned let modelManager: ModelManager
   private let actionHandler: ModelActionHandler
+  private let isInCatalog: Bool
 
   // Subviews
   private let progressLabel: NSTextField = {
@@ -25,20 +26,17 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
   private let deleteImageView = NSImageView()
 
   // Hover handling is provided by MenuItemView
-  private var rowClickRecognizer: NSClickGestureRecognizer?
-  private var deleteClickRecognizer: NSClickGestureRecognizer?
-  private var finderClickRecognizer: NSClickGestureRecognizer?
-  private var rightClickRecognizer: NSClickGestureRecognizer?
   private var showingDeleteButton = false
 
   init(
     model: CatalogEntry, server: LlamaServer, modelManager: ModelManager,
-    actionHandler: ModelActionHandler
+    actionHandler: ModelActionHandler, isInCatalog: Bool = false
   ) {
     self.model = model
     self.server = server
     self.modelManager = modelManager
     self.actionHandler = actionHandler
+    self.isInCatalog = isInCatalog
     super.init(frame: .zero)
 
     iconView.imageView.image = NSImage(named: model.icon)
@@ -90,12 +88,12 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
   override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 40) }
 
   private func setupGestures() {
-    rowClickRecognizer = addGesture(action: #selector(didClickRow))
-    rowClickRecognizer?.delegate = self
+    let rowClickRecognizer = addGesture(action: #selector(didClickRow))
+    rowClickRecognizer.delegate = self
 
-    deleteClickRecognizer = addGesture(to: deleteImageView, action: #selector(didClickDelete))
-    finderClickRecognizer = addGesture(to: finderImageView, action: #selector(didClickFinder))
-    rightClickRecognizer = addGesture(action: #selector(didRightClick), buttonMask: 0x2)
+    addGesture(to: deleteImageView, action: #selector(didClickDelete))
+    addGesture(to: finderImageView, action: #selector(didClickFinder))
+    addGesture(action: #selector(didRightClick), buttonMask: 0x2)
   }
 
   @objc private func didClickRow() {
@@ -145,7 +143,17 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     let isDownloading = progress != nil
     let isInstalled = modelManager.isInstalled(model)
 
-    let textColor = isDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
+    // If the item was downloading and is now available (cancelled), it will be removed from the list.
+    // We preserve the "downloading" styling to avoid a flicker of the "available" styling (primary color)
+    // before the item disappears.
+    let wasDownloading = !cancelImageView.isHidden
+    let isCancelled = wasDownloading && !isDownloading && !isInstalled
+
+    // If the item is in the catalog section, we don't want to show it as downloading yet.
+    // It will be moved to the installed section in the next frame.
+    let showAsDownloading = !isInCatalog && (isDownloading || isCancelled)
+
+    let textColor = showAsDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
 
     titleLabel.attributedStringValue = Format.modelName(
       family: model.family,
@@ -158,9 +166,11 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
 
     subtitleLabel.attributedStringValue = Format.modelMetadata(for: model, color: textColor)
 
-    progressLabel.stringValue = progress.map(Format.progressText) ?? ""
-    progressLabel.isHidden = !isDownloading
-    cancelImageView.isHidden = !isDownloading
+    if let progress {
+      progressLabel.stringValue = Format.progressText(progress)
+    }
+    progressLabel.isHidden = !showAsDownloading
+    cancelImageView.isHidden = !showAsDownloading
 
     iconView.inactiveTintColor = Theme.Colors.modelIconTint
 

@@ -260,7 +260,8 @@ final class MenuController: NSObject, NSMenuDelegate {
             model: model,
             server: server,
             modelManager: modelManager,
-            actionHandler: actionHandler
+            actionHandler: actionHandler,
+            isInCatalog: true
           )
           items.append(NSMenuItem.viewItem(with: view))
         }
