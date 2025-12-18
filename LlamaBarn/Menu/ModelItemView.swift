@@ -21,11 +21,13 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     return label
   }()
   private let cancelImageView = NSImageView()
+  private let finderImageView = NSImageView()
   private let deleteImageView = NSImageView()
 
   // Hover handling is provided by MenuItemView
   private var rowClickRecognizer: NSClickGestureRecognizer?
   private var deleteClickRecognizer: NSClickGestureRecognizer?
+  private var finderClickRecognizer: NSClickGestureRecognizer?
   private var rightClickRecognizer: NSClickGestureRecognizer?
   private var showingDeleteButton = false
 
@@ -43,15 +45,18 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     progressLabel.alignment = .right
 
     Theme.configure(cancelImageView, symbol: "xmark", color: .systemRed)
+    Theme.configure(finderImageView, symbol: "folder", tooltip: "Show in Finder")
     Theme.configure(deleteImageView, symbol: "trash", tooltip: "Delete model")
 
     // Start hidden
     cancelImageView.isHidden = true
+    finderImageView.isHidden = true
     deleteImageView.isHidden = true
     progressLabel.isHidden = true
 
     accessoryStack.addArrangedSubview(progressLabel)
     accessoryStack.addArrangedSubview(cancelImageView)
+    accessoryStack.addArrangedSubview(finderImageView)
     accessoryStack.addArrangedSubview(deleteImageView)
 
     NSLayoutConstraint.activate([
@@ -59,6 +64,9 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
       cancelImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
 
       progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.progressWidth),
+
+      finderImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
+      finderImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
 
       deleteImageView.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
       deleteImageView.heightAnchor.constraint(lessThanOrEqualToConstant: Layout.uiIconSize),
@@ -70,6 +78,8 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     progressLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
+    finderImageView.setContentHuggingPriority(.required, for: .horizontal)
+    finderImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
 
     refresh()
   }
@@ -88,6 +98,9 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     if deleteClickRecognizer == nil {
       deleteClickRecognizer = addGesture(to: deleteImageView, action: #selector(didClickDelete))
     }
+    if finderClickRecognizer == nil {
+      finderClickRecognizer = addGesture(to: finderImageView, action: #selector(didClickFinder))
+    }
     if rightClickRecognizer == nil {
       rightClickRecognizer = addGesture(action: #selector(didRightClick), buttonMask: 0x2)
     }
@@ -97,6 +110,8 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
 
   @objc private func didClickDelete() { performDelete() }
 
+  @objc private func didClickFinder() { performShowInFinder() }
+
   @objc private func didRightClick() {
     // Only toggle delete button for installed models
     guard modelManager.isInstalled(model) else { return }
@@ -104,7 +119,7 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     refresh()
   }
 
-  // Prevent row toggle when clicking the delete button.
+  // Prevent row toggle when clicking the delete or finder buttons.
   func gestureRecognizer(
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
@@ -112,6 +127,11 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
 
     let deletePoint = deleteImageView.convert(loc, from: nil)
     if deleteImageView.bounds.contains(deletePoint) && !deleteImageView.isHidden {
+      return false
+    }
+
+    let finderPoint = finderImageView.convert(loc, from: nil)
+    if finderImageView.bounds.contains(finderPoint) && !finderImageView.isHidden {
       return false
     }
 
@@ -179,12 +199,13 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     }
     iconView.inactiveTintColor = Theme.Colors.modelIconTint
 
-    // Delete button only for installed models on right-click
+    // Delete and finder buttons only for installed models on right-click
     // Reset showingDeleteButton if model is no longer installed
     if !modelManager.isInstalled(model) {
       showingDeleteButton = false
     }
     deleteImageView.isHidden = !showingDeleteButton
+    finderImageView.isHidden = !showingDeleteButton
 
     // Update icon state
     iconView.setLoading(isLoading)
@@ -204,6 +225,7 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .systemRed
+    finderImageView.contentTintColor = .tertiaryLabelColor
     deleteImageView.contentTintColor = .tertiaryLabelColor
   }
 
@@ -212,5 +234,11 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     showingDeleteButton = false
     modelManager.deleteDownloadedModel(model)
     membershipChanged(model)
+  }
+
+  @objc private func performShowInFinder() {
+    guard modelManager.isInstalled(model) else { return }
+    let url = URL(fileURLWithPath: model.modelFilePath)
+    NSWorkspace.shared.activateFileViewerSelecting([url])
   }
 }
