@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Header row showing app name and server status.
-final class HeaderView: NSView {
+final class HeaderView: ItemView {
 
   private unowned let server: LlamaServer
   private let appNameLabel = Theme.primaryLabel()
@@ -10,7 +10,6 @@ final class HeaderView: NSView {
   private let statusLabel = Theme.secondaryLabel()
   private let linkLabel = Theme.secondaryLabel()
   private let copyImageView = NSImageView()
-  private let backgroundView = NSView()
 
   private var currentUrl: URL?
   private var showingCopyConfirmation = false
@@ -18,22 +17,18 @@ final class HeaderView: NSView {
   init(server: LlamaServer) {
     self.server = server
     super.init(frame: .zero)
-    translatesAutoresizingMaskIntoConstraints = false
     setup()
     refresh()
   }
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  private func setup() {
-    wantsLayer = true
-    backgroundView.wantsLayer = true
+  override var highlightEnabled: Bool { false }
 
+  private func setup() {
     widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
 
     appNameLabel.stringValue = "LlamaBarn"
-
-    addSubview(backgroundView)
 
     // Status stack for horizontal layout of status elements
     statusStackView.translatesAutoresizingMaskIntoConstraints = false
@@ -48,19 +43,8 @@ final class HeaderView: NSView {
     mainStack.alignment = .leading
     mainStack.spacing = Layout.textLineSpacing
 
-    backgroundView.addSubview(mainStack)
-
-    backgroundView.pinToSuperview(
-      leading: Layout.outerHorizontalPadding,
-      trailing: Layout.outerHorizontalPadding
-    )
-
-    mainStack.pinToSuperview(
-      top: 6,
-      leading: Layout.innerHorizontalPadding,
-      trailing: Layout.innerHorizontalPadding,
-      bottom: 6
-    )
+    contentView.addSubview(mainStack)
+    mainStack.pinToSuperview()
 
     // Link Label Configuration
     let linkClick = NSClickGestureRecognizer(target: self, action: #selector(openLink))

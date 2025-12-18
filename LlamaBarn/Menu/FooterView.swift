@@ -1,6 +1,6 @@
 import AppKit
 
-final class FooterView: NSView {
+final class FooterView: ItemView {
   private let onCheckForUpdates: () -> Void
   private let onOpenSettings: () -> Void
   private let onQuit: () -> Void
@@ -14,11 +14,12 @@ final class FooterView: NSView {
     self.onOpenSettings = onOpenSettings
     self.onQuit = onQuit
     super.init(frame: .zero)
-    translatesAutoresizingMaskIntoConstraints = false
     setup()
   }
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+  override var highlightEnabled: Bool { false }
 
   override var intrinsicContentSize: NSSize {
     NSSize(width: Layout.menuWidth, height: 28)
@@ -48,29 +49,25 @@ final class FooterView: NSView {
     let quitButton = FooterButton(title: "Quit", target: self, action: #selector(quitClicked))
     quitButton.translatesAutoresizingMaskIntoConstraints = false
 
-    addSubview(versionButton)
-    addSubview(llamaLabel)
-    addSubview(settingsButton)
-    addSubview(quitButton)
+    contentView.addSubview(versionButton)
+    contentView.addSubview(llamaLabel)
+    contentView.addSubview(settingsButton)
+    contentView.addSubview(quitButton)
 
     NSLayoutConstraint.activate([
       // Left side
-      versionButton.leadingAnchor.constraint(
-        equalTo: leadingAnchor,
-        constant: Layout.outerHorizontalPadding + Layout.innerHorizontalPadding),
-      versionButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      versionButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+      versionButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
 
       llamaLabel.leadingAnchor.constraint(equalTo: versionButton.trailingAnchor),
-      llamaLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+      llamaLabel.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
 
       // Right side
-      quitButton.trailingAnchor.constraint(
-        equalTo: trailingAnchor,
-        constant: -(Layout.outerHorizontalPadding + Layout.innerHorizontalPadding)),
-      quitButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      quitButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+      quitButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
 
       settingsButton.trailingAnchor.constraint(equalTo: quitButton.leadingAnchor, constant: -5),
-      settingsButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      settingsButton.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
     ])
   }
 
