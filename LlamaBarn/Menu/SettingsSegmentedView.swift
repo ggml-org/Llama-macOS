@@ -1,7 +1,7 @@
 import AppKit
 
 final class SettingsSegmentedView: StandardItemView {
-  private let segmentedControl = NSSegmentedControl()
+  private let segmentedControl: NSSegmentedControl
   private let onSelect: (Int) -> Void
   private let getSelectedIndex: () -> Int
   private let infoIcon = NSImageView()
@@ -14,37 +14,51 @@ final class SettingsSegmentedView: StandardItemView {
     self.getSelectedIndex = getSelectedIndex
     self.onSelect = onSelect
     self.infoText = infoText
+    self.segmentedControl = NSSegmentedControl(
+      labels: labels, trackingMode: .selectOne, target: nil, action: nil)
+
     super.init(frame: .zero)
 
     iconView.isHidden = true
     titleLabel.stringValue = title
-    // Calculate available width: 300 (menu) - 10 (outer) - 16 (inner) - ~100 (segmented) - 6 (spacing) = ~168
-    configureSubtitle(nil, width: 168)
 
-    if infoText != nil {
-      Theme.configure(
-        infoIcon, symbol: "info.circle", tooltip: nil,
-        color: Theme.Colors.textSecondary)
-      let recognizer = NSClickGestureRecognizer(target: self, action: #selector(toggleInfo))
-      infoIcon.addGestureRecognizer(recognizer)
-    }
+    setupInfoView()
+    configureSegmentedControl()
 
-    segmentedControl.segmentCount = labels.count
-    for (index, label) in labels.enumerated() {
-      segmentedControl.setLabel(label, forSegment: index)
-    }
+    accessoryStack.addArrangedSubview(segmentedControl)
+    refresh()
+  }
+
+  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+  private func setupInfoView() {
+    guard infoText != nil else { return }
+
+    Theme.configure(
+      infoIcon, symbol: "info.circle", tooltip: nil,
+      color: Theme.Colors.textSecondary)
+    infoIcon.addGestureRecognizer(
+      NSClickGestureRecognizer(target: self, action: #selector(toggleInfo)))
+
+    // Move subtitleLabel to a new row below the main content
+    rootStack.removeFromSuperview()
+    let containerStack = NSStackView(views: [rootStack, subtitleLabel])
+    containerStack.orientation = .vertical
+    containerStack.alignment = .leading
+    containerStack.spacing = Layout.textLineSpacing
+    contentView.addSubview(containerStack)
+    containerStack.pinToSuperview()
+    subtitleLabel.isHidden = true
+  }
+
+  private func configureSegmentedControl() {
     segmentedControl.target = self
     segmentedControl.action = #selector(segmentChanged)
     segmentedControl.controlSize = .mini
     segmentedControl.font = NSFont.systemFont(ofSize: 10)
     segmentedControl.segmentDistribution = .fillEqually
     segmentedControl.appearance = NSApp.effectiveAppearance
-
-    setup()
-    refresh()
   }
-
-  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
   override func makeTextStack() -> NSStackView {
     if infoText != nil {
@@ -52,12 +66,7 @@ final class SettingsSegmentedView: StandardItemView {
       titleStack.orientation = .horizontal
       titleStack.spacing = 4
       titleStack.alignment = .centerY
-
-      let stack = NSStackView(views: [titleStack, subtitleLabel])
-      stack.orientation = .vertical
-      stack.alignment = .leading
-      stack.spacing = Layout.textLineSpacing
-      return stack
+      return titleStack
     }
     return super.makeTextStack()
   }
@@ -69,25 +78,20 @@ final class SettingsSegmentedView: StandardItemView {
     return NSSize(width: width, height: max(30, height))
   }
 
-  private func setup() {
-    accessoryStack.addArrangedSubview(segmentedControl)
-    rootStack.alignment = .top
-  }
-
   func refresh() {
     segmentedControl.selectedSegment = getSelectedIndex()
   }
 
   @objc private func segmentChanged() {
-    let selectedIndex = segmentedControl.selectedSegment
-    onSelect(selectedIndex)
+    onSelect(segmentedControl.selectedSegment)
   }
 
   @objc private func toggleInfo() {
     guard let infoText = infoText else { return }
 
     if subtitleLabel.isHidden {
-      configureSubtitle(infoText, width: 160)
+      // Calculate full available width: menu - outer padding - inner padding = 300 - 10 - 16 = 274
+      configureSubtitle(infoText, width: 274)
       subtitleLabel.textColor = Theme.Colors.textSecondary
     } else {
       subtitleLabel.isHidden = true
@@ -95,10 +99,6 @@ final class SettingsSegmentedView: StandardItemView {
 
     invalidateIntrinsicContentSize()
     enclosingMenuItem?.menu?.update()
-  }
-
-  override func mouseUp(with event: NSEvent) {
-    // Handle click on the view, but since it's segmented, maybe not needed
   }
 
   override var highlightEnabled: Bool { false }
