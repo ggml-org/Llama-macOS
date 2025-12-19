@@ -19,7 +19,7 @@ enum Layout {
   /// Maximum width for download progress labels.
   static let progressWidth: CGFloat = 48
   /// Vertical spacing between text lines in stacked labels (e.g., model name and metadata).
-  static let textLineSpacing: CGFloat = 1
+  static let textLineSpacing: CGFloat = 2
 }
 
 extension NSView {
