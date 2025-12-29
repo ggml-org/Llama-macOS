@@ -905,7 +905,7 @@ extension Catalog {
           ctxBytesPer1kTokens: 167_772_160,
           mmproj: URL(
             string:
-              "https://huggingface.co/ggml-org/Devstral-Small-2-24B-Instruct-2512-GGUF/resolve/main/mmproj-Devstral-Small-2-24B-Instruct-2512-F16.guf"
+              "https://huggingface.co/ggml-org/Devstral-Small-2-24B-Instruct-2512-GGUF/resolve/main/mmproj-Devstral-Small-2-24B-Instruct-2512-F16.gguf"
           )!,
           build: ModelBuild(
             id: "devstral-small-2-24b-q8",
