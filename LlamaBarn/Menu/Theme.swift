@@ -36,6 +36,12 @@ enum Theme {
       light: NSColor.black.withAlphaComponent(0.15),
       dark: NSColor.white.withAlphaComponent(0.25)
     )
+
+    // Separator color -- matches native separator visual weight
+    static let separator = NSColor.dynamic(
+      light: NSColor.black.withAlphaComponent(0.1),
+      dark: NSColor.white.withAlphaComponent(0.15)
+    )
   }
 
   // Fonts used throughout the app

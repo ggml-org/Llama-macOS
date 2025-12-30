@@ -94,7 +94,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     let view = HeaderView(server: server)
     menu.addItem(NSMenuItem.viewItem(with: view))
-    menu.addItem(.separator())
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     addInstalledSection(to: menu)
 
@@ -170,7 +170,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func addFooter(to menu: NSMenu) {
-    menu.addItem(.separator())
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     let footerView = FooterView(
       onCheckForUpdates: { [weak self] in self?.checkForUpdates() },
@@ -231,7 +231,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   private func addFamilyDetailSection(to menu: NSMenu, familyName: String) {
     guard let family = Catalog.families.first(where: { $0.name == familyName }) else { return }
 
-    menu.addItem(.separator())
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     // Back Header
     let backView = FamilyHeaderView(
@@ -300,7 +300,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     guard !items.isEmpty else { return }
 
-    menu.addItem(.separator())
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     items.forEach { menu.addItem($0) }
   }
@@ -310,7 +310,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   private func addSettingsSection(to menu: NSMenu) {
     guard isSettingsOpen else { return }
 
-    menu.addItem(.separator())
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
     menu.addItem(makeLaunchAtLoginItem())
     menu.addItem(makeContextLengthItem())
   }
