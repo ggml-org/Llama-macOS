@@ -25,10 +25,11 @@ final class FamilyHeaderView: ItemView {
     descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
     descriptionLabel.stringValue = description ?? ""
     descriptionLabel.isHidden = description == nil
-    descriptionLabel.maximumNumberOfLines = isExpanded ? 0 : 2
-    descriptionLabel.lineBreakMode = .byWordWrapping
+    descriptionLabel.maximumNumberOfLines = isExpanded ? 0 : 1
+    descriptionLabel.lineBreakMode = isExpanded ? .byWordWrapping : .byTruncatingTail
     descriptionLabel.cell?.wraps = true
     descriptionLabel.cell?.truncatesLastVisibleLine = true
+    descriptionLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
     let textStack = NSStackView(views: [label])
     textStack.orientation = .vertical
