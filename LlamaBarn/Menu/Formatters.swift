@@ -107,9 +107,12 @@ extension Format {
 
   /// Formats model metadata text.
   /// Format: "2.53 GB · 128k ctx · 4.2 GB mem"
-  static func modelMetadata(for model: CatalogEntry, color: NSColor = Theme.Colors.textPrimary)
-    -> NSAttributedString
-  {
+  /// If incompatibility is provided: "2.53 GB · requires 32 GB+ of memory"
+  static func modelMetadata(
+    for model: CatalogEntry,
+    color: NSColor = Theme.Colors.textPrimary,
+    incompatibility: String? = nil
+  ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
     let attributes: [NSAttributedString.Key: Any] = [
@@ -123,28 +126,37 @@ extension Format {
 
     // Quantization moved to model name
 
-    // Calculate desired tokens and usable context
-    let desiredTokens: Int
-    if UserSettings.defaultContextWindow == .max {
-      desiredTokens = 131_072
+    if let incompatibility = incompatibility {
+      result.append(Format.metadataSeparator())
+      let warningAttr: [NSAttributedString.Key: Any] = [
+        .font: Theme.Fonts.secondary,
+        .foregroundColor: Theme.Colors.textSecondary,
+      ]
+      result.append(NSAttributedString(string: incompatibility, attributes: warningAttr))
     } else {
-      desiredTokens = UserSettings.defaultContextWindow.rawValue * 1024
+      // Calculate desired tokens and usable context
+      let desiredTokens: Int
+      if UserSettings.defaultContextWindow == .max {
+        desiredTokens = 131_072
+      } else {
+        desiredTokens = UserSettings.defaultContextWindow.rawValue * 1024
+      }
+
+      let displayUsableCtx =
+        model.usableCtxWindow(desiredTokens: desiredTokens, maximizeContext: false)
+        ?? Int(CatalogEntry.compatibilityCtxWindowTokens)
+
+      // Context info: always displayed as the context length the model would run at
+      result.append(Format.metadataSeparator())
+      let ctxLabel = Format.tokens(displayUsableCtx)
+      result.append(NSAttributedString(string: ctxLabel + " ctx", attributes: attributes))
+
+      // Memory usage
+      result.append(Format.metadataSeparator())
+      let memMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(displayUsableCtx))
+      let memString = Format.memory(mb: memMb)
+      result.append(NSAttributedString(string: memString + " mem", attributes: attributes))
     }
-
-    let displayUsableCtx =
-      model.usableCtxWindow(desiredTokens: desiredTokens, maximizeContext: false)
-      ?? Int(CatalogEntry.compatibilityCtxWindowTokens)
-
-    // Context info: always displayed as the context length the model would run at
-    result.append(Format.metadataSeparator())
-    let ctxLabel = Format.tokens(displayUsableCtx)
-    result.append(NSAttributedString(string: ctxLabel + " ctx", attributes: attributes))
-
-    // Memory usage
-    result.append(Format.metadataSeparator())
-    let memMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(displayUsableCtx))
-    let memString = Format.memory(mb: memMb)
-    result.append(NSAttributedString(string: memString + " mem", attributes: attributes))
 
     // Vision support removed - now shown in model name
 
