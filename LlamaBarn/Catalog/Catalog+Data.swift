@@ -233,6 +233,60 @@ extension Catalog {
       overheadMultiplier: 1.1,
       sizes: [
         ModelSize(
+          name: "4B",
+          parameterCount: 4_022_468_096,
+          releaseDate: date(2025, 7, 1),
+          ctxWindow: 262_144,
+          ctxBytesPer1kTokens: 150_994_944,
+          build: ModelBuild(
+            id: "qwen3-2507-4b-q8",
+            quantization: "Q8_0",
+            fileSize: 4_280_405_600,
+            downloadUrl: URL(
+              string:
+                "https://huggingface.co/ggml-org/Qwen3-4B-Instruct-2507-Q8_0-GGUF/resolve/main/qwen3-4b-instruct-2507-q8_0.gguf"
+            )!
+          ),
+          quantizedBuilds: [
+            ModelBuild(
+              id: "qwen3-2507-4b",
+              quantization: "Q4_K_M",
+              fileSize: 2_497_281_120,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+              )!
+            )
+          ]
+        ),
+        ModelSize(
+          name: "4B Thinking",
+          parameterCount: 4_022_468_096,
+          releaseDate: date(2025, 7, 1),
+          ctxWindow: 262_144,
+          ctxBytesPer1kTokens: 150_994_944,
+          build: ModelBuild(
+            id: "qwen3-2507-thinking-4b-q8",
+            quantization: "Q8_0",
+            fileSize: 4_280_405_632,
+            downloadUrl: URL(
+              string:
+                "https://huggingface.co/ggml-org/Qwen3-4B-Thinking-2507-Q8_0-GGUF/resolve/main/qwen3-4b-thinking-2507-q8_0.gguf"
+            )!
+          ),
+          quantizedBuilds: [
+            ModelBuild(
+              id: "qwen3-2507-thinking-4b",
+              quantization: "Q4_K_M",
+              fileSize: 2_497_281_152,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/unsloth/Qwen3-4B-Thinking-2507-GGUF/resolve/main/Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
+              )!
+            )
+          ]
+        ),
+        ModelSize(
           name: "30B-A3B",
           parameterCount: 30_532_122_624,
           releaseDate: date(2025, 7, 1),
@@ -260,43 +314,7 @@ extension Catalog {
           ]
         ),
         ModelSize(
-          name: "4B",
-          parameterCount: 4_022_468_096,
-          releaseDate: date(2025, 7, 1),
-          ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 150_994_944,
-          build: ModelBuild(
-            id: "qwen3-2507-4b-q8",
-            quantization: "Q8_0",
-            fileSize: 4_280_405_600,
-            downloadUrl: URL(
-              string:
-                "https://huggingface.co/ggml-org/Qwen3-4B-Instruct-2507-Q8_0-GGUF/resolve/main/qwen3-4b-instruct-2507-q8_0.gguf"
-            )!
-          ),
-          quantizedBuilds: [
-            ModelBuild(
-              id: "qwen3-2507-4b",
-              quantization: "Q4_K_M",
-              fileSize: 2_497_281_120,
-              downloadUrl: URL(
-                string:
-                  "https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-              )!
-            )
-          ]
-        ),
-      ]
-    ),
-    // MARK: Qwen3 Thinking
-    ModelFamily(
-      name: "Qwen3 Thinking",
-      series: "qwen",
-      serverArgs: ["--temp", "0.6", "--top-k", "20", "--top-p", "0.95", "--min-p", "0"],
-      overheadMultiplier: 1.1,
-      sizes: [
-        ModelSize(
-          name: "30B-A3B",
+          name: "30B-A3B Thinking",
           parameterCount: 30_532_122_624,
           releaseDate: date(2025, 7, 1),
           ctxWindow: 262_144,
@@ -322,33 +340,6 @@ extension Catalog {
             )
           ]
         ),
-        ModelSize(
-          name: "4B",
-          parameterCount: 4_022_468_096,
-          releaseDate: date(2025, 7, 1),
-          ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 150_994_944,
-          build: ModelBuild(
-            id: "qwen3-2507-thinking-4b-q8",
-            quantization: "Q8_0",
-            fileSize: 4_280_405_632,
-            downloadUrl: URL(
-              string:
-                "https://huggingface.co/ggml-org/Qwen3-4B-Thinking-2507-Q8_0-GGUF/resolve/main/qwen3-4b-thinking-2507-q8_0.gguf"
-            )!
-          ),
-          quantizedBuilds: [
-            ModelBuild(
-              id: "qwen3-2507-thinking-4b",
-              quantization: "Q4_K_M",
-              fileSize: 2_497_281_152,
-              downloadUrl: URL(
-                string:
-                  "https://huggingface.co/unsloth/Qwen3-4B-Thinking-2507-GGUF/resolve/main/Qwen3-4B-Thinking-2507-Q4_K_M.gguf"
-              )!
-            )
-          ]
-        ),
       ]
     ),
     // MARK: Qwen3-VL
@@ -359,63 +350,63 @@ extension Catalog {
       overheadMultiplier: 1.1,
       sizes: [
         ModelSize(
-          name: "30B-A3B",
-          parameterCount: 31_070_754_032,
+          name: "2B",
+          parameterCount: 2_127_532_032,
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 100_663_296,
+          ctxBytesPer1kTokens: 117_440_512,
           mmproj: URL(
             string:
-              "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-30B-A3B-Instruct-Q8_0.gguf"
+              "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
           )!,
           build: ModelBuild(
-            id: "qwen3-vl-instruct-30b-q8",
+            id: "qwen3-vl-instruct-2b-q8",
             quantization: "Q8_0",
-            fileSize: 32_483_932_992,
+            fileSize: 1_834_427_424,
             downloadUrl: URL(
               string:
-                "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/Qwen3VL-30B-A3B-Instruct-Q8_0.gguf"
+                "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/Qwen3VL-2B-Instruct-Q8_0.gguf"
             )!
           ),
           quantizedBuilds: [
             ModelBuild(
-              id: "qwen3-vl-instruct-30b",
+              id: "qwen3-vl-instruct-2b",
               quantization: "Q4_K_M",
-              fileSize: 18_556_687_168,
+              fileSize: 1_107_409_952,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/Qwen3VL-30B-A3B-Instruct-Q4_K_M.gguf"
+                  "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/Qwen3VL-2B-Instruct-Q4_K_M.gguf"
               )!
             )
           ]
         ),
         ModelSize(
-          name: "8B",
-          parameterCount: 8_767_123_696,
+          name: "2B Thinking",
+          parameterCount: 2_127_532_032,
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 150_994_944,
+          ctxBytesPer1kTokens: 117_440_512,
           mmproj: URL(
             string:
-              "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf"
+              "https://huggingface.co/Qwen/Qwen3-VL-2B-Thinking-GGUF/resolve/main/mmproj-Qwen3VL-2B-Thinking-Q8_0.gguf"
           )!,
           build: ModelBuild(
-            id: "qwen3-vl-instruct-8b-q8",
+            id: "qwen3-vl-thinking-2b-q8",
             quantization: "Q8_0",
-            fileSize: 8_709_519_456,
+            fileSize: 1_834_427_360,
             downloadUrl: URL(
               string:
-                "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q8_0.gguf"
+                "https://huggingface.co/Qwen/Qwen3-VL-2B-Thinking-GGUF/resolve/main/Qwen3VL-2B-Thinking-Q8_0.gguf"
             )!
           ),
           quantizedBuilds: [
             ModelBuild(
-              id: "qwen3-vl-instruct-8b",
+              id: "qwen3-vl-thinking-2b",
               quantization: "Q4_K_M",
-              fileSize: 5_027_784_800,
+              fileSize: 1_107_409_888,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q4_K_M.gguf"
+                  "https://huggingface.co/Qwen/Qwen3-VL-2B-Thinking-GGUF/resolve/main/Qwen3VL-2B-Thinking-Q4_K_M.gguf"
               )!
             )
           ]
@@ -452,109 +443,7 @@ extension Catalog {
           ]
         ),
         ModelSize(
-          name: "2B",
-          parameterCount: 2_127_532_032,
-          releaseDate: date(2025, 10, 31),
-          ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 117_440_512,
-          mmproj: URL(
-            string:
-              "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
-          )!,
-          build: ModelBuild(
-            id: "qwen3-vl-instruct-2b-q8",
-            quantization: "Q8_0",
-            fileSize: 1_834_427_424,
-            downloadUrl: URL(
-              string:
-                "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/Qwen3VL-2B-Instruct-Q8_0.gguf"
-            )!
-          ),
-          quantizedBuilds: [
-            ModelBuild(
-              id: "qwen3-vl-instruct-2b",
-              quantization: "Q4_K_M",
-              fileSize: 1_107_409_952,
-              downloadUrl: URL(
-                string:
-                  "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/Qwen3VL-2B-Instruct-Q4_K_M.gguf"
-              )!
-            )
-          ]
-        ),
-      ]
-    ),
-    // MARK: Qwen3-VL Thinking
-    ModelFamily(
-      name: "Qwen3 VL Thinking",
-      series: "qwen",
-      serverArgs: ["--temp", "0.6", "--top-p", "0.95", "--top-k", "20"],
-      overheadMultiplier: 1.1,
-      sizes: [
-        ModelSize(
-          name: "30B-A3B",
-          parameterCount: 31_070_754_032,
-          releaseDate: date(2025, 10, 31),
-          ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 100_663_296,
-          mmproj: URL(
-            string:
-              "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Thinking-GGUF/resolve/main/mmproj-Qwen3VL-30B-A3B-Thinking-Q8_0.gguf"
-          )!,
-          build: ModelBuild(
-            id: "qwen3-vl-thinking-30b-q8",
-            quantization: "Q8_0",
-            fileSize: 32_483_933_024,
-            downloadUrl: URL(
-              string:
-                "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Thinking-GGUF/resolve/main/Qwen3VL-30B-A3B-Thinking-Q8_0.gguf"
-            )!
-          ),
-          quantizedBuilds: [
-            ModelBuild(
-              id: "qwen3-vl-thinking-30b",
-              quantization: "Q4_K_M",
-              fileSize: 18_556_687_200,
-              downloadUrl: URL(
-                string:
-                  "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Thinking-GGUF/resolve/main/Qwen3VL-30B-A3B-Thinking-Q4_K_M.gguf"
-              )!
-            )
-          ]
-        ),
-        ModelSize(
-          name: "8B",
-          parameterCount: 8_767_123_696,
-          releaseDate: date(2025, 10, 31),
-          ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 150_994_944,
-          mmproj: URL(
-            string:
-              "https://huggingface.co/Qwen/Qwen3-VL-8B-Thinking-GGUF/resolve/main/mmproj-Qwen3VL-8B-Thinking-Q8_0.gguf"
-          )!,
-          build: ModelBuild(
-            id: "qwen3-vl-thinking-8b-q8",
-            quantization: "Q8_0",
-            fileSize: 8_709_519_360,
-            downloadUrl: URL(
-              string:
-                "https://huggingface.co/Qwen/Qwen3-VL-8B-Thinking-GGUF/resolve/main/Qwen3VL-8B-Thinking-Q8_0.gguf"
-            )!
-          ),
-          quantizedBuilds: [
-            ModelBuild(
-              id: "qwen3-vl-thinking-8b",
-              quantization: "Q4_K_M",
-              fileSize: 5_027_784_704,
-              downloadUrl: URL(
-                string:
-                  "https://huggingface.co/Qwen/Qwen3-VL-8B-Thinking-GGUF/resolve/main/Qwen3VL-8B-Thinking-Q4_K_M.gguf"
-              )!
-            )
-          ]
-        ),
-        ModelSize(
-          name: "4B",
+          name: "4B Thinking",
           parameterCount: 4_437_815_808,
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
@@ -585,32 +474,125 @@ extension Catalog {
           ]
         ),
         ModelSize(
-          name: "2B",
-          parameterCount: 2_127_532_032,
+          name: "8B",
+          parameterCount: 8_767_123_696,
           releaseDate: date(2025, 10, 31),
           ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 117_440_512,
+          ctxBytesPer1kTokens: 150_994_944,
           mmproj: URL(
             string:
-              "https://huggingface.co/Qwen/Qwen3-VL-2B-Thinking-GGUF/resolve/main/mmproj-Qwen3VL-2B-Thinking-Q8_0.gguf"
+              "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf"
           )!,
           build: ModelBuild(
-            id: "qwen3-vl-thinking-2b-q8",
+            id: "qwen3-vl-instruct-8b-q8",
             quantization: "Q8_0",
-            fileSize: 1_834_427_360,
+            fileSize: 8_709_519_456,
             downloadUrl: URL(
               string:
-                "https://huggingface.co/Qwen/Qwen3-VL-2B-Thinking-GGUF/resolve/main/Qwen3VL-2B-Thinking-Q8_0.gguf"
+                "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q8_0.gguf"
             )!
           ),
           quantizedBuilds: [
             ModelBuild(
-              id: "qwen3-vl-thinking-2b",
+              id: "qwen3-vl-instruct-8b",
               quantization: "Q4_K_M",
-              fileSize: 1_107_409_888,
+              fileSize: 5_027_784_800,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/Qwen/Qwen3-VL-2B-Thinking-GGUF/resolve/main/Qwen3VL-2B-Thinking-Q4_K_M.gguf"
+                  "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3VL-8B-Instruct-Q4_K_M.gguf"
+              )!
+            )
+          ]
+        ),
+        ModelSize(
+          name: "8B Thinking",
+          parameterCount: 8_767_123_696,
+          releaseDate: date(2025, 10, 31),
+          ctxWindow: 262_144,
+          ctxBytesPer1kTokens: 150_994_944,
+          mmproj: URL(
+            string:
+              "https://huggingface.co/Qwen/Qwen3-VL-8B-Thinking-GGUF/resolve/main/mmproj-Qwen3VL-8B-Thinking-Q8_0.gguf"
+          )!,
+          build: ModelBuild(
+            id: "qwen3-vl-thinking-8b-q8",
+            quantization: "Q8_0",
+            fileSize: 8_709_519_360,
+            downloadUrl: URL(
+              string:
+                "https://huggingface.co/Qwen/Qwen3-VL-8B-Thinking-GGUF/resolve/main/Qwen3VL-8B-Thinking-Q8_0.gguf"
+            )!
+          ),
+          quantizedBuilds: [
+            ModelBuild(
+              id: "qwen3-vl-thinking-8b",
+              quantization: "Q4_K_M",
+              fileSize: 5_027_784_704,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/Qwen/Qwen3-VL-8B-Thinking-GGUF/resolve/main/Qwen3VL-8B-Thinking-Q4_K_M.gguf"
+              )!
+            )
+          ]
+        ),
+        ModelSize(
+          name: "30B-A3B",
+          parameterCount: 31_070_754_032,
+          releaseDate: date(2025, 10, 31),
+          ctxWindow: 262_144,
+          ctxBytesPer1kTokens: 100_663_296,
+          mmproj: URL(
+            string:
+              "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-30B-A3B-Instruct-Q8_0.gguf"
+          )!,
+          build: ModelBuild(
+            id: "qwen3-vl-instruct-30b-q8",
+            quantization: "Q8_0",
+            fileSize: 32_483_932_992,
+            downloadUrl: URL(
+              string:
+                "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/Qwen3VL-30B-A3B-Instruct-Q8_0.gguf"
+            )!
+          ),
+          quantizedBuilds: [
+            ModelBuild(
+              id: "qwen3-vl-instruct-30b",
+              quantization: "Q4_K_M",
+              fileSize: 18_556_687_168,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/Qwen3VL-30B-A3B-Instruct-Q4_K_M.gguf"
+              )!
+            )
+          ]
+        ),
+        ModelSize(
+          name: "30B-A3B Thinking",
+          parameterCount: 31_070_754_032,
+          releaseDate: date(2025, 10, 31),
+          ctxWindow: 262_144,
+          ctxBytesPer1kTokens: 100_663_296,
+          mmproj: URL(
+            string:
+              "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Thinking-GGUF/resolve/main/mmproj-Qwen3VL-30B-A3B-Thinking-Q8_0.gguf"
+          )!,
+          build: ModelBuild(
+            id: "qwen3-vl-thinking-30b-q8",
+            quantization: "Q8_0",
+            fileSize: 32_483_933_024,
+            downloadUrl: URL(
+              string:
+                "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Thinking-GGUF/resolve/main/Qwen3VL-30B-A3B-Thinking-Q8_0.gguf"
+            )!
+          ),
+          quantizedBuilds: [
+            ModelBuild(
+              id: "qwen3-vl-thinking-30b",
+              quantization: "Q4_K_M",
+              fileSize: 18_556_687_200,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Thinking-GGUF/resolve/main/Qwen3VL-30B-A3B-Thinking-Q4_K_M.gguf"
               )!
             )
           ]
@@ -696,32 +678,63 @@ extension Catalog {
       serverArgs: nil,
       sizes: [
         ModelSize(
-          name: "14B",
-          parameterCount: 14_000_000_000,
+          name: "3B",
+          parameterCount: 4_000_000_000,
           releaseDate: date(2025, 12, 2),
           ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 163_840_000,
+          ctxBytesPer1kTokens: 106_496_000,
           mmproj: URL(
             string:
-              "https://huggingface.co/ggml-org/Ministral-3-14B-Instruct-2512-GGUF/resolve/main/mmproj-Ministral-3-14B-Instruct-2512-Q8_0.gguf"
+              "https://huggingface.co/ggml-org/Ministral-3-3B-Instruct-2512-GGUF/resolve/main/mmproj-Ministral-3-3B-Instruct-2512-Q8_0.gguf"
           )!,
           build: ModelBuild(
-            id: "ministral-3-instruct-14b-q8",
+            id: "ministral-3-instruct-3b-q8",
             quantization: "Q8_0",
-            fileSize: 14_359_311_264,
+            fileSize: 3_913_606_144,
             downloadUrl: URL(
               string:
-                "https://huggingface.co/ggml-org/Ministral-3-14B-Instruct-2512-GGUF/resolve/main/Ministral-3-14B-Instruct-2512-Q8_0.gguf"
+                "https://huggingface.co/ggml-org/Ministral-3-3B-Instruct-2512-GGUF/resolve/main/Ministral-3-3B-Instruct-2512-Q8_0.gguf"
             )!
           ),
           quantizedBuilds: [
             ModelBuild(
-              id: "ministral-3-instruct-14b",
+              id: "ministral-3-instruct-3b",
               quantization: "Q4_K_M",
-              fileSize: 8_239_593_024,
+              fileSize: 2_147_023_008,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/mistralai/Ministral-3-14B-Instruct-2512-GGUF/resolve/main/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
+                  "https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF/resolve/main/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
+              )!
+            )
+          ]
+        ),
+        ModelSize(
+          name: "3B Reasoning",
+          parameterCount: 4_000_000_000,
+          releaseDate: date(2025, 12, 2),
+          ctxWindow: 262_144,
+          ctxBytesPer1kTokens: 106_496_000,
+          mmproj: URL(
+            string:
+              "https://huggingface.co/ggml-org/Ministral-3-3B-Reasoning-2512-GGUF/resolve/main/mmproj-Ministral-3-3B-Reasoning-2512-Q8_0.gguf"
+          )!,
+          build: ModelBuild(
+            id: "ministral-3-reasoning-3b-q8",
+            quantization: "Q8_0",
+            fileSize: 3_916_269_568,
+            downloadUrl: URL(
+              string:
+                "https://huggingface.co/ggml-org/Ministral-3-3B-Reasoning-2512-GGUF/resolve/main/Ministral-3-3B-Reasoning-2512-Q8_0.gguf"
+            )!
+          ),
+          quantizedBuilds: [
+            ModelBuild(
+              id: "ministral-3-reasoning-3b",
+              quantization: "Q4_K_M",
+              fileSize: 2_147_021_472,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/mistralai/Ministral-3-3B-Reasoning-2512-GGUF/resolve/main/Ministral-3-3B-Reasoning-2512-Q4_K_M.gguf"
               )!
             )
           ]
@@ -758,77 +771,7 @@ extension Catalog {
           ]
         ),
         ModelSize(
-          name: "3B",
-          parameterCount: 4_000_000_000,
-          releaseDate: date(2025, 12, 2),
-          ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 106_496_000,
-          mmproj: URL(
-            string:
-              "https://huggingface.co/ggml-org/Ministral-3-3B-Instruct-2512-GGUF/resolve/main/mmproj-Ministral-3-3B-Instruct-2512-Q8_0.gguf"
-          )!,
-          build: ModelBuild(
-            id: "ministral-3-instruct-3b-q8",
-            quantization: "Q8_0",
-            fileSize: 3_913_606_144,
-            downloadUrl: URL(
-              string:
-                "https://huggingface.co/ggml-org/Ministral-3-3B-Instruct-2512-GGUF/resolve/main/Ministral-3-3B-Instruct-2512-Q8_0.gguf"
-            )!
-          ),
-          quantizedBuilds: [
-            ModelBuild(
-              id: "ministral-3-instruct-3b",
-              quantization: "Q4_K_M",
-              fileSize: 2_147_023_008,
-              downloadUrl: URL(
-                string:
-                  "https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF/resolve/main/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
-              )!
-            )
-          ]
-        ),
-      ]
-    ),
-    // MARK: Ministral 3 Reasoning
-    ModelFamily(
-      name: "Ministral 3 Reasoning",
-      series: "mistral",
-      serverArgs: nil,
-      sizes: [
-        ModelSize(
-          name: "14B",
-          parameterCount: 14_000_000_000,
-          releaseDate: date(2025, 12, 2),
-          ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 163_840_000,
-          mmproj: URL(
-            string:
-              "https://huggingface.co/ggml-org/Ministral-3-14B-Reasoning-2512-GGUF/resolve/main/mmproj-Ministral-3-14B-Reasoning-2512-Q8_0.gguf"
-          )!,
-          build: ModelBuild(
-            id: "ministral-3-reasoning-14b-q8",
-            quantization: "Q8_0",
-            fileSize: 14_359_309_728,
-            downloadUrl: URL(
-              string:
-                "https://huggingface.co/ggml-org/Ministral-3-14B-Reasoning-2512-GGUF/resolve/main/Ministral-3-14B-Reasoning-2512-Q8_0.gguf"
-            )!
-          ),
-          quantizedBuilds: [
-            ModelBuild(
-              id: "ministral-3-reasoning-14b",
-              quantization: "Q4_K_M",
-              fileSize: 8_239_591_488,
-              downloadUrl: URL(
-                string:
-                  "https://huggingface.co/mistralai/Ministral-3-14B-Reasoning-2512-GGUF/resolve/main/Ministral-3-14B-Reasoning-2512-Q4_K_M.gguf"
-              )!
-            )
-          ]
-        ),
-        ModelSize(
-          name: "8B",
+          name: "8B Reasoning",
           parameterCount: 9_000_000_000,
           releaseDate: date(2025, 12, 2),
           ctxWindow: 262_144,
@@ -859,32 +802,63 @@ extension Catalog {
           ]
         ),
         ModelSize(
-          name: "3B",
-          parameterCount: 4_000_000_000,
+          name: "14B",
+          parameterCount: 14_000_000_000,
           releaseDate: date(2025, 12, 2),
           ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 106_496_000,
+          ctxBytesPer1kTokens: 163_840_000,
           mmproj: URL(
             string:
-              "https://huggingface.co/ggml-org/Ministral-3-3B-Reasoning-2512-GGUF/resolve/main/mmproj-Ministral-3-3B-Reasoning-2512-Q8_0.gguf"
+              "https://huggingface.co/ggml-org/Ministral-3-14B-Instruct-2512-GGUF/resolve/main/mmproj-Ministral-3-14B-Instruct-2512-Q8_0.gguf"
           )!,
           build: ModelBuild(
-            id: "ministral-3-reasoning-3b-q8",
+            id: "ministral-3-instruct-14b-q8",
             quantization: "Q8_0",
-            fileSize: 3_916_269_568,
+            fileSize: 14_359_311_264,
             downloadUrl: URL(
               string:
-                "https://huggingface.co/ggml-org/Ministral-3-3B-Reasoning-2512-GGUF/resolve/main/Ministral-3-3B-Reasoning-2512-Q8_0.gguf"
+                "https://huggingface.co/ggml-org/Ministral-3-14B-Instruct-2512-GGUF/resolve/main/Ministral-3-14B-Instruct-2512-Q8_0.gguf"
             )!
           ),
           quantizedBuilds: [
             ModelBuild(
-              id: "ministral-3-reasoning-3b",
+              id: "ministral-3-instruct-14b",
               quantization: "Q4_K_M",
-              fileSize: 2_147_021_472,
+              fileSize: 8_239_593_024,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/mistralai/Ministral-3-3B-Reasoning-2512-GGUF/resolve/main/Ministral-3-3B-Reasoning-2512-Q4_K_M.gguf"
+                  "https://huggingface.co/mistralai/Ministral-3-14B-Instruct-2512-GGUF/resolve/main/Ministral-3-14B-Instruct-2512-Q4_K_M.gguf"
+              )!
+            )
+          ]
+        ),
+        ModelSize(
+          name: "14B Reasoning",
+          parameterCount: 14_000_000_000,
+          releaseDate: date(2025, 12, 2),
+          ctxWindow: 262_144,
+          ctxBytesPer1kTokens: 163_840_000,
+          mmproj: URL(
+            string:
+              "https://huggingface.co/ggml-org/Ministral-3-14B-Reasoning-2512-GGUF/resolve/main/mmproj-Ministral-3-14B-Reasoning-2512-Q8_0.gguf"
+          )!,
+          build: ModelBuild(
+            id: "ministral-3-reasoning-14b-q8",
+            quantization: "Q8_0",
+            fileSize: 14_359_309_728,
+            downloadUrl: URL(
+              string:
+                "https://huggingface.co/ggml-org/Ministral-3-14B-Reasoning-2512-GGUF/resolve/main/Ministral-3-14B-Reasoning-2512-Q8_0.gguf"
+            )!
+          ),
+          quantizedBuilds: [
+            ModelBuild(
+              id: "ministral-3-reasoning-14b",
+              quantization: "Q4_K_M",
+              fileSize: 8_239_591_488,
+              downloadUrl: URL(
+                string:
+                  "https://huggingface.co/mistralai/Ministral-3-14B-Reasoning-2512-GGUF/resolve/main/Ministral-3-14B-Reasoning-2512-Q4_K_M.gguf"
               )!
             )
           ]
