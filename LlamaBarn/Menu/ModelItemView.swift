@@ -189,6 +189,10 @@ final class ModelItemView: StandardItemView, NSGestureRecognizerDelegate {
     needsDisplay = true
   }
 
+  override var highlightEnabled: Bool {
+    return true
+  }
+
   override func highlightDidChange(_ highlighted: Bool) {
     // Reset delete button when mouse exits
     if !highlighted && showingDeleteButton {

@@ -12,7 +12,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // Section State
   private var isSettingsOpen = false
-  private var collapsedFamilies: Set<String> = Set(Catalog.families.map { $0.name })
+  private var selectedFamily: String?
 
   private var welcomePopover: WelcomePopover?
 
@@ -84,7 +84,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // Reset section collapse state
     isSettingsOpen = false
-    collapsedFamilies = Set(Catalog.families.map { $0.name })
+    selectedFamily = nil
   }
 
   // MARK: - Menu Construction
@@ -97,7 +97,13 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.addItem(.separator())
 
     addInstalledSection(to: menu)
-    addCatalogSection(to: menu)
+
+    if let selectedFamily {
+      addFamilyDetailSection(to: menu, familyName: selectedFamily)
+    } else {
+      addCatalogSection(to: menu)
+    }
+
     addFooter(to: menu)
     addSettingsSection(to: menu)
   }
@@ -194,8 +200,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // Create header (not collapsible)
     let headerView = FamilyHeaderView(
       family: "Installed",
-      sizes: [],
-      isCollapsed: false
+      sizes: []
     )
     let headerItem = NSMenuItem.viewItem(with: headerView)
     menu.addItem(headerItem)
@@ -223,13 +228,45 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // MARK: - Catalog Section
 
+  private func addFamilyDetailSection(to menu: NSMenu, familyName: String) {
+    menu.addItem(.separator())
+
+    // Back Header
+    let backView = FamilyHeaderView(
+      family: familyName,
+      sizes: [],
+      showChevron: false,
+      showBackChevron: true
+    ) { [weak self] _ in
+      self?.selectedFamily = nil
+      self?.rebuildMenuIfPossible()
+    }
+    menu.addItem(NSMenuItem.viewItem(with: backView))
+
+    guard let family = Catalog.families.first(where: { $0.name == familyName }) else { return }
+    let validModels = family.selectableModels()
+    let availableModels = validModels.filter {
+      modelManager.status(for: $0) == .available
+    }
+
+    for model in availableModels {
+      let view = ModelItemView(
+        model: model,
+        server: server,
+        modelManager: modelManager,
+        actionHandler: actionHandler,
+        isInCatalog: true
+      )
+      menu.addItem(NSMenuItem.viewItem(with: view))
+    }
+  }
+
   private func addCatalogSection(to menu: NSMenu) {
     var items: [NSMenuItem] = []
 
     for family in Catalog.families {
       let validModels = family.selectableModels()
 
-      // Only show family if there are models available to install
       let availableModels = validModels.filter {
         modelManager.status(for: $0) == .available
       }
@@ -246,26 +283,13 @@ final class MenuController: NSObject, NSMenuDelegate {
 
       let headerView = FamilyHeaderView(
         family: family.name,
-        sizes: sizes,
-        isCollapsed: collapsedFamilies.contains(family.name)
+        sizes: sizes
       ) { [weak self] familyName in
-        self?.toggleFamilyCollapsed(familyName)
+        self?.selectedFamily = familyName
+        self?.rebuildMenuIfPossible()
       }
       let headerItem = NSMenuItem.viewItem(with: headerView)
       items.append(headerItem)
-
-      if !collapsedFamilies.contains(family.name) {
-        for model in availableModels {
-          let view = ModelItemView(
-            model: model,
-            server: server,
-            modelManager: modelManager,
-            actionHandler: actionHandler,
-            isInCatalog: true
-          )
-          items.append(NSMenuItem.viewItem(with: view))
-        }
-      }
     }
 
     guard !items.isEmpty else { return }
@@ -273,15 +297,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.addItem(.separator())
 
     items.forEach { menu.addItem($0) }
-  }
-
-  private func toggleFamilyCollapsed(_ family: String) {
-    if collapsedFamilies.contains(family) {
-      collapsedFamilies.remove(family)
-    } else {
-      collapsedFamilies.insert(family)
-    }
-    rebuildMenuIfPossible()
   }
 
   // MARK: - Settings Section

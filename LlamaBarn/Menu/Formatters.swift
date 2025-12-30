@@ -151,6 +151,34 @@ extension Format {
     return result
   }
 
+  /// Formats family header text as "Family  ∣  Size · Size".
+  static func familyHeader(name: String, sizes: [String]) -> NSAttributedString {
+    let result = NSMutableAttributedString()
+
+    // Family name (more prominent)
+    result.append(
+      NSAttributedString(
+        string: name,
+        attributes: [
+          .font: Theme.Fonts.secondary,
+          .foregroundColor: Theme.Colors.modelIconTint,
+        ]))
+
+    if !sizes.isEmpty {
+      // Sizes list (less prominent)
+      let sizesText = "  ∣  " + sizes.joined(separator: " · ")
+      result.append(
+        NSAttributedString(
+          string: sizesText,
+          attributes: [
+            .font: Theme.Fonts.secondary,
+            .foregroundColor: Theme.Colors.textSecondary,
+          ]))
+    }
+
+    return result
+  }
+
   /// Formats model name as "Family Size" with configurable colors.
   /// Used by both installed and catalog model item views.
   static func modelName(
