@@ -4,6 +4,7 @@ import AppKit
 final class FamilyHeaderView: ItemView {
   private let label = Theme.tertiaryLabel()
   private let descriptionLabel = Theme.tertiaryLabel()
+  private let chevronView = NSImageView()
   let family: String
   private let onAction: ((String) -> Void)?
 
@@ -31,6 +32,14 @@ final class FamilyHeaderView: ItemView {
     descriptionLabel.cell?.truncatesLastVisibleLine = true
     descriptionLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
+    Theme.configure(
+      chevronView,
+      symbol: "chevron.right",
+      color: .tertiaryLabelColor,
+      pointSize: 10
+    )
+    chevronView.isHidden = onAction == nil || isExpanded
+
     let textStack = NSStackView(views: [label])
     textStack.orientation = .vertical
     textStack.alignment = .leading
@@ -43,12 +52,24 @@ final class FamilyHeaderView: ItemView {
 
     contentView.addSubview(textStack)
 
+    if !chevronView.isHidden {
+      contentView.addSubview(chevronView)
+      NSLayoutConstraint.activate([
+        chevronView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+        chevronView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+        textStack.trailingAnchor.constraint(equalTo: chevronView.leadingAnchor, constant: -8),
+      ])
+    } else {
+      NSLayoutConstraint.activate([
+        textStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+      ])
+    }
+
     NSLayoutConstraint.activate([
       textStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
       textStack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
       textStack.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor),
       textStack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
-      textStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
     ])
 
     // Accessibility
