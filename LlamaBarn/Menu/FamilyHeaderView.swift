@@ -3,16 +3,15 @@ import AppKit
 /// Interactive header for catalog families.
 final class FamilyHeaderView: ItemView {
   private let label = Theme.tertiaryLabel()
-  private let leadingChevron = NSImageView()
-  private let trailingChevron = NSImageView()
+  private let descriptionLabel = Theme.tertiaryLabel()
   let family: String
   private let onAction: ((String) -> Void)?
 
   init(
     family: String,
     sizes: [String],
-    showChevron: Bool = true,
-    showBackChevron: Bool = false,
+    description: String? = nil,
+    isExpanded: Bool = false,
     onAction: ((String) -> Void)? = nil
   ) {
     self.family = family
@@ -23,38 +22,32 @@ final class FamilyHeaderView: ItemView {
     label.attributedStringValue = Format.familyHeader(name: family, sizes: sizes)
     label.lineBreakMode = .byTruncatingTail
 
-    leadingChevron.translatesAutoresizingMaskIntoConstraints = false
-    Theme.configure(
-      leadingChevron, symbol: "chevron.left", color: Theme.Colors.textSecondary, pointSize: 11)
-    leadingChevron.isHidden = !showBackChevron
+    descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
+    descriptionLabel.stringValue = description ?? ""
+    descriptionLabel.isHidden = description == nil
+    descriptionLabel.maximumNumberOfLines = isExpanded ? 0 : 2
+    descriptionLabel.lineBreakMode = .byWordWrapping
+    descriptionLabel.cell?.wraps = true
+    descriptionLabel.cell?.truncatesLastVisibleLine = true
 
-    trailingChevron.translatesAutoresizingMaskIntoConstraints = false
-    Theme.configure(
-      trailingChevron, symbol: "chevron.right", color: Theme.Colors.textSecondary, pointSize: 11)
-    trailingChevron.isHidden = onAction == nil || !showChevron
+    let textStack = NSStackView(views: [label])
+    textStack.orientation = .vertical
+    textStack.alignment = .leading
+    textStack.spacing = 2
+    textStack.translatesAutoresizingMaskIntoConstraints = false
 
-    contentView.addSubview(label)
-    contentView.addSubview(leadingChevron)
-    contentView.addSubview(trailingChevron)
+    if let description = description, !description.isEmpty {
+      textStack.addArrangedSubview(descriptionLabel)
+    }
+
+    contentView.addSubview(textStack)
 
     NSLayoutConstraint.activate([
-      leadingChevron.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-      leadingChevron.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-      leadingChevron.widthAnchor.constraint(equalToConstant: 12),
-      leadingChevron.heightAnchor.constraint(equalToConstant: 12),
-
-      label.leadingAnchor.constraint(
-        equalTo: showBackChevron ? leadingChevron.trailingAnchor : contentView.leadingAnchor,
-        constant: showBackChevron ? 4 : 0
-      ),
-      label.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-      label.trailingAnchor.constraint(
-        lessThanOrEqualTo: trailingChevron.leadingAnchor, constant: -4),
-
-      trailingChevron.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-      trailingChevron.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-      trailingChevron.widthAnchor.constraint(equalToConstant: 12),
-      trailingChevron.heightAnchor.constraint(equalToConstant: 12),
+      textStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+      textStack.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+      textStack.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor),
+      textStack.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor),
+      textStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
     ])
 
     // Accessibility
@@ -69,7 +62,9 @@ final class FamilyHeaderView: ItemView {
 
   override var highlightEnabled: Bool { onAction != nil }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 22) }
+  override var intrinsicContentSize: NSSize {
+    NSSize(width: Layout.menuWidth, height: NSView.noIntrinsicMetric)
+  }
 
   override func mouseUp(with event: NSEvent) {
     super.mouseUp(with: event)

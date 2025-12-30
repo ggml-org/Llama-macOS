@@ -3,6 +3,7 @@ import Foundation
 struct ModelFamily {
   let name: String  // e.g. "Qwen3 2507"
   let series: String  // e.g. "qwen"
+  let description: String?  // optional description of the family
   let serverArgs: [String]?  // optional defaults for all models/builds
   let overheadMultiplier: Double  // overhead multiplier for file size
   let sizes: [ModelSize]
@@ -10,12 +11,14 @@ struct ModelFamily {
   init(
     name: String,
     series: String,
+    description: String? = nil,
     serverArgs: [String]? = nil,
     overheadMultiplier: Double = 1.05,
     sizes: [ModelSize]
   ) {
     self.name = name
     self.series = series
+    self.description = description
     self.serverArgs = serverArgs
     self.overheadMultiplier = overheadMultiplier
     self.sizes = sizes.sorted { $0.parameterCount < $1.parameterCount }

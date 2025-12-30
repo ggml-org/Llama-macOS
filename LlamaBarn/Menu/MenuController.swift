@@ -229,21 +229,22 @@ final class MenuController: NSObject, NSMenuDelegate {
   // MARK: - Catalog Section
 
   private func addFamilyDetailSection(to menu: NSMenu, familyName: String) {
+    guard let family = Catalog.families.first(where: { $0.name == familyName }) else { return }
+
     menu.addItem(.separator())
 
     // Back Header
     let backView = FamilyHeaderView(
       family: familyName,
       sizes: [],
-      showChevron: false,
-      showBackChevron: true
+      description: family.description,
+      isExpanded: true
     ) { [weak self] _ in
       self?.selectedFamily = nil
       self?.rebuildMenuIfPossible()
     }
     menu.addItem(NSMenuItem.viewItem(with: backView))
 
-    guard let family = Catalog.families.first(where: { $0.name == familyName }) else { return }
     let validModels = family.selectableModels()
     let availableModels = validModels.filter {
       modelManager.status(for: $0) == .available
@@ -287,7 +288,8 @@ final class MenuController: NSObject, NSMenuDelegate {
 
       let headerView = FamilyHeaderView(
         family: family.name,
-        sizes: sizes
+        sizes: sizes,
+        description: family.description
       ) { [weak self] familyName in
         self?.selectedFamily = familyName
         self?.rebuildMenuIfPossible()
