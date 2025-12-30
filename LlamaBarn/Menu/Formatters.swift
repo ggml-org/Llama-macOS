@@ -107,7 +107,7 @@ extension Format {
 
   /// Formats model metadata text.
   /// Format: "2.53 GB · 128k ctx · 4.2 GB mem"
-  /// If incompatibility is provided: "2.53 GB · requires 32 GB+ of memory"
+  /// If incompatibility is provided: "requires 32 GB+ of memory"
   static func modelMetadata(
     for model: CatalogEntry,
     color: NSColor = Theme.Colors.textPrimary,
@@ -120,20 +120,17 @@ extension Format {
       .foregroundColor: color,
     ]
 
-    // Size on disk
-    result.append(
-      NSAttributedString(string: model.totalSize, attributes: attributes))
-
-    // Quantization moved to model name
-
     if let incompatibility = incompatibility {
-      result.append(Format.metadataSeparator())
       let warningAttr: [NSAttributedString.Key: Any] = [
         .font: Theme.Fonts.secondary,
         .foregroundColor: Theme.Colors.textSecondary,
       ]
       result.append(NSAttributedString(string: incompatibility, attributes: warningAttr))
     } else {
+      // Size on disk
+      result.append(
+        NSAttributedString(string: model.totalSize, attributes: attributes))
+
       // Calculate desired tokens and usable context
       let desiredTokens: Int
       if UserSettings.defaultContextWindow == .max {
