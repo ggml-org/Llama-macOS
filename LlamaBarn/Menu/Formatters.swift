@@ -165,7 +165,7 @@ extension Format {
         string: name,
         attributes: [
           .font: Theme.Fonts.secondary,
-          .foregroundColor: Theme.Colors.modelIconTint,
+          .foregroundColor: Theme.Colors.textPrimary,
         ]))
 
     if !sizes.isEmpty {

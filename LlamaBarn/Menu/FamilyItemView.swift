@@ -21,7 +21,7 @@ final class FamilyItemView: StandardItemView {
 
     // Title
     titleLabel.font = Theme.Fonts.secondary
-    titleLabel.textColor = Theme.Colors.textSecondary
+    titleLabel.textColor = Theme.Colors.textPrimary
     titleLabel.attributedStringValue = Format.familyItem(name: family, sizes: sizes)
     titleLabel.lineBreakMode = .byTruncatingTail
 
