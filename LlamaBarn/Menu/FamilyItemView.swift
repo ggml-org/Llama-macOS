@@ -10,7 +10,6 @@ final class FamilyItemView: StandardItemView {
     family: String,
     sizes: [(String, Bool)],
     description: String? = nil,
-    isExpanded: Bool = false,
     onAction: ((String) -> Void)? = nil
   ) {
     self.family = family
@@ -37,8 +36,8 @@ final class FamilyItemView: StandardItemView {
     configureSubtitle(description, width: availableWidth)
 
     if description != nil {
-      subtitleLabel.maximumNumberOfLines = isExpanded ? 0 : 1
-      subtitleLabel.lineBreakMode = isExpanded ? .byWordWrapping : .byTruncatingTail
+      subtitleLabel.maximumNumberOfLines = 1
+      subtitleLabel.lineBreakMode = .byTruncatingTail
       subtitleLabel.cell?.truncatesLastVisibleLine = true
       subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     }
@@ -50,7 +49,7 @@ final class FamilyItemView: StandardItemView {
       color: .tertiaryLabelColor,
       pointSize: 10
     )
-    chevronView.isHidden = onAction == nil || isExpanded
+    chevronView.isHidden = onAction == nil
 
     accessoryStack.addArrangedSubview(chevronView)
 
