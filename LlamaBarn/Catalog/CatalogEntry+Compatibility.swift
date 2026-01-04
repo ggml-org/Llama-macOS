@@ -99,7 +99,7 @@ extension CatalogEntry {
   }
 
   /// Calculates available memory budget in MB based on system memory
-  private static func memoryBudget(systemMemoryMb: UInt64) -> Double {
+  static func memoryBudget(systemMemoryMb: UInt64) -> Double {
     let memoryFraction = availableMemoryFraction(forSystemMemoryMb: systemMemoryMb)
     return Double(systemMemoryMb) * memoryFraction
   }

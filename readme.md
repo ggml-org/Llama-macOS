@@ -1,6 +1,6 @@
 # LlamaBarn
 
-LlamaBarn is a tiny (`12 MB`) menu bar app that makes running local LLMs as easy as connecting to Wi-Fi.
+LlamaBarn is a tiny menu bar app that makes running local LLMs as easy as connecting to Wi-Fi.
 
 <br>
 
@@ -21,10 +21,9 @@ Other tools automate some tasks but often create new problems, such as bloated i
 LlamaBarn stands out as a clean, platform-focused solution:
 
 - **Platform, not a product** — Like Wi-Fi for your Mac, it lets you use local models in any app (chat UIs, editors, scripts) via a standard API — no vendor lock-in.
-- **Native macOS App** — Built with Swift for optimal performance and minimal resource use.
-- **Simple GUI for llama.cpp** — Menu bar interface that handles all technical setup without terminal hassle.
+- **Native macOS App** — Tiny (`12 MB`) app built with Swift for optimal performance and minimal resource use.
 - **Seamless llama.cpp integration** — Part of the GGML org and built alongside llama.cpp for optimal performance and reliability.
-- **Built-in model library** — Auto-configured for optimal performance based on your Mac's specs and model recommendations.
+- **Built-in model catalog** — Auto-configured for optimal performance based on your Mac's specs and model recommendations.
 
 ## How it works
 
@@ -58,3 +57,8 @@ curl http://localhost:2276/v1/chat/completions \
 ```
 
 See complete reference in `llama-server` [docs ↗](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints)
+
+## Roadmap
+
+- [ ] Option to expose to local network
+- [ ] Support for adding models outside the built-in catalog

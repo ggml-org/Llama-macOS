@@ -147,7 +147,19 @@ extension Format {
       result.append(Format.metadataSeparator())
       let memMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(displayUsableCtx))
       let memString = Format.memory(mb: memMb)
-      result.append(NSAttributedString(string: memString + " mem", attributes: attributes))
+
+      var memAttributes = attributes
+      let sysMem = SystemMemory.memoryMb
+      let budgetMb = CatalogEntry.memoryBudget(systemMemoryMb: sysMem)
+
+      // If estimated usage is close to budget (within 5MB), use italics
+      // to indicate we've hit the memory cap for context length.
+      if Double(memMb) >= (budgetMb - 5) {
+        memAttributes[.font] = NSFontManager.shared.convert(
+          Theme.Fonts.secondary, toHaveTrait: .italicFontMask)
+      }
+
+      result.append(NSAttributedString(string: memString + " mem", attributes: memAttributes))
     }
 
     // Vision support removed - now shown in model name
