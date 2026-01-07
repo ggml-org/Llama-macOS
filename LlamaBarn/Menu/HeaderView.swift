@@ -84,18 +84,18 @@ final class HeaderView: ItemView {
     copyWebUiSpacer.widthAnchor.constraint(equalToConstant: 8).isActive = true
     statusStackView.addArrangedSubview(copyWebUiSpacer)
 
-    statusStackView.addArrangedSubview(webUiLabel)
+    // Flexible spacer to right-align Web UI
+    let webUiSpacer = NSView()
+    webUiSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
+    statusStackView.addArrangedSubview(webUiSpacer)
 
-    // Spacer
-    let spacer = NSView()
-    spacer.setContentHuggingPriority(.init(1), for: .horizontal)
-    statusStackView.addArrangedSubview(spacer)
+    statusStackView.addArrangedSubview(webUiLabel)
   }
 
   func refresh() {
     // Update server status based on server state.
     if server.isRunning {
-      appNameLabel.stringValue = "LlamaBarn is running on port \(LlamaServer.defaultPort)"
+      appNameLabel.stringValue = "LlamaBarn"
 
       let host =
         UserSettings.exposeToNetwork ? (LlamaServer.getLocalIpAddress() ?? "0.0.0.0") : "localhost"
@@ -110,8 +110,9 @@ final class HeaderView: ItemView {
       statusLabel.textColor = Theme.Colors.textSecondary
       statusLabel.isHidden = false
 
+      let displayString = apiUrlString.replacingOccurrences(of: "http://", with: "")
       let attrTitle = NSAttributedString(
-        string: apiUrlString,
+        string: displayString,
         attributes: [
           .foregroundColor: Theme.Colors.textPrimary,
           .font: Theme.Fonts.secondary,
