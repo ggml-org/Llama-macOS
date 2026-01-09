@@ -147,7 +147,33 @@ final class MenuController: NSObject, NSMenuDelegate {
     // User settings changed - rebuild menu
     observe(.LBUserSettingsDidChange, rebuildMenu: true)
 
+    // Download failed - show alert
+    NotificationCenter.default.addObserver(
+      forName: .LBModelDownloadDidFail, object: nil, queue: .main
+    ) { [weak self] note in
+      MainActor.assumeIsolated {
+        self?.handleDownloadFailure(notification: note)
+      }
+    }
+
     refresh()
+  }
+
+  private func handleDownloadFailure(notification: Notification) {
+    guard let userInfo = notification.userInfo,
+      let model = userInfo["model"] as? CatalogEntry,
+      let error = userInfo["error"] as? String
+    else { return }
+
+    // Activate the app to ensure the modal alert appears in front of other windows
+    NSApp.activate(ignoringOtherApps: true)
+
+    let alert = NSAlert()
+    alert.alertStyle = .critical
+    alert.messageText = "Download Failed"
+    alert.informativeText = "Could not download \(model.displayName).\n\nDetails: \(error)"
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
   }
 
   private func refresh() {

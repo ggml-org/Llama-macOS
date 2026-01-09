@@ -342,6 +342,11 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       self.logger.error("Model download failed (\(reason)) for model: \(model.displayName)")
       self.cancelActiveDownload(modelId: modelId)
       self.postDownloadsDidChange()
+      NotificationCenter.default.post(
+        name: .LBModelDownloadDidFail,
+        object: self,
+        userInfo: ["model": model, "error": reason]
+      )
     }
   }
 
@@ -408,6 +413,14 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
             aggregate.removeTask(with: task.taskIdentifier)
           }
           self.postDownloadsDidChange()
+
+          if let model = Catalog.findModel(id: modelId) {
+            NotificationCenter.default.post(
+              name: .LBModelDownloadDidFail,
+              object: self,
+              userInfo: ["model": model, "error": error.localizedDescription]
+            )
+          }
         }
       }
     }
