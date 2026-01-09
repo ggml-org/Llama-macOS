@@ -46,6 +46,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Only track HTTP errors from external services (like Hugging Face), not localhost.
         // llama-server health checks return expected 503 responses during model loading.
         options.failedRequestTargets = ["huggingface.co"]
+
+        // Filter out non-actionable network errors globally so they don't use up quota
+        options.beforeSend = { event, hint in
+          // Check for NSError in the hint
+          let error = (hint as? [String: Any])?["error"] as? NSError
+
+          if let error = error {
+            let ignoredCodes = [
+              NSURLErrorCancelled,
+              NSURLErrorNotConnectedToInternet,
+              NSURLErrorNetworkConnectionLost,
+            ]
+            if error.domain == NSURLErrorDomain && ignoredCodes.contains(error.code) {
+              return nil  // Drop this event
+            }
+          }
+          return event
+        }
       }
     #endif
 
