@@ -62,7 +62,7 @@ final class HeaderView: ItemView {
     let copyClick = NSClickGestureRecognizer(target: self, action: #selector(copyUrl))
     copyImageView.addGestureRecognizer(copyClick)
 
-    // Web UI Label Configuration
+    // WebUI Label Configuration
     let webUiClick = NSClickGestureRecognizer(target: self, action: #selector(openWebUi))
     webUiLabel.addGestureRecognizer(webUiClick)
     webUiLabel.isSelectable = false
@@ -108,7 +108,7 @@ final class HeaderView: ItemView {
       webUiLabel.isHidden = false
 
       let attrWebUi = NSAttributedString(
-        string: "Web UI",
+        string: "WebUI",
         attributes: [
           .foregroundColor: NSColor.linkColor,
           .font: Theme.Fonts.secondary,

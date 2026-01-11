@@ -31,7 +31,7 @@ LlamaBarn runs as a menu bar app on your Mac.
 
 - **Install a model from the built-in catalog** -- only models that can run on your Mac are shown
 - **Select an installed model to run it** -- configures and starts a server at `http://localhost:2276`
-- **Use the running model via the API or web UI** -- both at `http://localhost:2276`
+- **Use the running model via the API or WebUI** -- both at `http://localhost:2276`
 
 ## Common use cases
 
@@ -43,7 +43,7 @@ Connect to any app that supports custom APIs, such as:
 - **Editor extensions** like `Cline` or `Continue`
 - **Custom scripts** using `curl` or libs like `AI SDK`
 
-Or use the built-in web UI at `http://localhost:2276` to chat with the running model directly.
+Or use the built-in WebUI at `http://localhost:2276` to chat with the running model directly.
 
 ## API Reference
 
