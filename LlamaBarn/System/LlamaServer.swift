@@ -267,9 +267,11 @@ class LlamaServer {
     stopHealthCheck()
 
     healthCheckTask = Task {
-      // Poll /health to detect when model loading completes. llama-server returns 503 while
-      // loading and 200 when ready. Polling is the recommended approach as there's no standard
-      // signal for process readiness. Try for up to 30 seconds with 2-second intervals.
+      // Poll /health to detect when the server is ready. In Router Mode, llama-server starts
+      // without loading any model and returns 503 until the server infrastructure is ready,
+      // then 200 when it can accept requests. Models are loaded on-demand. Polling is the
+      // recommended approach as there's no standard signal for process readiness.
+      // Try for up to 30 seconds with 2-second intervals.
       for _ in 1...15 {
         if Task.isCancelled { return }
 
