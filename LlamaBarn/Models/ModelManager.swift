@@ -120,6 +120,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
 
     // Optimistically update state immediately for responsive UI
     downloadedModels.removeAll { $0.id == model.id }
+    updatePresetsFile()
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
 
     // Move file deletion to background queue to avoid blocking main thread
@@ -145,8 +146,73 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
     let manager = ModelManager.shared
     manager.downloadedModels.append(model)
     manager.downloadedModels.sort(by: CatalogEntry.displayOrder(_:_:))
+    manager.updatePresetsFile()
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: manager)
     logger.error("Failed to delete model: \(error.localizedDescription)")
+  }
+
+  /// Updates the `presets.ini` file required for using llama-server in Router Mode.
+  /// This file lists all installed models and their configuration parameters.
+  func updatePresetsFile() {
+    let presets = generatePresetsContent()
+    let destinationURL = CatalogEntry.modelStorageDirectory.appendingPathComponent("presets.ini")
+    do {
+      try presets.write(to: destinationURL, atomically: true, encoding: .utf8)
+      logger.info("Updated presets file at \(destinationURL.path)")
+    } catch {
+      logger.error("Failed to write presets file: \(error)")
+    }
+  }
+
+  private func generatePresetsContent() -> String {
+    var content = ""
+    for model in downloadedModels {
+      content += "[\(model.id)]\n"
+      content += "model = \(model.modelFilePath)\n"
+
+      if model.ctxWindow > 0 {
+        content += "ctx_size = \(model.ctxWindow)\n"
+      }
+
+      if let mmproj = model.mmprojFilePath {
+        content += "mmproj = \(mmproj)\n"
+      }
+
+      // Enable larger batch size for better performance on high-memory devices (≥32 GB RAM)
+      let systemMemoryGb = Double(SystemMemory.memoryMb) / 1024.0
+      if systemMemoryGb >= 32.0 {
+        content += "ubatch_size = 2048\n"
+      }
+
+      // Add model-specific server arguments (sampling params, etc.)
+      // We process only long arguments (e.g. "--temp" -> "0.7") to simplify parsing.
+      // Short arguments are disallowed in the catalog to ensure consistent INI generation.
+      var i = 0
+      while i < model.serverArgs.count {
+        let arg = model.serverArgs[i]
+
+        // We only process arguments starting with "--"
+        guard arg.hasPrefix("--") else {
+          i += 1
+          continue
+        }
+
+        let key = String(arg.dropFirst(2)).replacingOccurrences(of: "-", with: "_")
+
+        if i + 1 < model.serverArgs.count && !model.serverArgs[i + 1].hasPrefix("-") {
+          // Key-value pair (e.g. --temp 0.7)
+          content += "\(key) = \(model.serverArgs[i + 1])\n"
+          i += 2
+        } else {
+          // Boolean flag (e.g. --no-mmap)
+          content += "\(key) = true\n"
+          i += 1
+        }
+      }
+
+      content += "\n"
+    }
+    return content
   }
 
   /// Scans the local models directory and updates the list of downloaded models.
@@ -182,6 +248,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
   private static func updateDownloadedModels(_ models: [CatalogEntry]) {
     let manager = ModelManager.shared
     manager.downloadedModels = models.sorted(by: CatalogEntry.displayOrder(_:_:))
+    manager.updatePresetsFile()
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: manager)
   }
 

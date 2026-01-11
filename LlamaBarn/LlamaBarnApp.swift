@@ -88,6 +88,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Create the AppKit-based status bar menu (installed models only for now)
     menuController = MenuController()
 
+    // Start the server in Router Mode
+    LlamaServer.shared.start()
+
     // Listen for explicit update requests from the menu controller
     updatesObserver = NotificationCenter.default.addObserver(
       forName: .LBCheckForUpdates, object: nil, queue: .main

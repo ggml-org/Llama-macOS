@@ -22,10 +22,9 @@ final class ModelActionHandler {
   func performPrimaryAction(for model: CatalogEntry) {
     if modelManager.isInstalled(model) {
       if server.isActive(model: model) {
-        server.stop()
+        server.unloadModel()
       } else {
-        let maximizeContext = NSEvent.modifierFlags.contains(.option)
-        server.start(model: model, maximizeContext: maximizeContext)
+        server.loadModel(model)
       }
     } else if modelManager.isDownloading(model) {
       modelManager.cancelModelDownload(model)

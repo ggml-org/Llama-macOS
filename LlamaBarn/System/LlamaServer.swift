@@ -58,12 +58,7 @@ class LlamaServer {
   }
 
   /// Basic validation of required paths
-  private func validatePaths(modelPath: String) throws {
-    guard FileManager.default.fileExists(atPath: modelPath) else {
-      logger.error("Model file not found: \(modelPath)")
-      throw LlamaServerError.invalidPath(modelPath)
-    }
-
+  private func validatePaths() throws {
     let llamaServerPath = libFolderPath + "/llama-server"
     guard FileManager.default.fileExists(atPath: llamaServerPath) else {
       logger.error("llama-server binary not found: \(llamaServerPath)")
@@ -101,20 +96,14 @@ class LlamaServer {
     }
   }
 
-  /// Launches llama-server with specified model and configuration
-  func start(
-    modelName: String,
-    modelPath: String,
-    appliedCtxWindow: Int,
-    mmprojPath: String? = nil,
-    extraArgs: [String] = []
-  ) {
+  /// Launches llama-server in Router Mode
+  func start() {
     let port = Self.defaultPort
     stop()
 
     // Validate paths
     do {
-      try validatePaths(modelPath: modelPath)
+      try validatePaths()
     } catch let error as LlamaServerError {
       self.state = .error(error)
       return
@@ -125,17 +114,17 @@ class LlamaServer {
 
     state = .loading
 
-    activeModelPath = modelPath
-    activeCtxWindow = appliedCtxWindow
+    Task { @MainActor in ModelManager.shared.updatePresetsFile() }
+    let presetsPath = CatalogEntry.modelStorageDirectory.appendingPathComponent("presets.ini").path
 
     let llamaServerPath = libFolderPath + "/llama-server"
 
     let env = ["GGML_METAL_NO_RESIDENCY": "1"]
 
     var arguments = [
-      "--model", modelPath,
+      "--models-preset", presetsPath,
       "--port", String(port),
-      "--alias", modelName,
+      "--models-max", "1",
       "--log-file", "/tmp/llama-server.log",
       "--jinja",
     ]
@@ -144,23 +133,6 @@ class LlamaServer {
     if UserSettings.exposeToNetwork {
       arguments.append(contentsOf: ["--host", "0.0.0.0"])
     }
-
-    // Vision models (e.g., Qwen3-VL) require a multimodal projector file named mmproj-*.gguf
-    // to enable image understanding capabilities.
-    if let mmprojPath = mmprojPath {
-      arguments.append(contentsOf: ["--mmproj", mmprojPath])
-    }
-
-    // Enable larger batch size (-ub 2048) for better model performance on high-memory devices.
-    // This improves throughput but increases memory usage, so we only enable it on Macs with ≥32 GB RAM.
-    let systemMemoryGb = Double(SystemMemory.memoryMb) / 1024.0
-    if systemMemoryGb >= 32.0 {
-      arguments.append(contentsOf: ["-ub", "2048"])
-    }
-
-    // Merge in caller-provided args (may include ctx-size from catalog), but we'll prepend
-    // an auto-selected ctx-size later if none is provided.
-    arguments.append(contentsOf: extraArgs)
 
     let workingDirectory = URL(fileURLWithPath: llamaServerPath).deletingLastPathComponent().path
 
@@ -182,7 +154,7 @@ class LlamaServer {
         guard let self = self else { return }
 
         // Skip handler if we're already idle (intentional stop) or no model was running
-        guard self.state != .idle, self.activeModelPath != nil else { return }
+        guard self.state != .idle else { return }
 
         if self.activeProcess == proc {
           self.cleanUpResources()
@@ -267,26 +239,24 @@ class LlamaServer {
     return activeModelPath == model.modelFilePath
   }
 
-  /// Convenience method to start server using a CatalogEntry
-  func start(model: CatalogEntry, maximizeContext: Bool = false) {
-    guard
-      let launch = makeLaunchConfiguration(
-        for: model, requestedCtx: nil, maximizeContext: maximizeContext)
-    else {
-      let reason =
-        model.incompatibilitySummary()
-        ?? "insufficient memory for required context"
-      self.state = .error(.launchFailed(reason))
-      return
+  /// Switch the active model in the UI. In Router Mode, this doesn't restart the server,
+  /// but updates what LlamaBarn considers the "current" model.
+  func loadModel(_ model: CatalogEntry) {
+    if !isRunning && !isLoading {
+      start()
     }
 
-    start(
-      modelName: model.displayName,
-      modelPath: model.modelFilePath,
-      appliedCtxWindow: launch.applied,
-      mmprojPath: model.mmprojFilePath,
-      extraArgs: launch.args
-    )
+    // In Router Mode with --models-autoload, the model will be loaded on demand.
+    // We update local state so the UI knows what's selected.
+    self.activeModelPath = model.modelFilePath
+    self.activeCtxWindow = model.ctxWindow
+    logger.info("Selected active model: \(model.displayName)")
+  }
+
+  /// Deselects the current model in the UI.
+  func unloadModel() {
+    activeModelPath = nil
+    activeCtxWindow = nil
   }
 
   private func makeLaunchConfiguration(

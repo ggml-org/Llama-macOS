@@ -16,8 +16,7 @@ extension Catalog {
       series: "gpt",
       description:
         "OpenAI's first open-weight models since GPT-2. Built for reasoning, agentic tasks, and developer use with function calling and tool use capabilities.",
-      // Sliding-window family: use max context by default
-      serverArgs: ["-c", "0", "--temp", "1.0", "--top-p", "1.0"],
+      serverArgs: ["--temp", "1.0", "--top-p", "1.0"],
       sizes: [
         ModelSize(
           name: "20B",
@@ -588,8 +587,7 @@ extension Catalog {
       series: "nvidia",
       description:
         "NVIDIA's efficient hybrid MoE model for agentic AI. Built for reasoning, coding, and tool use with 1M token context and 4x faster throughput.",
-      // Sliding-window family: use max context by default
-      serverArgs: ["-c", "0"],
+      serverArgs: nil,
       sizes: [
         ModelSize(
           name: "30B-A3B",
