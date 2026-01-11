@@ -48,11 +48,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         options.failedRequestTargets = ["huggingface.co"]
 
         // Filter out non-actionable network errors globally so they don't use up quota
-        options.beforeSend = { event, hint in
-          // Check for NSError in the hint
-          let error = (hint as? [String: Any])?["error"] as? NSError
-
-          if let error = error {
+        options.beforeSend = { event in
+          // Check if this is a network error we want to ignore
+          if let error = event.error as NSError? {
             let ignoredCodes = [
               NSURLErrorCancelled,
               NSURLErrorNotConnectedToInternet,
