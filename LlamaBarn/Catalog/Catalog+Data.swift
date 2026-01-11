@@ -67,7 +67,7 @@ extension Catalog {
       name: "Gemma 3",
       series: "gemma",
       description:
-        "Google's multimodal models built from Gemini technology. Supports 140+ languages, vision, and text tasks with 128K context for edge to cloud deployment.",
+        "Google's multimodal models built from Gemini technology. Supports 140+ languages, vision, and text tasks with up to 128K context for edge to cloud deployment.",
       serverArgs: nil,
       overheadMultiplier: 1.3,
       sizes: [
@@ -135,7 +135,7 @@ extension Catalog {
           name: "1B",
           parameterCount: 999_885_952,
           releaseDate: date(2025, 8, 27),
-          ctxWindow: 131_072,
+          ctxWindow: 32_768,
           ctxBytesPer1kTokens: 4_194_304,
           build: ModelBuild(
             id: "gemma-3-qat-1b",
