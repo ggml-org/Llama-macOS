@@ -18,10 +18,27 @@ enum UserSettings {
     }
   }
 
+  enum SleepIdleTime: Int, CaseIterable {
+    case disabled = -1
+    case fiveMin = 300
+    case fifteenMin = 900
+    case oneHour = 3600
+
+    var displayName: String {
+      switch self {
+      case .disabled: return "Off"
+      case .fiveMin: return "5m"
+      case .fifteenMin: return "15m"
+      case .oneHour: return "1h"
+      }
+    }
+  }
+
   private enum Keys {
     static let hasSeenWelcome = "hasSeenWelcome"
     static let exposeToNetwork = "exposeToNetwork"
     static let defaultContextWindow = "defaultContextWindow"
+    static let sleepIdleTime = "sleepIdleTime"
   }
 
   private static let defaults = UserDefaults.standard
@@ -60,6 +77,21 @@ enum UserSettings {
     set {
       guard defaults.integer(forKey: Keys.defaultContextWindow) != newValue.rawValue else { return }
       defaults.set(newValue.rawValue, forKey: Keys.defaultContextWindow)
+      NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+    }
+  }
+
+  /// How long to wait before unloading the model from memory when idle.
+  /// Defaults to -1 (disabled).
+  static var sleepIdleTime: SleepIdleTime {
+    get {
+      let value = defaults.integer(forKey: Keys.sleepIdleTime)
+      // 0 is returned if key is missing, which is not a valid case, so fallback to .disabled (-1)
+      return SleepIdleTime(rawValue: value) ?? .disabled
+    }
+    set {
+      guard defaults.integer(forKey: Keys.sleepIdleTime) != newValue.rawValue else { return }
+      defaults.set(newValue.rawValue, forKey: Keys.sleepIdleTime)
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
     }
   }

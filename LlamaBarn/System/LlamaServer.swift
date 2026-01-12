@@ -136,6 +136,13 @@ class LlamaServer {
       arguments.append(contentsOf: ["--host", "0.0.0.0"])
     }
 
+    // Unload model from memory when idle
+    if UserSettings.sleepIdleTime != .disabled {
+      arguments.append(contentsOf: [
+        "--sleep-idle-seconds", String(UserSettings.sleepIdleTime.rawValue),
+      ])
+    }
+
     let workingDirectory = URL(fileURLWithPath: llamaServerPath).deletingLastPathComponent().path
 
     let process = Process()

@@ -358,6 +358,10 @@ final class MenuController: NSObject, NSMenuDelegate {
     let contextItem = makeContextLengthItem()
     contextItem.tag = settingsTag
     menu.addItem(contextItem)
+
+    let sleepItem = makeSleepIdleItem()
+    sleepItem.tag = settingsTag
+    menu.addItem(sleepItem)
   }
 
   private func makeLaunchAtLoginItem() -> NSMenuItem {
@@ -403,6 +407,25 @@ final class MenuController: NSObject, NSMenuDelegate {
         onSelect: { index in
           if index >= 0 && index < UserSettings.ContextWindowSize.allCases.count {
             UserSettings.defaultContextWindow = UserSettings.ContextWindowSize.allCases[index]
+          }
+        }
+      ))
+  }
+
+  private func makeSleepIdleItem() -> NSMenuItem {
+    let labels = UserSettings.SleepIdleTime.allCases.map { $0.displayName }
+
+    return NSMenuItem.viewItem(
+      with: SettingsSegmentedView(
+        title: "Sleep when idle",
+        infoText: "Automatically unloads the model from memory when not in use.",
+        labels: labels,
+        getSelectedIndex: {
+          UserSettings.SleepIdleTime.allCases.firstIndex(of: UserSettings.sleepIdleTime) ?? 0
+        },
+        onSelect: { index in
+          if index >= 0 && index < UserSettings.SleepIdleTime.allCases.count {
+            UserSettings.sleepIdleTime = UserSettings.SleepIdleTime.allCases[index]
           }
         }
       ))
