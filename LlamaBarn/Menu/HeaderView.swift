@@ -77,61 +77,49 @@ final class HeaderView: ItemView {
   }
 
   func refresh() {
-    // Update server status based on server state.
-    if server.isRunning {
-      appNameLabel.stringValue = "LlamaBarn"
+    // Connect to server info
+    appNameLabel.stringValue = "LlamaBarn"
 
-      let host =
-        UserSettings.exposeToNetwork ? (LlamaServer.getLocalIpAddress() ?? "0.0.0.0") : "localhost"
-      let linkText = "\(host):\(LlamaServer.defaultPort)"
-      let apiUrlString = "http://\(linkText)/v1"
-      let webUiUrlString = "http://\(linkText)/"
+    let host =
+      UserSettings.exposeToNetwork ? (LlamaServer.getLocalIpAddress() ?? "0.0.0.0") : "localhost"
+    let linkText = "\(host):\(LlamaServer.defaultPort)"
+    let apiUrlString = "http://\(linkText)/v1"
+    let webUiUrlString = "http://\(linkText)/"
 
-      self.currentUrl = URL(string: apiUrlString)!
-      self.webUiUrl = URL(string: webUiUrlString)!
+    self.currentUrl = URL(string: apiUrlString)!
+    self.webUiUrl = URL(string: webUiUrlString)!
 
-      statusLabel.stringValue = "Base URL: "
-      statusLabel.textColor = Theme.Colors.textSecondary
-      statusLabel.isHidden = false
+    statusLabel.stringValue = "Base URL: "
+    statusLabel.textColor = Theme.Colors.textSecondary
+    statusLabel.isHidden = false
 
-      let displayString = apiUrlString.replacingOccurrences(of: "http://", with: "")
-      let attrTitle = NSAttributedString(
-        string: displayString,
-        attributes: [
-          .foregroundColor: Theme.Colors.textPrimary,
-          .font: Theme.Fonts.secondary,
-        ]
-      )
-      linkLabel.attributedStringValue = attrTitle
-      linkLabel.isHidden = false
-      copyImageView.isHidden = false
-      webUiLabel.isHidden = false
+    let displayString = apiUrlString.replacingOccurrences(of: "http://", with: "")
+    let attrTitle = NSAttributedString(
+      string: displayString,
+      attributes: [
+        .foregroundColor: Theme.Colors.textPrimary,
+        .font: Theme.Fonts.secondary,
+      ]
+    )
+    linkLabel.attributedStringValue = attrTitle
+    linkLabel.isHidden = false
+    copyImageView.isHidden = false
+    webUiLabel.isHidden = false
 
-      let attrWebUi = NSAttributedString(
-        string: "WebUI",
-        attributes: [
-          .foregroundColor: NSColor.linkColor,
-          .font: Theme.Fonts.secondary,
-          .underlineStyle: NSUnderlineStyle.single.rawValue,
-        ]
-      )
-      webUiLabel.attributedStringValue = attrWebUi
+    let attrWebUi = NSAttributedString(
+      string: "WebUI",
+      attributes: [
+        .foregroundColor: NSColor.linkColor,
+        .font: Theme.Fonts.secondary,
+        .underlineStyle: NSUnderlineStyle.single.rawValue,
+      ]
+    )
+    webUiLabel.attributedStringValue = attrWebUi
 
-      // Update copy icon based on confirmation state
-      let iconName = showingCopyConfirmation ? "checkmark" : "doc.on.doc"
-      copyImageView.image = NSImage(
-        systemSymbolName: iconName, accessibilityDescription: "Copy URL")
-    } else {
-      appNameLabel.stringValue = "LlamaBarn"
-      statusLabel.stringValue = "Select a model to run"
-      statusLabel.textColor = Theme.Colors.textPrimary
-      statusLabel.isHidden = false
-      linkLabel.isHidden = true
-      webUiLabel.isHidden = true
-      copyImageView.isHidden = true
-      currentUrl = nil
-      webUiUrl = nil
-    }
+    // Update copy icon based on confirmation state
+    let iconName = showingCopyConfirmation ? "checkmark" : "doc.on.doc"
+    copyImageView.image = NSImage(
+      systemSymbolName: iconName, accessibilityDescription: "Copy URL")
 
     needsDisplay = true
   }
