@@ -248,6 +248,9 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // Always show models
     buildInstalledItems(models).forEach { menu.addItem($0) }
+
+    // Trailing separator after installed section
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
   }
 
   private func buildInstalledItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
@@ -266,8 +269,6 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   private func addFamilyDetailSection(to menu: NSMenu, familyName: String) {
     guard let family = Catalog.families.first(where: { $0.name == familyName }) else { return }
-
-    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     // Back Item
     let backView = TextItemView(text: "back", showBackArrow: true) { [weak self] in
@@ -347,8 +348,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     guard !items.isEmpty else { return }
-
-    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     items.forEach { menu.addItem($0) }
   }
