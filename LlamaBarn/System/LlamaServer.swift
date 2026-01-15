@@ -214,6 +214,11 @@ class LlamaServer {
     // Skip reload only if server is idle (never started or intentionally stopped)
     guard state != .idle else { return }
     logger.info("Restarting server to apply configuration changes")
+
+    // Regenerate models.ini before restarting to pick up any setting changes
+    // (e.g. context window size) that affect the INI content.
+    ModelManager.shared.updateModelsFile()
+
     start()
   }
 
