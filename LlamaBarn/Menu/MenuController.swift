@@ -17,6 +17,9 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   private var welcomePopover: WelcomePopover?
 
+  // Store observer tokens for proper cleanup
+  private var observers: [NSObjectProtocol] = []
+
   init(modelManager: ModelManager? = nil, server: LlamaServer? = nil) {
     self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     self.modelManager = modelManager ?? .shared
@@ -120,7 +123,8 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func observe(_ name: Notification.Name, rebuildMenu: Bool = false) {
-    NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
+    let observer = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main)
+    {
       [weak self] _ in
       MainActor.assumeIsolated {
         guard let self else { return }
@@ -130,6 +134,7 @@ final class MenuController: NSObject, NSMenuDelegate {
         self.refresh()
       }
     }
+    observers.append(observer)
   }
 
   // Observe server and download changes while the menu is open.
@@ -153,15 +158,23 @@ final class MenuController: NSObject, NSMenuDelegate {
     observe(.LBUserSettingsDidChange, rebuildMenu: true)
 
     // Download failed - show alert
-    NotificationCenter.default.addObserver(
+    let failObserver = NotificationCenter.default.addObserver(
       forName: .LBModelDownloadDidFail, object: nil, queue: .main
     ) { [weak self] note in
       MainActor.assumeIsolated {
         self?.handleDownloadFailure(notification: note)
       }
     }
+    observers.append(failObserver)
 
     refresh()
+  }
+
+  deinit {
+    // Remove all notification observers to prevent dangling references
+    for observer in observers {
+      NotificationCenter.default.removeObserver(observer)
+    }
   }
 
   private func handleDownloadFailure(notification: Notification) {

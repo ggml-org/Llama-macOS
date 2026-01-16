@@ -56,15 +56,26 @@ class LlamaServer {
 
   private var memoryTask: Task<Void, Never>?
 
+  // Store observer token for proper cleanup
+  private var settingsObserver: NSObjectProtocol?
+
   init() {
     libFolderPath = Bundle.main.bundlePath + "/Contents/MacOS/llama-cpp"
 
     // Listen for settings changes to reload server if needed (e.g. sleep timer)
-    NotificationCenter.default.addObserver(
+    settingsObserver = NotificationCenter.default.addObserver(
       forName: .LBUserSettingsDidChange, object: nil, queue: .main
     ) {
       [weak self] _ in
-      self?.reload()
+      MainActor.assumeIsolated {
+        self?.reload()
+      }
+    }
+  }
+
+  deinit {
+    if let settingsObserver {
+      NotificationCenter.default.removeObserver(settingsObserver)
     }
   }
 
