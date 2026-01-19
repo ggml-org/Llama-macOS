@@ -30,9 +30,9 @@ LlamaBarn runs a local server at `http://localhost:2276/v1`.
 ## Use with
 
 - **Chat UIs** — Chatbox, Open WebUI
-- **Editors** — VS Code, Zed, [Xcode](https://github.com/ggml-org/LlamaBarn/discussions/43)
+- **Editors** — VS Code, Zed, Xcode
 - **Editor extensions** — Cline, Continue
-- **CLI tools** — [OpenCode](https://github.com/ggml-org/LlamaBarn/discussions/44), Codex
+- **CLI tools** — OpenCode, Claude Code
 - **Custom scripts** — curl, AI SDK, any OpenAI-compatible client
 
 Or use the built-in WebUI at `http://localhost:2276`.
