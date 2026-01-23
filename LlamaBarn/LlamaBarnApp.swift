@@ -28,6 +28,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var updaterController: SPUStandardUpdaterController?
   private let logger = Logger(subsystem: Logging.subsystem, category: "AppDelegate")
   private var menuController: MenuController?
+  private var settingsWindowController: SettingsWindowController?
   private var updatesObserver: NSObjectProtocol?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -85,6 +86,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Create the AppKit-based status bar menu (installed models only for now)
     menuController = MenuController()
+
+    // Initialize settings window controller (listens for LBShowSettings notifications)
+    settingsWindowController = SettingsWindowController.shared
 
     // Start the server in Router Mode
     LlamaServer.shared.start()

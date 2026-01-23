@@ -11,9 +11,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   private var actionHandler: ModelActionHandler!
 
   // Section State
-  private var isSettingsOpen = false
   private var selectedFamily: String?
-  private let settingsTag = 999
 
   private var welcomePopover: WelcomePopover?
 
@@ -89,7 +87,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     guard menu === statusItem.menu else { return }
 
     // Reset section collapse state
-    isSettingsOpen = false
     selectedFamily = nil
   }
 
@@ -111,7 +108,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     addFooter(to: menu)
-    addSettingsSection(to: menu)
   }
 
   // MARK: - Live updates without closing submenus
@@ -221,7 +217,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     let footerView = FooterView(
       onCheckForUpdates: { [weak self] in self?.checkForUpdates() },
-      onOpenSettings: { [weak self] in self?.toggleSettings() },
+      onOpenSettings: { [weak self] in self?.openSettings() },
       onQuit: { [weak self] in self?.quitApp() }
     )
 
@@ -375,100 +371,9 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // MARK: - Settings Section
 
-  private func addSettingsSection(to menu: NSMenu) {
-    guard isSettingsOpen else { return }
-
-    let separator = NSMenuItem.viewItem(with: SeparatorView())
-    separator.tag = settingsTag
-    menu.addItem(separator)
-
-    let launchItem = makeLaunchAtLoginItem()
-    launchItem.tag = settingsTag
-    menu.addItem(launchItem)
-
-    let contextItem = makeContextLengthItem()
-    contextItem.tag = settingsTag
-    menu.addItem(contextItem)
-
-    let sleepItem = makeSleepIdleItem()
-    sleepItem.tag = settingsTag
-    menu.addItem(sleepItem)
-  }
-
-  private func makeLaunchAtLoginItem() -> NSMenuItem {
-    NSMenuItem.viewItem(
-      with: SettingsItemView(
-        title: "Launch at login",
-        getValue: { LaunchAtLogin.isEnabled },
-        onToggle: { newValue in
-          _ = LaunchAtLogin.setEnabled(newValue)
-        }
-      ))
-  }
-
-  private func makeContextLengthItem() -> NSMenuItem {
-    let contextWindowLabels = UserSettings.ContextWindowSize.allCases.map { $0.displayName }
-
-    let infoText: String = {
-      let sysMemMb = SystemMemory.memoryMb
-      guard sysMemMb > 0 else {
-        return
-          "Higher context lengths use more memory. The app may reduce the context length to stay within a safe memory budget."
-      }
-
-      // Calculate budget using the same formula as CatalogEntry.memoryBudget()
-      let budgetMb = CatalogEntry.memoryBudget(systemMemoryMb: sysMemMb)
-      let budgetGbRounded = Int((budgetMb / 1024.0).rounded())
-
-      return
-        "Higher context lengths use more memory. The app may reduce the context length to stay within a safe memory budget: \(budgetGbRounded)\u{00A0}GB on this Mac."
-    }()
-
-    return NSMenuItem.viewItem(
-      with: SettingsItemView(
-        title: "Context length",
-        infoText: infoText,
-        labels: contextWindowLabels,
-        getSelectedIndex: {
-          UserSettings.ContextWindowSize.allCases.firstIndex(of: UserSettings.defaultContextWindow)
-            ?? 0
-        },
-        onSelect: { index in
-          if index >= 0 && index < UserSettings.ContextWindowSize.allCases.count {
-            UserSettings.defaultContextWindow = UserSettings.ContextWindowSize.allCases[index]
-          }
-        }
-      ))
-  }
-
-  private func makeSleepIdleItem() -> NSMenuItem {
-    let labels = UserSettings.SleepIdleTime.allCases.map { $0.displayName }
-
-    return NSMenuItem.viewItem(
-      with: SettingsItemView(
-        title: "Unload when idle",
-        infoText: "Automatically unloads the model from memory when not in use.",
-        labels: labels,
-        getSelectedIndex: {
-          UserSettings.SleepIdleTime.allCases.firstIndex(of: UserSettings.sleepIdleTime) ?? 0
-        },
-        onSelect: { index in
-          if index >= 0 && index < UserSettings.SleepIdleTime.allCases.count {
-            UserSettings.sleepIdleTime = UserSettings.SleepIdleTime.allCases[index]
-          }
-        }
-      ))
-  }
-
-  private func toggleSettings() {
-    isSettingsOpen.toggle()
-
-    guard let menu = statusItem.menu else { return }
-
-    if isSettingsOpen {
-      addSettingsSection(to: menu)
-    } else {
-      menu.items.filter { $0.tag == settingsTag }.forEach { menu.removeItem($0) }
-    }
+  private func openSettings() {
+    // Close the menu first, then open settings window
+    statusItem.menu?.cancelTracking()
+    NotificationCenter.default.post(name: .LBShowSettings, object: nil)
   }
 }
