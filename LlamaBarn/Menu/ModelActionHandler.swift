@@ -52,9 +52,13 @@ final class ModelActionHandler {
   }
 
   func copyModelId(model: CatalogEntry) {
+    copyText(model.id)
+  }
+
+  func copyText(_ text: String) {
     let pasteboard = NSPasteboard.general
     pasteboard.clearContents()
-    pasteboard.setString(model.id, forType: .string)
+    pasteboard.setString(text, forType: .string)
   }
 
   private func startDownload(for model: CatalogEntry) {

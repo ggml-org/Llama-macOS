@@ -153,6 +153,13 @@ extension CatalogEntry {
     )
   }
 
+  /// Returns all context tiers that this model can support given device memory constraints.
+  var supportedContextTiers: [ContextTier] {
+    ContextTier.allCases.filter { tier in
+      isCompatible(ctxWindowTokens: Double(tier.rawValue))
+    }
+  }
+
   private struct CompatibilityInfo {
     let isCompatible: Bool
     let incompatibilitySummary: String?

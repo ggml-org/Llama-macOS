@@ -189,16 +189,11 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
 
   private func generateModelsFileContent() -> String {
     var content = ""
-    for model in downloadedModels {
-      content += "[\(model.id)]\n"
-      content += "model = \(model.modelFilePath)\n"
 
-      // Use the calculated usable context window to prevent OOM on devices with limited RAM.
-      // Falls back to the model's default if calculation fails (rare).
-      let ctxSize = model.usableCtxWindow() ?? model.ctxWindow
-      if ctxSize > 0 {
-        content += "ctx-size = \(ctxSize)\n"
-      }
+    func appendEntry(id: String, ctxSize: Int, for model: CatalogEntry) {
+      content += "[\(id)]\n"
+      content += "model = \(model.modelFilePath)\n"
+      content += "ctx-size = \(ctxSize)\n"
 
       if let mmproj = model.mmprojFilePath {
         content += "mmproj = \(mmproj)\n"
@@ -237,6 +232,27 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       }
 
       content += "\n"
+    }
+
+    for model in downloadedModels {
+      let tiers = model.supportedContextTiers
+
+      // If no supported tiers (unlikely if installed), fallback to safe default calculation
+      if tiers.isEmpty {
+        let safeCtx = model.usableCtxWindow() ?? (model.ctxWindow >= 4096 ? 4096 : model.ctxWindow)
+        appendEntry(id: model.id, ctxSize: safeCtx, for: model)
+        continue
+      }
+
+      for tier in tiers {
+        // Generate explicit tier entry
+        appendEntry(id: "\(model.id)\(tier.suffix)", ctxSize: tier.rawValue, for: model)
+
+        // Generate legacy base entry for 4k tier
+        if tier == .k4 {
+          appendEntry(id: model.id, ctxSize: tier.rawValue, for: model)
+        }
+      }
     }
     return content
   }

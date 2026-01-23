@@ -12,6 +12,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // Section State
   private var selectedFamily: String?
+  private var expandedModelId: String?
 
   private var welcomePopover: WelcomePopover?
 
@@ -271,15 +272,56 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func buildInstalledItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
-    return models.map { model in
+    var items = [NSMenuItem]()
+
+    for model in models {
+      let isExpanded = expandedModelId == model.id
+
       let view = ModelItemView(
         model: model,
         server: server,
         modelManager: modelManager,
-        actionHandler: actionHandler
+        actionHandler: actionHandler,
+        isExpanded: isExpanded,
+        onExpand: { [weak self] in
+          self?.toggleExpansion(for: model.id)
+        }
       )
-      return NSMenuItem.viewItem(with: view)
+      items.append(NSMenuItem.viewItem(with: view))
+
+      if isExpanded {
+        for tier in ContextTier.allCases {
+          let loadedId = server.loadedVariantId(for: model)
+          let isLoaded: Bool = {
+            guard let loadedId else { return false }
+            if tier == .k4 {
+              return loadedId == model.id || loadedId == "\(model.id)\(tier.suffix)"
+            }
+            return loadedId == "\(model.id)\(tier.suffix)"
+          }()
+
+          let variantView = VariantItemView(
+            model: model,
+            tier: tier,
+            isLoaded: isLoaded,
+            copyAction: { [weak self] text in
+              self?.actionHandler.copyText(text)
+            }
+          )
+          items.append(NSMenuItem.viewItem(with: variantView))
+        }
+      }
     }
+    return items
+  }
+
+  private func toggleExpansion(for modelId: String) {
+    if expandedModelId == modelId {
+      expandedModelId = nil
+    } else {
+      expandedModelId = modelId
+    }
+    rebuildMenuIfPossible()
   }
 
   // MARK: - Catalog Section

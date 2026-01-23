@@ -15,6 +15,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let actionHandler: ModelActionHandler
   private let isInCatalog: Bool
 
+  // Internal state for expansion
+  private let isExpanded: Bool
+  private let onExpand: (() -> Void)?
+
   // Labels
   private let titleLabel = Theme.primaryLabel()
   private let subtitleLabel = Theme.secondaryLabel()
@@ -28,6 +32,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   // Icon and action buttons
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
+  private let unloadButton = NSButton()
   private let finderButton = NSButton()
   private let deleteButton = NSButton()
   private let hfButton = NSButton()
@@ -39,24 +44,30 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   init(
     model: CatalogEntry, server: LlamaServer, modelManager: ModelManager,
-    actionHandler: ModelActionHandler, isInCatalog: Bool = false
+    actionHandler: ModelActionHandler, isInCatalog: Bool = false,
+    isExpanded: Bool = false, onExpand: (() -> Void)? = nil
   ) {
     self.model = model
     self.server = server
     self.modelManager = modelManager
     self.actionHandler = actionHandler
     self.isInCatalog = isInCatalog
+    self.isExpanded = isExpanded
+    self.onExpand = onExpand
     super.init(frame: .zero)
 
     iconView.imageView.image = NSImage(named: model.icon)
 
     // Configure action buttons
     Theme.configure(cancelImageView, symbol: "xmark", color: .systemRed)
+    Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
     Theme.configure(finderButton, symbol: "folder", tooltip: "Show in Finder")
     Theme.configure(deleteButton, symbol: "trash", tooltip: "Delete model")
     Theme.configure(hfButton, symbol: "globe", tooltip: "Open on Hugging Face")
     Theme.configure(copyIdButton, symbol: "doc.on.doc", tooltip: "Copy model ID")
 
+    unloadButton.target = self
+    unloadButton.action = #selector(didClickUnload)
     finderButton.target = self
     finderButton.action = #selector(didClickFinder)
     deleteButton.target = self
@@ -68,6 +79,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Start hidden
     cancelImageView.isHidden = true
+    unloadButton.isHidden = true
     finderButton.isHidden = true
     deleteButton.isHidden = true
     hfButton.isHidden = true
@@ -103,7 +115,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Accessory stack
     let accessoryStack = NSStackView(views: [
-      progressLabel, cancelImageView, copyIdButton, hfButton, finderButton, deleteButton,
+      progressLabel, cancelImageView, unloadButton, copyIdButton, hfButton, finderButton,
+      deleteButton,
     ])
     accessoryStack.orientation = .horizontal
     accessoryStack.alignment = .centerY
@@ -120,6 +133,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
+    Layout.constrainToIconSize(unloadButton)
     Layout.constrainToIconSize(finderButton)
     Layout.constrainToIconSize(deleteButton)
     Layout.constrainToIconSize(hfButton)
@@ -153,8 +167,17 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       NSSound.beep()
       return
     }
+
+    if modelManager.isInstalled(model) {
+      onExpand?()
+    } else {
+      actionHandler.performPrimaryAction(for: model)
+      refresh()
+    }
+  }
+
+  @objc private func didClickUnload() {
     actionHandler.performPrimaryAction(for: model)
-    refresh()
   }
 
   @objc private func didClickDelete() {
@@ -193,7 +216,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
     let loc = event.locationInWindow
-    let actionButtons = [deleteButton, finderButton, hfButton, copyIdButton]
+    let actionButtons = [deleteButton, finderButton, hfButton, copyIdButton, unloadButton]
     return !actionButtons.contains { view in
       !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
     }
@@ -241,6 +264,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
     progressLabel.isHidden = !showAsDownloading
     cancelImageView.isHidden = !showAsDownloading
+    unloadButton.isHidden = !isActive
 
     iconView.inactiveTintColor =
       isCompatible ? Theme.Colors.modelIconTint : Theme.Colors.textSecondary
@@ -280,6 +304,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .systemRed
+    unloadButton.contentTintColor = .tertiaryLabelColor
     finderButton.contentTintColor = .tertiaryLabelColor
     deleteButton.contentTintColor = .tertiaryLabelColor
     hfButton.contentTintColor = .tertiaryLabelColor
