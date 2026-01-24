@@ -126,35 +126,23 @@ extension Format {
       result.append(
         NSAttributedString(string: model.totalSize, attributes: attributes))
 
-      // Calculate desired tokens and usable context
-      let desiredTokens: Int = UserSettings.defaultContextWindow.rawValue * 1024
-
-      let displayUsableCtx =
-        model.usableCtxWindow(desiredTokens: desiredTokens, maximizeContext: false)
-        ?? Int(CatalogEntry.compatibilityCtxWindowTokens)
-
-      // Context info: always displayed as the context length the model would run at
+      // Separator
       result.append(Format.metadataSeparator())
-      let ctxLabel = Format.tokens(displayUsableCtx)
-      result.append(NSAttributedString(string: ctxLabel + " ctx", attributes: attributes))
 
-      // Memory usage
-      result.append(Format.metadataSeparator())
-      let memMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(displayUsableCtx))
-      let memString = Format.memory(mb: memMb)
+      // Context Tiers
+      for (index, tier) in ContextTier.allCases.sorted().enumerated() {
+        if index > 0 {
+          result.append(Format.metadataSeparator())
+        }
 
-      var memAttributes = attributes
-      let sysMem = SystemMemory.memoryMb
-      let budgetMb = CatalogEntry.memoryBudget(systemMemoryMb: sysMem)
+        let isCompatible = model.isCompatible(ctxWindowTokens: Double(tier.rawValue))
+        var tierAttributes = attributes
+        if !isCompatible {
+          tierAttributes[.foregroundColor] = color.withAlphaComponent(0.4)
+        }
 
-      // If estimated usage is close to budget (within 5MB), use italics
-      // to indicate we've hit the memory cap for context length.
-      if Double(memMb) >= (budgetMb - 5) {
-        memAttributes[.font] = NSFontManager.shared.convert(
-          Theme.Fonts.secondary, toHaveTrait: .italicFontMask)
+        result.append(NSAttributedString(string: tier.label, attributes: tierAttributes))
       }
-
-      result.append(NSAttributedString(string: memString + " mem", attributes: memAttributes))
     }
 
     // Vision support removed - now shown in model name
