@@ -310,6 +310,9 @@ final class MenuController: NSObject, NSMenuDelegate {
           )
           items.append(NSMenuItem.viewItem(with: variantView))
         }
+
+        let actionsView = ModelActionsView(model: model, actionHandler: actionHandler)
+        items.append(NSMenuItem.viewItem(with: actionsView))
       }
     }
     return items
