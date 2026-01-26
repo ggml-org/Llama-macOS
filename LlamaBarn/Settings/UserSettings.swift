@@ -47,11 +47,10 @@ enum UserSettings {
     }
   }
 
-  /// Default enabled context tiers: 4k, 32k, 128k
+  /// Default enabled context tiers: 4k, 32k
   static let defaultContextTiers: Set<Int> = [
     ContextTierOption.k4.rawValue,
     ContextTierOption.k32.rawValue,
-    ContextTierOption.k128.rawValue,
   ]
 
   private enum Keys {
@@ -109,7 +108,7 @@ enum UserSettings {
   }
 
   /// Returns the set of enabled context tier raw values (token counts).
-  /// Defaults to 4k, 32k, 128k if not set.
+  /// Defaults to 4k, 32k if not set.
   static var enabledContextTiers: Set<Int> {
     get {
       guard let arr = defaults.array(forKey: Keys.enabledContextTiers) as? [Int] else {
