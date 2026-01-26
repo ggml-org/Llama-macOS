@@ -101,7 +101,7 @@ extension Format {
   // MARK: - Model Metadata (composite)
 
   /// Formats model metadata text.
-  /// Format: "2.53 GB · 128k ctx · 4.2 GB mem"
+  /// Format: "3.1 GB · 4k · 8k · 16k" (file size followed by context tiers)
   /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
   /// If loadedTier is provided, that tier label is shown in blue.
   static func modelMetadata(
@@ -124,9 +124,21 @@ extension Format {
       ]
       result.append(NSAttributedString(string: incompatibility, attributes: warningAttr))
     } else {
+      // File size
+      result.append(NSAttributedString(string: model.totalSize, attributes: attributes))
+
+      // Pipe separator between file size and context tiers
+      result.append(
+        NSAttributedString(
+          string: "  ∣  ",
+          attributes: [
+            .font: Theme.Fonts.secondary,
+            .foregroundColor: Theme.Colors.textSecondary,
+          ]))
+
       // Context Tiers (only show enabled tiers from user settings)
-      for (index, tier) in ContextTier.enabledCases.sorted().enumerated() {
-        if index > 0 {
+      for (idx, tier) in ContextTier.enabledCases.sorted().enumerated() {
+        if idx > 0 {
           result.append(Format.metadataSeparator())
         }
 
