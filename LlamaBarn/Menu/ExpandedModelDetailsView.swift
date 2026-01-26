@@ -109,7 +109,9 @@ final class ExpandedModelDetailsView: ItemView {
     let secondaryAttrs = Theme.secondaryAttributes(color: secondaryColor)
     let valueAttrs = Theme.secondaryAttributes(color: valueColor)
 
-    result.append(NSAttributedString(string: "•  ", attributes: secondaryAttrs))
+    // Use checkmark/X mark to indicate support status
+    let statusIcon = isCompatible ? "✓  " : "✗  "
+    result.append(NSAttributedString(string: statusIcon, attributes: secondaryAttrs))
     result.append(NSAttributedString(string: tier.label, attributes: valueAttrs))
     result.append(NSAttributedString(string: " ctx  ", attributes: secondaryAttrs))
 
@@ -126,11 +128,6 @@ final class ExpandedModelDetailsView: ItemView {
 
       result.append(NSAttributedString(string: ramStr, attributes: valueAttrs))
       result.append(NSAttributedString(string: " mem", attributes: secondaryAttrs))
-
-      if !isCompatible {
-        // Not enough memory — show indicator
-        result.append(NSAttributedString(string: "  ✗", attributes: secondaryAttrs))
-      }
 
       infoLabel.attributedStringValue = result
       row.addArrangedSubview(infoLabel)
