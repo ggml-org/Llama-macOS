@@ -169,21 +169,9 @@ final class ExpandedModelDetailsView: ItemView {
     showInFinderButton.target = self
     showInFinderButton.action = #selector(didClickShowInFinder)
 
-    let sep1 = Theme.secondaryLabel()
-    sep1.stringValue = " · "
-    sep1.textColor = Theme.Colors.textSecondary
-
-    // Show on HF
-    let showOnHFButton = HoverButton()
-    showOnHFButton.title = "Show on HF"
-    showOnHFButton.font = Theme.Fonts.secondary
-    showOnHFButton.contentTintColor = Theme.Colors.textSecondary
-    showOnHFButton.target = self
-    showOnHFButton.action = #selector(didClickShowOnHF)
-
-    let sep2 = Theme.secondaryLabel()
-    sep2.stringValue = " · "
-    sep2.textColor = Theme.Colors.textSecondary
+    let sep = Theme.secondaryLabel()
+    sep.stringValue = " · "
+    sep.textColor = Theme.Colors.textSecondary
 
     // Delete
     let deleteButton = HoverButton()
@@ -194,18 +182,12 @@ final class ExpandedModelDetailsView: ItemView {
     deleteButton.action = #selector(didClickDelete)
 
     actionsRow.addArrangedSubview(showInFinderButton)
-    actionsRow.addArrangedSubview(sep1)
-    actionsRow.addArrangedSubview(showOnHFButton)
-    actionsRow.addArrangedSubview(sep2)
+    actionsRow.addArrangedSubview(sep)
     actionsRow.addArrangedSubview(deleteButton)
   }
 
   @objc private func didClickShowInFinder() {
     actionHandler.showInFinder(model: model)
-  }
-
-  @objc private func didClickShowOnHF() {
-    actionHandler.openHuggingFacePage(model: model)
   }
 
   @objc private func didClickDelete() {
