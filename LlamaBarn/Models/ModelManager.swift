@@ -237,10 +237,10 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
     for model in downloadedModels {
       let tiers = model.supportedContextTiers
 
-      // If no supported tiers (unlikely if installed), fallback to safe default calculation
+      // Skip models with no supported tiers.
+      // This happens when the user has disabled all context tiers that would fit in memory.
+      // Such models shouldn't appear in the /v1/models endpoint.
       if tiers.isEmpty {
-        let safeCtx = model.usableCtxWindow() ?? (model.ctxWindow >= 4096 ? 4096 : model.ctxWindow)
-        appendEntry(id: model.id, ctxSize: safeCtx, for: model)
         continue
       }
 
