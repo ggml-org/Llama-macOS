@@ -11,6 +11,11 @@ final class ExpandedModelDetailsView: ItemView {
   // Row views
   private let headerLabel = Theme.secondaryLabel()
 
+  // Info block (expandable)
+  private var infoButton: NSButton?
+  private var infoBlock: NSView?
+  private var infoExpanded = false
+
   init(model: CatalogEntry, actionHandler: ModelActionHandler) {
     self.model = model
     self.actionHandler = actionHandler
@@ -24,7 +29,13 @@ final class ExpandedModelDetailsView: ItemView {
   override var highlightEnabled: Bool { false }
 
   private func setupLayout() {
-    // Main vertical stack for all rows
+    // Outer vertical stack (holds indented content + full-width info block)
+    let outerStack = NSStackView()
+    outerStack.orientation = .vertical
+    outerStack.alignment = .leading
+    outerStack.spacing = 0
+
+    // Main vertical stack for indented rows
     let mainStack = NSStackView()
     mainStack.orientation = .vertical
     mainStack.alignment = .leading
@@ -36,20 +47,21 @@ final class ExpandedModelDetailsView: ItemView {
     headerRow.alignment = .centerY
     headerRow.spacing = 4
 
-    headerLabel.stringValue = "Context length configurations"
+    headerLabel.stringValue = "Context options"
     headerLabel.textColor = Theme.Colors.modelIconTint
     headerRow.addArrangedSubview(headerLabel)
 
-    // Info button that shows tooltip on hover
-    let infoButton = NSButton()
-    infoButton.bezelStyle = .inline
-    infoButton.isBordered = false
-    infoButton.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: "Info")
-    infoButton.imagePosition = .imageOnly
-    infoButton.contentTintColor = Theme.Colors.textSecondary
-    infoButton.toolTip =
-      "Each configuration runs the same model with a different context length. Longer contexts use more memory."
-    headerRow.addArrangedSubview(infoButton)
+    // Info button toggles explanation text
+    let btn = NSButton()
+    btn.bezelStyle = .inline
+    btn.isBordered = false
+    btn.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: "Info")
+    btn.imagePosition = .imageOnly
+    btn.contentTintColor = Theme.Colors.textSecondary
+    btn.target = self
+    btn.action = #selector(didClickInfo(_:))
+    headerRow.addArrangedSubview(btn)
+    self.infoButton = btn
 
     mainStack.addArrangedSubview(headerRow)
 
@@ -64,13 +76,21 @@ final class ExpandedModelDetailsView: ItemView {
     indent.translatesAutoresizingMaskIntoConstraints = false
     indent.widthAnchor.constraint(equalToConstant: Layout.expandedIndent).isActive = true
 
-    let rootStack = NSStackView(views: [indent, mainStack])
-    rootStack.orientation = .horizontal
-    rootStack.alignment = .top
-    rootStack.spacing = 0
+    let indentedRow = NSStackView(views: [indent, mainStack])
+    indentedRow.orientation = .horizontal
+    indentedRow.alignment = .top
+    indentedRow.spacing = 0
 
-    contentView.addSubview(rootStack)
-    rootStack.pinToSuperview(top: 2, leading: 0, trailing: 0, bottom: 2)
+    outerStack.addArrangedSubview(indentedRow)
+
+    // Full-width info block (outside the indent)
+    let infoBlock = buildInfoBlock()
+    infoBlock.isHidden = true
+    outerStack.addArrangedSubview(infoBlock)
+    self.infoBlock = infoBlock
+
+    contentView.addSubview(outerStack)
+    outerStack.pinToSuperview(top: 2, leading: 0, trailing: 0, bottom: 2)
   }
 
   // MARK: - Variant Row
@@ -142,6 +162,97 @@ final class ExpandedModelDetailsView: ItemView {
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak sender] in
       sender?.title = "  Copy ID"
     }
+  }
+
+  @objc private func didClickInfo(_ sender: NSButton) {
+    infoExpanded.toggle()
+    infoBlock?.isHidden = !infoExpanded
+
+    // Update button tint to indicate active state
+    infoButton?.contentTintColor =
+      infoExpanded
+      ? Theme.Colors.textPrimary
+      : Theme.Colors.textSecondary
+  }
+
+  // MARK: - Info Block
+
+  /// Builds a full-width outlined info block explaining context options.
+  private func buildInfoBlock() -> NSView {
+    let paragraphs = [
+      "The same model can run at multiple context lengths. Context is how much text the model can \"see\" at once.",
+      "Pick 4K for chat, 32K for agents. Longer context uses more memory.",
+    ]
+
+    // Build attributed string with custom paragraph spacing
+    let paraStyle = NSMutableParagraphStyle()
+    paraStyle.paragraphSpacing = 6
+
+    let attrs: [NSAttributedString.Key: Any] = [
+      .font: Theme.Fonts.secondary,
+      .foregroundColor: Theme.Colors.modelIconTint,
+      .paragraphStyle: paraStyle,
+    ]
+
+    let result = NSMutableAttributedString()
+    for (idx, para) in paragraphs.enumerated() {
+      let text = idx < paragraphs.count - 1 ? para + "\n" : para
+      result.append(NSAttributedString(string: text, attributes: attrs))
+    }
+
+    let label = NSTextField(labelWithAttributedString: result)
+    label.isEditable = false
+    label.isSelectable = false
+    label.drawsBackground = false
+    label.isBezeled = false
+    label.lineBreakMode = .byWordWrapping
+    // Content width minus indent and padding inside the box
+    label.preferredMaxLayoutWidth = Layout.contentWidth - Layout.expandedIndent - 20
+    label.translatesAutoresizingMaskIntoConstraints = false
+
+    // Outlined container
+    let container = NSView()
+    container.wantsLayer = true
+    container.layer?.cornerRadius = Layout.cornerRadius
+    container.layer?.borderWidth = 1
+    container.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(label)
+
+    // Set border color respecting appearance
+    container.layer?.setBorderColor(Theme.Colors.separator, in: container)
+
+    NSLayoutConstraint.activate([
+      label.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+      label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+      label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+      label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
+      container.widthAnchor.constraint(
+        equalToConstant: Layout.contentWidth - Layout.expandedIndent),
+    ])
+
+    // Wrapper with indent and top margin
+    let indent = NSView()
+    indent.translatesAutoresizingMaskIntoConstraints = false
+    indent.widthAnchor.constraint(equalToConstant: Layout.expandedIndent).isActive = true
+
+    let row = NSStackView(views: [indent, container])
+    row.orientation = .horizontal
+    row.alignment = .top
+    row.spacing = 0
+
+    let wrapper = NSView()
+    wrapper.translatesAutoresizingMaskIntoConstraints = false
+    wrapper.addSubview(row)
+    row.translatesAutoresizingMaskIntoConstraints = false
+
+    NSLayoutConstraint.activate([
+      row.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 6),
+      row.leadingAnchor.constraint(equalTo: wrapper.leadingAnchor),
+      row.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor),
+      row.bottomAnchor.constraint(equalTo: wrapper.bottomAnchor),
+    ])
+
+    return wrapper
   }
 
 }
