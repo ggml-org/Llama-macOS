@@ -18,46 +18,10 @@ enum UserSettings {
     }
   }
 
-  /// Available context tier options that users can enable/disable.
-  /// Each case represents a context length in tokens.
-  enum ContextTierOption: Int, CaseIterable {
-    case k4 = 4096
-    case k8 = 8192
-    case k16 = 16384
-    case k32 = 32768
-    case k64 = 65536
-    case k128 = 131072
-    case k256 = 262144
-
-    var label: String {
-      switch self {
-      case .k4: return "4k"
-      case .k8: return "8k"
-      case .k16: return "16k"
-      case .k32: return "32k"
-      case .k64: return "64k"
-      case .k128: return "128k"
-      case .k256: return "256k"
-      }
-    }
-
-    /// Converts to the app's ContextTier enum if this option is enabled.
-    var asContextTier: ContextTier? {
-      ContextTier(rawValue: rawValue)
-    }
-  }
-
-  /// Default enabled context tiers: 4k, 32k
-  static let defaultContextTiers: Set<Int> = [
-    ContextTierOption.k4.rawValue,
-    ContextTierOption.k32.rawValue,
-  ]
-
   private enum Keys {
     static let hasSeenWelcome = "hasSeenWelcome"
     static let exposeToNetwork = "exposeToNetwork"
     static let sleepIdleTime = "sleepIdleTime"
-    static let enabledContextTiers = "enabledContextTiers"
   }
 
   private static let defaults = UserDefaults.standard
@@ -105,37 +69,5 @@ enum UserSettings {
       defaults.set(newValue.rawValue, forKey: Keys.sleepIdleTime)
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
     }
-  }
-
-  /// Returns the set of enabled context tier raw values (token counts).
-  /// Defaults to 4k, 32k if not set.
-  static var enabledContextTiers: Set<Int> {
-    get {
-      guard let arr = defaults.array(forKey: Keys.enabledContextTiers) as? [Int] else {
-        return defaultContextTiers
-      }
-      return Set(arr)
-    }
-    set {
-      let sorted = newValue.sorted()
-      defaults.set(sorted, forKey: Keys.enabledContextTiers)
-      NotificationCenter.default.post(name: .LBContextTiersDidChange, object: nil)
-    }
-  }
-
-  /// Checks if a specific context tier option is enabled.
-  static func isContextTierEnabled(_ option: ContextTierOption) -> Bool {
-    enabledContextTiers.contains(option.rawValue)
-  }
-
-  /// Toggles a context tier option on or off.
-  static func setContextTier(_ option: ContextTierOption, enabled: Bool) {
-    var tiers = enabledContextTiers
-    if enabled {
-      tiers.insert(option.rawValue)
-    } else {
-      tiers.remove(option.rawValue)
-    }
-    enabledContextTiers = tiers
   }
 }

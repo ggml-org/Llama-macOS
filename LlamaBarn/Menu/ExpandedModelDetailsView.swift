@@ -53,8 +53,8 @@ final class ExpandedModelDetailsView: ItemView {
 
     mainStack.addArrangedSubview(headerRow)
 
-    // Context tier variant rows
-    for tier in ContextTier.enabledCases {
+    // Context tier variant rows - only show tiers this model supports
+    for tier in model.supportedContextTiers {
       let row = buildVariantRow(for: tier)
       mainStack.addArrangedSubview(row)
     }
@@ -75,10 +75,9 @@ final class ExpandedModelDetailsView: ItemView {
 
   // MARK: - Variant Row
 
+  /// Builds a row for a supported context tier.
+  /// Only called for tiers that are compatible with this device.
   private func buildVariantRow(for tier: ContextTier) -> NSView {
-    let isCompatible = model.isCompatible(ctxWindowTokens: Double(tier.rawValue))
-    let exceedsModelLimit = tier.rawValue > model.ctxWindow
-
     let row = NSStackView()
     row.orientation = .horizontal
     row.alignment = .centerY
@@ -87,23 +86,17 @@ final class ExpandedModelDetailsView: ItemView {
     row.heightAnchor.constraint(equalToConstant: 16).isActive = true
 
     let infoLabel = Theme.secondaryLabel()
-    let secondaryColor = Theme.Colors.textSecondary
-    let valueColor = isCompatible ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
-    // For supported configs, use medium color for labels; for unsupported, use secondary
-    let labelColor = isCompatible ? Theme.Colors.modelIconTint : Theme.Colors.textSecondary
+    let valueColor = Theme.Colors.textPrimary
+    let labelColor = Theme.Colors.modelIconTint
 
     // Build attributed string
     let result = NSMutableAttributedString()
-    let secondaryAttrs = Theme.secondaryAttributes(color: secondaryColor)
     let labelAttrs = Theme.secondaryAttributes(color: labelColor)
     let valueAttrs = Theme.secondaryAttributes(color: valueColor)
 
-    // Status icon using SF Symbols for consistent sizing
+    // Status icon (checkmark for all shown tiers since they're all compatible)
     let statusIcon = NSImageView()
-    let statusSymbol = isCompatible ? "checkmark" : "xmark"
-    let statusColor = isCompatible ? Theme.Colors.success : secondaryColor
-    Theme.configure(statusIcon, symbol: statusSymbol, color: statusColor, pointSize: 10)
-    // Fixed width ensures consistent alignment regardless of icon
+    Theme.configure(statusIcon, symbol: "checkmark", color: Theme.Colors.success, pointSize: 10)
     statusIcon.widthAnchor.constraint(equalToConstant: 12).isActive = true
     row.addArrangedSubview(statusIcon)
 
@@ -112,38 +105,30 @@ final class ExpandedModelDetailsView: ItemView {
     iconSpacer.translatesAutoresizingMaskIntoConstraints = false
     iconSpacer.widthAnchor.constraint(equalToConstant: 4).isActive = true
     row.addArrangedSubview(iconSpacer)
+
+    // Tier label and memory usage
     result.append(NSAttributedString(string: tier.label, attributes: valueAttrs))
     result.append(NSAttributedString(string: " ctx  ", attributes: labelAttrs))
 
-    if exceedsModelLimit {
-      // Model doesn't support this context length
-      result.append(NSAttributedString(string: "—", attributes: secondaryAttrs))
-      infoLabel.attributedStringValue = result
-      row.addArrangedSubview(infoLabel)
-    } else {
-      // Show memory usage
-      let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
-      let ramGb = Double(ramMb) / 1024.0
-      let ramStr = String(format: "%.1f GB", ramGb)
+    let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
+    let ramGb = Double(ramMb) / 1024.0
+    let ramStr = String(format: "%.1f GB", ramGb)
 
-      result.append(NSAttributedString(string: ramStr, attributes: valueAttrs))
-      result.append(NSAttributedString(string: " mem", attributes: labelAttrs))
+    result.append(NSAttributedString(string: ramStr, attributes: valueAttrs))
+    result.append(NSAttributedString(string: " mem", attributes: labelAttrs))
 
-      infoLabel.attributedStringValue = result
-      row.addArrangedSubview(infoLabel)
+    infoLabel.attributedStringValue = result
+    row.addArrangedSubview(infoLabel)
 
-      // Copy button only for compatible tiers
-      if isCompatible {
-        let copyButton = HoverButton()
-        copyButton.title = "  Copy ID"
-        copyButton.font = Theme.Fonts.secondary
-        copyButton.contentTintColor = Theme.Colors.modelIconTint
-        copyButton.target = self
-        copyButton.action = #selector(didClickCopy(_:))
-        copyButton.tag = tier.rawValue
-        row.addArrangedSubview(copyButton)
-      }
-    }
+    // Copy button
+    let copyButton = HoverButton()
+    copyButton.title = "  Copy ID"
+    copyButton.font = Theme.Fonts.secondary
+    copyButton.contentTintColor = Theme.Colors.modelIconTint
+    copyButton.target = self
+    copyButton.action = #selector(didClickCopy(_:))
+    copyButton.tag = tier.rawValue
+    row.addArrangedSubview(copyButton)
 
     return row
   }

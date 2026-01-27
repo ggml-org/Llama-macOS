@@ -36,7 +36,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     // Create the window
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 380, height: 280),
+      contentRect: NSRect(x: 0, y: 0, width: 380, height: 200),
       styleMask: [.titled, .closable],
       backing: .buffered,
       defer: false
@@ -64,7 +64,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 struct SettingsView: View {
   @State private var launchAtLogin = LaunchAtLogin.isEnabled
   @State private var sleepIdleTime = UserSettings.sleepIdleTime
-  @State private var enabledTiers = UserSettings.enabledContextTiers
 
   var body: some View {
     Form {
@@ -93,49 +92,6 @@ struct SettingsView: View {
           }
 
           Text("Automatically unloads the model from memory when not in use.")
-            .font(.callout)
-            .foregroundStyle(.secondary)
-        }
-      }
-
-      // Context tiers section
-      Section {
-        VStack(alignment: .leading, spacing: 8) {
-          Text("Context lengths")
-
-          HStack(spacing: 6) {
-            ForEach(UserSettings.ContextTierOption.allCases, id: \.self) { option in
-              let isSelected = enabledTiers.contains(option.rawValue)
-              Button {
-                if isSelected {
-                  enabledTiers.remove(option.rawValue)
-                } else {
-                  enabledTiers.insert(option.rawValue)
-                }
-                UserSettings.enabledContextTiers = enabledTiers
-              } label: {
-                Text(option.label)
-                  .font(.subheadline)
-                  .padding(.horizontal, 8)
-                  .padding(.vertical, 4)
-                  .background(
-                    isSelected ? Color.accentColor : Color.clear,
-                    in: Capsule()
-                  )
-                  .overlay(
-                    Capsule()
-                      .strokeBorder(
-                        isSelected ? Color.accentColor : Color.secondary.opacity(0.3),
-                        lineWidth: 1
-                      )
-                  )
-                  .foregroundStyle(isSelected ? .white : .primary)
-              }
-              .buttonStyle(.plain)
-            }
-          }
-
-          Text("Longer context uses more memory but lets models handle larger conversations.")
             .font(.callout)
             .foregroundStyle(.secondary)
         }

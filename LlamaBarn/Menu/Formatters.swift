@@ -106,7 +106,7 @@ extension Format {
   // MARK: - Model Metadata (composite)
 
   /// Formats model metadata text.
-  /// Format: "3.1 GB  ∣  4k · 8k · 16k" (file size followed by context tiers)
+  /// Format: "3.1 GB  ∣  4k · 32k · 128k" (file size followed by supported context tiers)
   /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
   /// If loadedTier is provided, that tier label is shown in blue.
   static func modelMetadata(
@@ -148,20 +148,17 @@ extension Format {
             .paragraphStyle: paragraphStyle,
           ]))
 
-      // Context Tiers (only show enabled tiers from user settings)
-      for (idx, tier) in ContextTier.enabledCases.sorted().enumerated() {
+      // Context Tiers - only show tiers this model supports on this device
+      let supportedTiers = model.supportedContextTiers
+      for (idx, tier) in supportedTiers.enumerated() {
         if idx > 0 {
           result.append(Format.metadataSeparator(paragraphStyle: paragraphStyle))
         }
 
-        let isCompatible = model.isCompatible(ctxWindowTokens: Double(tier.rawValue))
         var tierAttributes = attributes
-
         if tier == loadedTier {
           // Running tier: show in blue to match the active model icon
           tierAttributes[.foregroundColor] = NSColor.controlAccentColor
-        } else if !isCompatible {
-          tierAttributes[.foregroundColor] = color.withAlphaComponent(0.4)
         }
 
         result.append(NSAttributedString(string: tier.label, attributes: tierAttributes))

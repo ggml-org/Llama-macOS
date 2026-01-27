@@ -1,7 +1,7 @@
 import Foundation
 
 /// Represents a context length tier for running models.
-/// The available tiers are determined by user settings.
+/// Fixed tiers: 4K (chat/scripts), 32K (agents), and max supported tier.
 enum ContextTier: Int, CaseIterable, Identifiable, Comparable {
   case k4 = 4096
   case k8 = 8192
@@ -33,10 +33,7 @@ enum ContextTier: Int, CaseIterable, Identifiable, Comparable {
     lhs.rawValue < rhs.rawValue
   }
 
-  /// Returns only the context tiers that are enabled in user settings.
-  /// Always includes at least 4k as the minimum required tier.
-  static var enabledCases: [ContextTier] {
-    let enabledRawValues = UserSettings.enabledContextTiers
-    return allCases.filter { enabledRawValues.contains($0.rawValue) }
-  }
+  /// The fixed base tiers that are always considered (when compatible).
+  /// 4K for chat/scripts, 32K for basic agents.
+  static let baseTiers: [ContextTier] = [.k4, .k32]
 }

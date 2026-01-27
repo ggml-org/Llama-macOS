@@ -154,9 +154,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     // User settings changed - rebuild menu
     observe(.LBUserSettingsDidChange, rebuildMenu: true)
 
-    // Context tiers changed - rebuild menu to show updated variants
-    observe(.LBContextTiersDidChange, rebuildMenu: true)
-
     // Download failed - show alert
     let failObserver = NotificationCenter.default.addObserver(
       forName: .LBModelDownloadDidFail, object: nil, queue: .main

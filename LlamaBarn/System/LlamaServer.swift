@@ -58,7 +58,6 @@ class LlamaServer {
 
   // Store observer token for proper cleanup
   private var settingsObserver: NSObjectProtocol?
-  private var ctxTiersObserver: NSObjectProtocol?
 
   init() {
     libFolderPath = Bundle.main.bundlePath + "/Contents/MacOS/llama-cpp"
@@ -72,24 +71,11 @@ class LlamaServer {
         self?.reload()
       }
     }
-
-    // Listen for context tier changes to regenerate models.ini and reload
-    ctxTiersObserver = NotificationCenter.default.addObserver(
-      forName: .LBContextTiersDidChange, object: nil, queue: .main
-    ) {
-      [weak self] _ in
-      MainActor.assumeIsolated {
-        self?.reload()
-      }
-    }
   }
 
   deinit {
     if let settingsObserver {
       NotificationCenter.default.removeObserver(settingsObserver)
-    }
-    if let ctxTiersObserver {
-      NotificationCenter.default.removeObserver(ctxTiersObserver)
     }
   }
 

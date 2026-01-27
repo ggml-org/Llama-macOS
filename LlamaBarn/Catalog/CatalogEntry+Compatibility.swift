@@ -158,11 +158,26 @@ extension CatalogEntry {
   }
 
   /// Returns all context tiers that this model can support given device memory constraints.
-  /// Only includes tiers that are enabled in user settings.
+  /// Uses fixed tiers: 4K, 32K, and max (if >32K).
+  /// Only returns tiers that are actually compatible with the device.
   var supportedContextTiers: [ContextTier] {
-    ContextTier.enabledCases.filter { tier in
+    // Start with base tiers (4K, 32K) that are compatible
+    var tiers = ContextTier.baseTiers.filter { tier in
       isCompatible(ctxWindowTokens: Double(tier.rawValue))
     }
+
+    // Find the max tier this model can run at (must be >32K to be shown separately)
+    let maxTier = ContextTier.allCases
+      .filter { $0.rawValue > ContextTier.k32.rawValue }
+      .filter { isCompatible(ctxWindowTokens: Double($0.rawValue)) }
+      .max()
+
+    // Add max tier if it exists and isn't already in the list
+    if let maxTier, !tiers.contains(maxTier) {
+      tiers.append(maxTier)
+    }
+
+    return tiers.sorted()
   }
 
   private struct CompatibilityInfo {
