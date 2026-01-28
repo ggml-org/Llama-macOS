@@ -44,6 +44,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let unloadButton = NSButton()
 
   // Hover action buttons (shown on hover for installed models)
+  private let copyIdButton = NSButton()
   private let deleteButton = NSButton()
   private let hoverButtonsStack = NSStackView()
 
@@ -71,14 +72,18 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     unloadButton.action = #selector(didClickUnload)
 
     // Configure hover action buttons
+    Theme.configure(copyIdButton, symbol: "doc.on.doc", tooltip: "Copy model ID")
     Theme.configure(deleteButton, symbol: "trash", tooltip: "Delete model")
 
+    copyIdButton.target = self
+    copyIdButton.action = #selector(didClickCopyId)
     deleteButton.target = self
     deleteButton.action = #selector(didClickDelete)
 
     // Configure hover buttons stack
     hoverButtonsStack.orientation = .horizontal
     hoverButtonsStack.spacing = 4
+    hoverButtonsStack.addArrangedSubview(copyIdButton)
     hoverButtonsStack.addArrangedSubview(deleteButton)
 
     // Start hidden
@@ -134,6 +139,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
     Layout.constrainToIconSize(unloadButton)
+    Layout.constrainToIconSize(copyIdButton)
     Layout.constrainToIconSize(deleteButton)
     progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.progressWidth).isActive =
       true
@@ -171,6 +177,21 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     actionHandler.performPrimaryAction(for: model)
   }
 
+  @objc private func didClickCopyId() {
+    let pasteboard = NSPasteboard.general
+    pasteboard.clearContents()
+    pasteboard.setString(model.id, forType: .string)
+
+    // Show checkmark feedback
+    copyIdButton.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: "Copied")
+
+    // Restore copy icon after delay
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+      self?.copyIdButton.image = NSImage(
+        systemSymbolName: "doc.on.doc", accessibilityDescription: "Copy model ID")
+    }
+  }
+
   @objc private func didClickDelete() {
     actionHandler.delete(model: model)
   }
@@ -180,7 +201,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
     let loc = event.locationInWindow
-    let actionButtons = [unloadButton, deleteButton]
+    let actionButtons = [unloadButton, copyIdButton, deleteButton]
     return !actionButtons.contains { view in
       !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
     }
@@ -265,6 +286,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .systemRed
     unloadButton.contentTintColor = .tertiaryLabelColor
+    copyIdButton.contentTintColor = .tertiaryLabelColor
     deleteButton.contentTintColor = .tertiaryLabelColor
   }
 }
