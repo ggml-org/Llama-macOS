@@ -26,7 +26,7 @@ LlamaBarn runs a local server at `http://localhost:2276/v1`.
 - **Small footprint** — `12 MB` native macOS app
 - **Zero configuration** — models are auto-configured with optimal settings for your Mac
 - **Smart model catalog** — shows what fits your Mac, with quantized fallbacks for what doesn't
-- **Self-contained** — all models and config stored in `~/.llamabarn`
+- **Self-contained** — all models and config stored in `~/.llamabarn` (configurable)
 - **Built on llama.cpp** — from the GGML org, developed alongside llama.cpp
 
 ## Works with

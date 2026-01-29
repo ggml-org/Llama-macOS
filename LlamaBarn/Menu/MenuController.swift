@@ -103,6 +103,12 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.addItem(NSMenuItem.viewItem(with: view))
     menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
+    // Show warning if custom models folder is unavailable (e.g., external drive unplugged)
+    if UserSettings.hasCustomModelStorageDirectory && !UserSettings.isModelStorageDirectoryAvailable
+    {
+      addFolderWarning(to: menu)
+    }
+
     addInstalledSection(to: menu)
 
     if let selectedFamily {
@@ -418,5 +424,20 @@ final class MenuController: NSObject, NSMenuDelegate {
     // Close the menu first, then open settings window
     statusItem.menu?.cancelTracking()
     NotificationCenter.default.post(name: .LBShowSettings, object: nil)
+  }
+
+  // MARK: - Folder Warning
+
+  /// Adds a warning when the custom models folder is unavailable (e.g., external drive unplugged)
+  private func addFolderWarning(to menu: NSMenu) {
+    let warningView = TextItemView(
+      text: "Models folder not available. Check Settings.",
+      style: .description,
+      onAction: { [weak self] in
+        self?.openSettings()
+      }
+    )
+    menu.addItem(NSMenuItem.viewItem(with: warningView))
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
   }
 }

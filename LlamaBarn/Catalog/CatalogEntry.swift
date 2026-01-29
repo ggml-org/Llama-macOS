@@ -150,22 +150,11 @@ struct CatalogEntry: Identifiable {
     return urls
   }
 
-  /// The directory where AI models are stored, creating it if necessary
-  static let modelStorageDirectory: URL = {
-    let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
-    let modelsDirectory = homeDirectory.appendingPathComponent(".llamabarn", isDirectory: true)
-
-    if !FileManager.default.fileExists(atPath: modelsDirectory.path) {
-      do {
-        try FileManager.default.createDirectory(
-          at: modelsDirectory, withIntermediateDirectories: true)
-      } catch {
-        print("Error creating ~/.llamabarn directory: \(error)")
-      }
-    }
-
-    return modelsDirectory
-  }()
+  /// The directory where AI models are stored.
+  /// Reads from UserSettings, which handles directory creation.
+  static var modelStorageDirectory: URL {
+    UserSettings.modelStorageDirectory
+  }
 
   /// Groups models by family, then by model size (e.g., 2B, 4B), then full-precision before quantized variants.
   /// Used for both installed and available models lists to keep related models together.

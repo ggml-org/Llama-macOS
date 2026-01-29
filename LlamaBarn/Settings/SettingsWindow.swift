@@ -64,6 +64,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 struct SettingsView: View {
   @State private var launchAtLogin = LaunchAtLogin.isEnabled
   @State private var sleepIdleTime = UserSettings.sleepIdleTime
+  @State private var modelStorageDir = UserSettings.modelStorageDirectory
 
   var body: some View {
     Form {
@@ -96,10 +97,72 @@ struct SettingsView: View {
             .foregroundStyle(.secondary)
         }
       }
+
+      // Model storage directory section
+      Section {
+        VStack(alignment: .leading, spacing: 8) {
+          LabeledContent("Models folder") {
+            HStack(spacing: 8) {
+              // Show "Reset" button only when using custom directory
+              if UserSettings.hasCustomModelStorageDirectory {
+                Button("Reset") {
+                  UserSettings.modelStorageDirectory = UserSettings.defaultModelStorageDirectory
+                  modelStorageDir = UserSettings.modelStorageDirectory
+                  ModelManager.shared.refreshDownloadedModels()
+                }
+              }
+
+              Button("Choose...") {
+                chooseModelFolder()
+              }
+            }
+          }
+
+          // Display current path, abbreviated with ~ for home directory
+          Text(abbreviatedPath(modelStorageDir))
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .textSelection(.enabled)
+
+          Text("Existing models won't be moved automatically.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
+      }
     }
     .formStyle(.grouped)
     .frame(width: 380)
     .fixedSize()
+  }
+
+  /// Opens a folder picker and updates the model storage directory
+  private func chooseModelFolder() {
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = false
+    panel.canChooseDirectories = true
+    panel.canCreateDirectories = true
+    panel.allowsMultipleSelection = false
+    panel.message = "Choose a folder for storing AI models"
+    panel.prompt = "Select"
+
+    // Start in current directory
+    panel.directoryURL = modelStorageDir
+
+    if panel.runModal() == .OK, let url = panel.url {
+      UserSettings.modelStorageDirectory = url
+      modelStorageDir = url
+      ModelManager.shared.refreshDownloadedModels()
+    }
+  }
+
+  /// Abbreviates path by replacing home directory with ~
+  private func abbreviatedPath(_ url: URL) -> String {
+    let path = url.path
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    if path.hasPrefix(home) {
+      return "~" + path.dropFirst(home.count)
+    }
+    return path
   }
 }
 

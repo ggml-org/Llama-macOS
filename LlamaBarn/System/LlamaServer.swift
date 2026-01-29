@@ -163,7 +163,7 @@ class LlamaServer {
       ])
     }
 
-    let workingDirectory = URL(fileURLWithPath: llamaServerPath).deletingLastPathComponent().path
+    let workingDirectory = CatalogEntry.modelStorageDirectory.path
 
     let process = Process()
     process.executableURL = URL(fileURLWithPath: llamaServerPath)

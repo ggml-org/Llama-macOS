@@ -23,6 +23,7 @@ enum UserSettings {
     static let exposeToNetwork = "exposeToNetwork"
     static let sleepIdleTime = "sleepIdleTime"
     static let selectedCtxTiers = "selectedCtxTiers"
+    static let modelStorageDirectory = "modelStorageDirectory"
   }
 
   private static let defaults = UserDefaults.standard
@@ -94,5 +95,54 @@ enum UserSettings {
     }
     defaults.set(dict, forKey: Keys.selectedCtxTiers)
     NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+  }
+
+  // MARK: - Model Storage Directory
+
+  /// The default directory for storing models (~/.llamabarn)
+  static let defaultModelStorageDirectory: URL = {
+    FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+      ".llamabarn", isDirectory: true)
+  }()
+
+  /// The directory where models are stored.
+  /// Returns the user-configured path if set, otherwise the default (~/.llamabarn).
+  /// Creates the directory if it doesn't exist.
+  static var modelStorageDirectory: URL {
+    get {
+      let dir: URL
+      if let path = defaults.string(forKey: Keys.modelStorageDirectory) {
+        dir = URL(fileURLWithPath: path, isDirectory: true)
+      } else {
+        dir = defaultModelStorageDirectory
+      }
+
+      // Ensure directory exists
+      if !FileManager.default.fileExists(atPath: dir.path) {
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      }
+
+      return dir
+    }
+    set {
+      // Store nil to reset to default, otherwise store the path
+      if newValue == defaultModelStorageDirectory {
+        defaults.removeObject(forKey: Keys.modelStorageDirectory)
+      } else {
+        defaults.set(newValue.path, forKey: Keys.modelStorageDirectory)
+      }
+    }
+  }
+
+  /// Whether a custom model storage directory is configured
+  static var hasCustomModelStorageDirectory: Bool {
+    defaults.string(forKey: Keys.modelStorageDirectory) != nil
+  }
+
+  /// Whether the configured model storage directory is accessible.
+  /// Returns true if using default directory or if custom directory exists.
+  static var isModelStorageDirectoryAvailable: Bool {
+    let dir = modelStorageDirectory
+    return FileManager.default.fileExists(atPath: dir.path)
   }
 }

@@ -194,12 +194,17 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       // Use the effective tier (user selection or max compatible)
       guard let tier = model.effectiveCtxTier else { continue }
 
+      // Use relative paths (just filenames) since llama-server runs with
+      // working directory set to the models folder. This allows the folder
+      // to be moved without breaking the config.
+      let modelFilename = model.downloadUrl.lastPathComponent
+
       content += "[\(model.id)]\n"
-      content += "model = \(model.modelFilePath)\n"
+      content += "model = \(modelFilename)\n"
       content += "ctx-size = \(tier.rawValue)\n"
 
-      if let mmproj = model.mmprojFilePath {
-        content += "mmproj = \(mmproj)\n"
+      if let mmprojUrl = model.mmprojUrl {
+        content += "mmproj = \(mmprojUrl.lastPathComponent)\n"
       }
 
       // Enable larger batch size for better performance on high-memory devices (>=32 GB RAM)
