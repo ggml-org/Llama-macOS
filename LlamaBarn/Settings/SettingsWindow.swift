@@ -101,28 +101,48 @@ struct SettingsView: View {
       // Model storage directory section
       Section {
         VStack(alignment: .leading, spacing: 8) {
-          LabeledContent("Models folder") {
-            HStack(spacing: 8) {
-              // Show "Reset" button only when using custom directory
-              if UserSettings.hasCustomModelStorageDirectory {
-                Button("Reset") {
-                  UserSettings.modelStorageDirectory = UserSettings.defaultModelStorageDirectory
-                  modelStorageDir = UserSettings.modelStorageDirectory
-                  ModelManager.shared.refreshDownloadedModels()
-                }
-              }
+          // Manual HStack instead of LabeledContent so the path can
+          // shrink via truncation and everything stays on one line.
+          HStack(spacing: 6) {
+            Text("Models folder")
+              .fixedSize()
 
-              Button("Choose...") {
-                chooseModelFolder()
+            Spacer()
+
+            // Path text -- layoutPriority -1 lets it shrink first
+            // so buttons stay on the same line
+            Text(abbreviatedPath(modelStorageDir))
+              .font(.callout)
+              .foregroundStyle(.secondary)
+              .textSelection(.enabled)
+              .lineLimit(1)
+              .truncationMode(.middle)
+              .layoutPriority(-1)
+
+            // Show restore button only when using custom directory
+            if UserSettings.hasCustomModelStorageDirectory {
+              Button {
+                UserSettings.modelStorageDirectory = UserSettings.defaultModelStorageDirectory
+                modelStorageDir = UserSettings.modelStorageDirectory
+                ModelManager.shared.refreshDownloadedModels()
+              } label: {
+                // Unicode counterclockwise arrow -- renders at the same
+                // optical size as text, unlike SF Symbols
+                Text("↺")
               }
+              .font(.callout)
+              .controlSize(.small)
+              .help("Restore default folder")
+              .fixedSize()
             }
-          }
 
-          // Display current path, abbreviated with ~ for home directory
-          Text(abbreviatedPath(modelStorageDir))
+            Button("Select...") {
+              chooseModelFolder()
+            }
             .font(.callout)
-            .foregroundStyle(.secondary)
-            .textSelection(.enabled)
+            .controlSize(.small)
+            .fixedSize()
+          }
 
           Text("Existing models won't be moved automatically.")
             .font(.callout)
@@ -145,7 +165,7 @@ struct SettingsView: View {
     panel.message = "Choose a folder for storing AI models"
     panel.prompt = "Select"
 
-    // Start in current directory
+    // Start in the current model storage directory
     panel.directoryURL = modelStorageDir
 
     if panel.runModal() == .OK, let url = panel.url {
