@@ -90,7 +90,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
         logger.info("Resuming download for \(fileUrl.lastPathComponent)")
         task = urlSession.downloadTask(withResumeData: data)
       } else {
-        task = urlSession.downloadTask(with: fileUrl)
+        task = urlSession.downloadTask(with: makeRequest(for: fileUrl))
       }
       task.taskDescription = modelId
       aggregate.addTask(task)
@@ -593,7 +593,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       if let resumeData {
         task = self.urlSession.downloadTask(withResumeData: resumeData)
       } else {
-        task = self.urlSession.downloadTask(with: url)
+        task = self.urlSession.downloadTask(with: self.makeRequest(for: url))
       }
       task.taskDescription = modelId
       task.resume()
@@ -723,6 +723,18 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       let haveStr = Format.gigabytes(available)
       throw DownloadError.notEnoughDiskSpace(required: needStr, available: haveStr)
     }
+  }
+
+  /// Creates a URLRequest for the given URL, adding an Authorization header
+  /// with the user's Hugging Face token when downloading from huggingface.co.
+  private func makeRequest(for url: URL) -> URLRequest {
+    var request = URLRequest(url: url)
+    if url.host?.hasSuffix("huggingface.co") == true,
+      let token = UserSettings.hfToken
+    {
+      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+    return request
   }
 
   private func postDownloadsDidChange() {

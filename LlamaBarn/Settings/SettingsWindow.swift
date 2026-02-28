@@ -65,6 +65,7 @@ struct SettingsView: View {
   @State private var launchAtLogin = LaunchAtLogin.isEnabled
   @State private var sleepIdleTime = UserSettings.sleepIdleTime
   @State private var modelStorageDir = UserSettings.modelStorageDirectory
+  @State private var hfToken = UserSettings.hfToken ?? ""
 
   var body: some View {
     Form {
@@ -145,6 +146,34 @@ struct SettingsView: View {
           }
 
           Text("Existing models won't be moved automatically.")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
+      }
+      // Optional HF token section
+      Section {
+        VStack(alignment: .leading, spacing: 8) {
+          HStack {
+            Text("HF Token")
+            Spacer()
+            SecureField("hf_...", text: $hfToken)
+              .textFieldStyle(.plain)
+              .padding(4)
+              .background(
+                hfToken.isEmpty
+                  ? Color.gray.opacity(0.08)
+                  : UserSettings.isValidHFToken(hfToken)
+                    ? Color.green.opacity(0.15)
+                    : Color.red.opacity(0.15)
+              )
+              .cornerRadius(6)
+              .frame(width: 140)
+              .onChange(of: hfToken) { _, newValue in
+                UserSettings.hfToken = newValue
+              }
+          }
+
+          Text("Optional token that lets you download gated or private models from HF.")
             .font(.callout)
             .foregroundStyle(.secondary)
         }

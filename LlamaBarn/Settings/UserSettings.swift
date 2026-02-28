@@ -24,6 +24,7 @@ enum UserSettings {
     static let sleepIdleTime = "sleepIdleTime"
     static let selectedCtxTiers = "selectedCtxTiers"
     static let modelStorageDirectory = "modelStorageDirectory"
+    static let hfToken = "hfToken"
   }
 
   private static let defaults = UserDefaults.standard
@@ -144,5 +145,30 @@ enum UserSettings {
   static var isModelStorageDirectoryAvailable: Bool {
     let dir = modelStorageDirectory
     return FileManager.default.fileExists(atPath: dir.path)
+  }
+
+  // MARK: - Hugging Face Token
+
+  /// Optional token that lets you download gated or private models from HF.
+  /// Stored in UserDefaults (not Keychain) — fine given most users would use
+  /// a fine-grained token with minimal permissions.
+  static var hfToken: String? {
+    get {
+      defaults.string(forKey: Keys.hfToken)
+    }
+    set {
+      if let newValue, !newValue.isEmpty, isValidHFToken(newValue) {
+        defaults.set(newValue, forKey: Keys.hfToken)
+      } else {
+        defaults.removeObject(forKey: Keys.hfToken)
+      }
+    }
+  }
+
+  /// Validates that a string looks like a Hugging Face access token.
+  static func isValidHFToken(_ token: String) -> Bool {
+    return token.count == 37
+      && token.hasPrefix("hf_")
+      && token.dropFirst(3).allSatisfy { $0.isLetter || $0.isNumber }
   }
 }
