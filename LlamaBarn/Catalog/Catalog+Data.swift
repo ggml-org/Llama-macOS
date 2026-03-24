@@ -163,7 +163,7 @@ extension Catalog {
       name: "Qwen 3.5 Small",
       series: "qwen",
       description:
-        "Alibaba's hybrid reasoning vision-language models with thinking/non-thinking modes. Uses a novel GatedDeltaNet+Attention architecture for efficient 256K context across 201 languages.",
+        "Alibaba's compact natively multimodal reasoning models. Supports thinking/non-thinking modes for text and vision tasks across 201 languages.",
       serverArgs: ["--temp", "0.6", "--top-k", "20", "--top-p", "0.95", "--min-p", "0"],
       overheadMultiplier: 1.1,
       sizes: [
@@ -294,7 +294,7 @@ extension Catalog {
       name: "Qwen 3.5 Medium",
       series: "qwen",
       description:
-        "Alibaba's hybrid reasoning vision-language models with thinking/non-thinking modes. Uses a novel GatedDeltaNet+Attention architecture for efficient 256K context across 201 languages.",
+        "Alibaba's flagship natively multimodal reasoning models. Dense and MoE variants that rival models many times their size on coding and vision tasks.",
       serverArgs: ["--temp", "0.6", "--top-k", "20", "--top-p", "0.95", "--min-p", "0"],
       overheadMultiplier: 1.1,
       sizes: [
