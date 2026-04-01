@@ -153,10 +153,17 @@ class LlamaServer {
 
     let llamaServerPath = libFolderPath + "/llama-server"
 
+    // Empty dir to suppress router mode's automatic model discovery from cache.
+    // Without this, llama-server scans the HF cache and lists every GGUF it finds.
+    let emptyCachePath = NSTemporaryDirectory() + "llamabarn-empty-cache"
+    try? FileManager.default.createDirectory(
+      atPath: emptyCachePath, withIntermediateDirectories: true)
+
     let env = [
       "GGML_METAL_NO_RESIDENCY": "1",
-      // Set HF_HUB_CACHE so llama-server can find models in the HF cache layout
+      // Set HF_HUB_CACHE so llama-server can resolve model paths in preset
       "HF_HUB_CACHE": UserSettings.hfCacheDirectory.path,
+      "LLAMA_CACHE": emptyCachePath,
     ]
 
     var arguments = [
