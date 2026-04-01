@@ -86,9 +86,20 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
 
     logger.info("Starting download for model: \(model.displayName)")
 
+    // Add placeholder entry immediately so the model appears as "downloading"
+    // in the UI before the async HF metadata fetch completes.
+    let modelId = model.id
+    let totalUnitCount = max(remainingBytesRequired(for: model), 1)
+    activeDownloads[modelId] = ActiveDownload(
+      model: model,
+      progress: Progress(totalUnitCount: totalUnitCount),
+      tasks: [:],
+      completedFilesBytes: 0
+    )
+    postDownloadsDidChange()
+
     // Fetch HF metadata before starting download tasks.
     // This determines where files will be stored (HF cache vs legacy flat).
-    let modelId = model.id
     Task {
       let ctx = await self.fetchHFContext(for: model)
       await MainActor.run {
