@@ -172,7 +172,7 @@ extension Catalog {
           parameterCount: 31_273_088_876,
           releaseDate: date(2026, 4, 1),
           ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 2_013_265_920,
+          ctxBytesPer1kTokens: 335_544_320,
           mmproj: URL(
             string:
               "https://huggingface.co/ggml-org/gemma-4-31B-it-GGUF/resolve/main/mmproj-gemma-4-31B-it-f16.gguf"
@@ -201,7 +201,7 @@ extension Catalog {
           parameterCount: 25_805_936_206,
           releaseDate: date(2026, 4, 1),
           ctxWindow: 262_144,
-          ctxBytesPer1kTokens: 503_316_480,
+          ctxBytesPer1kTokens: 83_886_080,
           mmproj: URL(
             string:
               "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-gemma-4-26B-A4B-it-f16.gguf"
@@ -230,7 +230,7 @@ extension Catalog {
           parameterCount: 7_996_156_490,
           releaseDate: date(2026, 4, 1),
           ctxWindow: 131_072,
-          ctxBytesPer1kTokens: 176_160_768,
+          ctxBytesPer1kTokens: 29_360_128,
           mmproj: URL(
             string:
               "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-e4b-it-f16.gguf"
@@ -259,7 +259,7 @@ extension Catalog {
           parameterCount: 5_123_178_051,
           releaseDate: date(2026, 4, 1),
           ctxWindow: 131_072,
-          ctxBytesPer1kTokens: 73_400_320,
+          ctxBytesPer1kTokens: 10_485_760,
           mmproj: URL(
             string:
               "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-e2b-it-f16.gguf"
