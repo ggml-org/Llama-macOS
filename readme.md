@@ -6,7 +6,7 @@ LlamaBarn is a macOS menu bar app for running local LLMs.
 
 <br>
 
-![LlamaBarn](https://github.com/user-attachments/assets/d41323ed-dab0-426c-974b-2651262e6c2d)
+![LlamaBarn](https://github.com/user-attachments/assets/df78f9ee-bb1d-4883-bf08-44371b0cd58a)
 
 <br>
 
