@@ -252,6 +252,18 @@ extension Format {
         Format.symbol(
           "q.square", pointSize: Theme.Fonts.primary.pointSize, color: Theme.Colors.textSecondary))
     }
+
+    // Apply a paragraph style that disables letter-spacing tightening before truncation.
+    // Without this, the label shrinks its glyphs as a fallback before adding the "..." ellipsis.
+    // Attributed string paragraph style overrides the NSTextField's own allowsDefaultTighteningForTruncation,
+    // so it must be set here (mirroring Format.modelMetadata).
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.allowsDefaultTighteningForTruncation = false
+    result.addAttribute(
+      .paragraphStyle,
+      value: paragraphStyle,
+      range: NSRange(location: 0, length: result.length))
+
     return result
   }
 }

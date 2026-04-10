@@ -20,7 +20,16 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let onExpand: (() -> Void)?
 
   // Labels
-  private let titleLabel = Theme.primaryLabel()
+  private let titleLabel: NSTextField = {
+    let label = Theme.primaryLabel()
+    // Single line with ellipsis truncation when title is too long to fit
+    label.maximumNumberOfLines = 1
+    label.lineBreakMode = .byTruncatingTail
+    label.cell?.truncatesLastVisibleLine = true
+    // Prevent letter spacing compression before truncation
+    label.allowsDefaultTighteningForTruncation = false
+    return label
+  }()
   private let subtitleLabel: NSTextField = {
     let label = Theme.secondaryLabel()
     // Single line with ellipsis truncation when hover buttons overlap
@@ -105,8 +114,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: Layout.menuWidth, height: 40) }
-
   private func setupLayout() {
     // Text column
     let textColumn = NSStackView(views: [titleLabel, subtitleLabel])
@@ -141,6 +148,13 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     contentView.addSubview(rootStack)
     rootStack.pinToSuperview()
+
+    // Pin to a fixed row size. The width clamp prevents a long title from
+    // widening the menu; the height clamp gives every row a consistent 40pt rhythm.
+    NSLayoutConstraint.activate([
+      widthAnchor.constraint(equalToConstant: Layout.menuWidth),
+      heightAnchor.constraint(equalToConstant: 40),
+    ])
 
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
