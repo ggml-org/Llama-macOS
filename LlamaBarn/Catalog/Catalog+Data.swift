@@ -175,7 +175,7 @@ extension Catalog {
           ctxBytesPer1kTokens: 335_544_320,
           mmproj: URL(
             string:
-              "https://huggingface.co/ggml-org/gemma-4-31B-it-GGUF/resolve/main/mmproj-gemma-4-31B-it-f16.gguf"
+              "https://huggingface.co/ggml-org/gemma-4-31B-it-GGUF/resolve/main/mmproj-gemma-4-31B-it-bf16.gguf"
           )!,
           build: ModelBuild(
             quantization: "Q8_0",
@@ -204,7 +204,7 @@ extension Catalog {
           ctxBytesPer1kTokens: 83_886_080,
           mmproj: URL(
             string:
-              "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-gemma-4-26B-A4B-it-f16.gguf"
+              "https://huggingface.co/ggml-org/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-gemma-4-26B-A4B-it-bf16.gguf"
           )!,
           build: ModelBuild(
             quantization: "Q8_0",
@@ -233,14 +233,14 @@ extension Catalog {
           ctxBytesPer1kTokens: 29_360_128,
           mmproj: URL(
             string:
-              "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-e4b-it-f16.gguf"
+              "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-E4B-it-bf16.gguf"
           )!,
           build: ModelBuild(
             quantization: "Q8_0",
             fileSize: 8_031_235_776,
             downloadUrl: URL(
               string:
-                "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-e4b-it-Q8_0.gguf"
+                "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q8_0.gguf"
             )!
           ),
           quantizedBuilds: [
@@ -249,7 +249,7 @@ extension Catalog {
               fileSize: 5_335_285_440,
               downloadUrl: URL(
                 string:
-                  "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-e4b-it-Q4_K_M.gguf"
+                  "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf"
               )!
             )
           ]
@@ -262,14 +262,14 @@ extension Catalog {
           ctxBytesPer1kTokens: 10_485_760,
           mmproj: URL(
             string:
-              "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-e2b-it-f16.gguf"
+              "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-E2B-it-bf16.gguf"
           )!,
           build: ModelBuild(
             quantization: "Q8_0",
             fileSize: 4_967_490_208,
             downloadUrl: URL(
               string:
-                "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-e2b-it-Q8_0.gguf"
+                "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q8_0.gguf"
             )!
           )
         ),
