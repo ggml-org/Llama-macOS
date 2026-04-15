@@ -116,8 +116,7 @@ extension CatalogEntry {
 
     if ctxWindowTokens > 0 && ctxWindowTokens > Double(ctxWindow) {
       // Model's native context window is smaller than requested
-      let maxTier = ContextTier.allCases.last { $0.rawValue <= ctxWindow }
-      let maxLabel = maxTier?.label ?? "\(ctxWindow / 1024)k"
+      let maxLabel = nativeMaxTier?.label ?? "\(ctxWindow / 1024)k"
       return CompatibilityInfo(
         isCompatible: false,
         incompatibilitySummary: "model max is \(maxLabel)"
@@ -181,6 +180,12 @@ extension CatalogEntry {
     }
 
     return tiers.sorted()
+  }
+
+  /// The largest standard tier that fits within the model's native context window.
+  /// Independent of device RAM -- this is the model's spec ceiling.
+  var nativeMaxTier: ContextTier? {
+    ContextTier.allCases.last { $0.rawValue <= ctxWindow }
   }
 
   /// The effective context tier for this model.

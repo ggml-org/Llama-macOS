@@ -13,17 +13,11 @@ enum ContextTier: Int, CaseIterable, Identifiable, Comparable {
 
   var id: Int { rawValue }
 
-  var label: String {
-    switch self {
-    case .k4: return "4k ctx"
-    case .k8: return "8k ctx"
-    case .k16: return "16k ctx"
-    case .k32: return "32k ctx"
-    case .k64: return "64k ctx"
-    case .k128: return "128k ctx"
-    case .k256: return "256k ctx"
-    }
-  }
+  /// Number-only label without the "ctx" suffix (e.g. "4k").
+  /// Used when composing dual-value labels like "4k of 32k ctx".
+  var shortLabel: String { "\(rawValue / 1024)k" }
+
+  var label: String { "\(shortLabel) ctx" }
 
   var suffix: String {
     ":\(label)"

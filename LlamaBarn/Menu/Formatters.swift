@@ -145,7 +145,16 @@ extension Format {
       if model.isSideloaded && model.ctxBytesPer1kTokens == 0 {
         result.append(NSAttributedString(string: "estimating...", attributes: secondaryAttributes))
       } else if let tier = model.effectiveCtxTier {
-        result.append(NSAttributedString(string: tier.label, attributes: attributes))
+        // When the device-fit tier is below the model's native max, show both:
+        // "4k of 32k ctx" -- the fit value is the headline, the max is dimmed
+        // context. When they match, just show the single tier label as before.
+        if let nativeMax = model.nativeMaxTier, nativeMax > tier {
+          result.append(NSAttributedString(string: tier.shortLabel, attributes: attributes))
+          result.append(
+            NSAttributedString(string: " of \(nativeMax.label)", attributes: secondaryAttributes))
+        } else {
+          result.append(NSAttributedString(string: tier.label, attributes: attributes))
+        }
       }
     }
 
