@@ -17,14 +17,15 @@ enum FitParamsRunner {
   private static let logger = Logger(subsystem: Logging.subsystem, category: "FitParamsRunner")
 
   /// Runs llama-fit-params on a model file and returns parsed memory params.
-  /// Takes ~1s per model. Returns nil on failure (binary not found, parse error, etc).
+  /// Takes ~1s per model. Falls back to a conservative size-based estimate on failure.
   /// Supports cancellation — terminates the subprocess if the Task is cancelled.
   static func run(modelPath: String) async -> FitParams? {
+    let fallback = fallbackParams(modelPath: modelPath)
     let binaryPath = Bundle.main.bundlePath + "/Contents/MacOS/llama-cpp/llama-fit-params"
 
     guard FileManager.default.fileExists(atPath: binaryPath) else {
       logger.error("llama-fit-params binary not found at \(binaryPath)")
-      return nil
+      return fallback
     }
 
     // Run with 128k context and debug verbosity to get the memory breakdown.
@@ -68,25 +69,37 @@ enum FitParamsRunner {
         group.leave()
       }
 
-      group.wait()
+      if group.wait(timeout: .now() + .seconds(30)) == .timedOut {
+        logger.error("llama-fit-params timed out for \(modelPath)")
+        if process.isRunning {
+          process.terminate()
+        }
+        _ = group.wait(timeout: .now() + .seconds(2))
+        if process.isRunning {
+          kill(process.processIdentifier, SIGKILL)
+        }
+        process.waitUntilExit()
+        return fallback
+      }
+
       process.waitUntilExit()
 
       guard process.terminationStatus == 0 else {
-        let errOutput = String(data: stderrData, encoding: .utf8) ?? ""
+        let errOutput = String(decoding: stderrData, as: UTF8.self)
         // terminationStatus 15 = SIGTERM from cancellation, don't log as error
         if process.terminationStatus != 15 {
           logger.error(
             "llama-fit-params exited with status \(process.terminationStatus): \(errOutput.prefix(500))"
           )
         }
-        return nil
+        return fallback
       }
 
       let output =
-        (String(data: stdoutData, encoding: .utf8) ?? "")
-        + (String(data: stderrData, encoding: .utf8) ?? "")
+        String(decoding: stdoutData, as: UTF8.self)
+        + String(decoding: stderrData, as: UTF8.self)
 
-      return parseOutput(output)
+      return parseOutput(output) ?? fallback
     } onCancel: {
       // Terminate the subprocess when the parent task is cancelled
       if process.isRunning {
@@ -177,6 +190,34 @@ enum FitParamsRunner {
     )
 
     return FitParams(ctxBytesPer1kTokens: ctxBytesPer1kTokens)
+  }
+
+  /// Conservative fallback for sideloaded GGUFs when llama-fit-params cannot
+  /// initialize Metal, emits unparseable output, or times out.
+  private static func fallbackParams(modelPath: String) -> FitParams {
+    let resolvedPath = URL(fileURLWithPath: modelPath).resolvingSymlinksInPath().path
+    let attrs = try? FileManager.default.attributesOfItem(atPath: resolvedPath)
+    let fileSize = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+    let gb = Double(fileSize) / 1_000_000_000.0
+
+    let mibPer1k: Int
+    switch gb {
+    case 25...:
+      mibPer1k = 128
+    case 10..<25:
+      mibPer1k = 64
+    case 5..<10:
+      mibPer1k = 32
+    case 2..<5:
+      mibPer1k = 16
+    default:
+      mibPer1k = 8
+    }
+
+    logger.info(
+      "Using fallback fit params for \(modelPath): \(mibPer1k) MiB per 1k tokens"
+    )
+    return FitParams(ctxBytesPer1kTokens: mibPer1k * 1_048_576)
   }
 }
 
