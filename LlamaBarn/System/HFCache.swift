@@ -517,17 +517,14 @@ enum HFCache {
       return sum + ((attrs?[.size] as? NSNumber)?.int64Value ?? 0)
     }
 
-    // Generate stable ID: "sideloaded:{org}/{repo}:{filename_without_ext}"
-    let filenameBase: String
-    if let dotIdx = filename.lastIndex(of: ".") {
-      filenameBase = String(filename[..<dotIdx])
-    } else {
-      filenameBase = filename
-    }
+    // Generate stable ID matching llama-server's `-hf` shorthand format:
+    // "{org}/{repo}:{QUANT}" -- e.g. "ggml-org/gemma-3-1b-it-qat-GGUF:Q4_0".
+    // This lets power users switch b/w llama-server and LlamaBarn w/o changing
+    // model IDs in their code.
     // Extract repo name from "models--org--repo"
     let repoParts = repoDir.components(separatedBy: "--")
     let repoName = repoParts.count >= 3 ? repoParts[2...].joined(separator: "--") : repoDir
-    let modelId = "sideloaded:\(parsed.org)/\(repoName):\(filenameBase)"
+    let modelId = "\(parsed.org)/\(repoName):\(quant)"
 
     // Build the display size label — use params if available, otherwise show quant only
     let sizeLabel = parsed.params ?? quant
