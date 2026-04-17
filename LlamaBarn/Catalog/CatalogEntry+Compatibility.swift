@@ -160,10 +160,10 @@ extension CatalogEntry {
   /// Shows all standard tiers (4K through 128K) that are compatible, plus 256K if supported.
   /// For sideloaded models still awaiting fit-params, returns only 4K as a safe default.
   var supportedContextTiers: [ContextTier] {
-    // Sideloaded models without fit-params yet: allow 4K only as a conservative default.
-    // Without ctxBytesPer1kTokens, memory estimates are artificially low and all tiers
-    // would appear compatible. Once fit-params arrives, full tier selection is enabled.
-    if isSideloaded && ctxBytesPer1kTokens == 0 {
+    // Sideloaded models without fit-params (0 = estimating, -1 = failed): allow 4K
+    // only as a conservative default. Without ctxBytesPer1kTokens, memory estimates
+    // are artificially low and all tiers would appear compatible.
+    if isSideloaded && ctxBytesPer1kTokens <= 0 {
       return [.k4]
     }
 

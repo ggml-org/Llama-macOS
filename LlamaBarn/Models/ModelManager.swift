@@ -462,17 +462,21 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
       for (modelId, modelPath) in models {
         guard !Task.isCancelled else { return }
 
-        guard let params = await FitParamsRunner.run(modelPath: modelPath) else { continue }
+        let params = await FitParamsRunner.run(modelPath: modelPath)
         guard !Task.isCancelled else { return }
 
+        // On failure, cache a sentinel (-1) so the UI stops showing "estimating..."
+        // and we don't re-run on next launch. The model falls back to 4k context.
+        let resolved = params ?? FitParams(ctxBytesPer1kTokens: -1)
+
         // Cache the result to disk
-        FitParamsCache.set(params, for: modelId)
+        FitParamsCache.set(resolved, for: modelId)
 
         // Update the in-memory model entry and refresh the UI
         guard let mgr = self else { return }
         await MainActor.run {
           if let idx = mgr.downloadedModels.firstIndex(where: { $0.id == modelId }) {
-            mgr.downloadedModels[idx].ctxBytesPer1kTokens = params.ctxBytesPer1kTokens
+            mgr.downloadedModels[idx].ctxBytesPer1kTokens = resolved.ctxBytesPer1kTokens
           }
 
           // Regenerate models.ini now that we have accurate memory info

@@ -59,7 +59,7 @@ enum FitParamsRunner {
       process.waitUntilExit()
 
       guard process.terminationStatus == 0 else {
-        let errOutput = String(data: stderr, encoding: .utf8) ?? ""
+        let errOutput = String(decoding: stderr, as: UTF8.self)
         // terminationStatus 15 = SIGTERM from cancellation, don't log as error
         if process.terminationStatus != 15 {
           logger.error(
@@ -69,9 +69,13 @@ enum FitParamsRunner {
         return nil
       }
 
+      // Use String(decoding:as:) for lossy UTF-8 decoding — replaces invalid bytes
+      // with U+FFFD instead of returning nil. llama-fit-params stderr can contain
+      // raw tokenizer metadata with invalid UTF-8, which would cause strict decoding
+      // to discard the entire output including valid breakdown lines.
       let output =
-        (String(data: stdout, encoding: .utf8) ?? "")
-        + (String(data: stderr, encoding: .utf8) ?? "")
+        String(decoding: stdout, as: UTF8.self)
+        + String(decoding: stderr, as: UTF8.self)
 
       return parseOutput(output)
     } onCancel: {

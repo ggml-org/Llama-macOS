@@ -141,9 +141,11 @@ extension Format {
       // Pipe separator
       result.append(NSAttributedString(string: "  ∣  ", attributes: secondaryAttributes))
 
-      // Context tier or "estimating..." for sideloaded models pending fit-params
+      // Context tier or status for sideloaded models pending/failed fit-params
       if model.isSideloaded && model.ctxBytesPer1kTokens == 0 {
         result.append(NSAttributedString(string: "estimating...", attributes: secondaryAttributes))
+      } else if model.isSideloaded && model.ctxBytesPer1kTokens < 0 {
+        result.append(NSAttributedString(string: "4k ctx", attributes: secondaryAttributes))
       } else if let tier = model.effectiveCtxTier {
         // When the device-fit tier is below the model's native max, show both:
         // "4k of 32k ctx" -- the fit value is the headline, the max is dimmed
