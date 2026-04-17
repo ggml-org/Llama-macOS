@@ -407,6 +407,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
         var entry = entry
         if let cached = FitParamsCache.get(modelId: entry.id) {
           entry.ctxBytesPer1kTokens = cached.ctxBytesPer1kTokens
+          entry.fitResidentBytes = cached.residentBytes
         } else {
           needsFitParams.append((id: entry.id, path: paths.modelFile))
         }
@@ -477,6 +478,7 @@ class ModelManager: NSObject, URLSessionDownloadDelegate {
         await MainActor.run {
           if let idx = mgr.downloadedModels.firstIndex(where: { $0.id == modelId }) {
             mgr.downloadedModels[idx].ctxBytesPer1kTokens = resolved.ctxBytesPer1kTokens
+            mgr.downloadedModels[idx].fitResidentBytes = resolved.residentBytes
           }
 
           // Regenerate models.ini now that we have accurate memory info

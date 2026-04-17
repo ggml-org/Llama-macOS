@@ -8,6 +8,15 @@ struct FitParams: Codable {
   /// KV-cache footprint for a 1k-token context, in bytes.
   /// Maps directly to CatalogEntry.ctxBytesPer1kTokens.
   let ctxBytesPer1kTokens: Int
+  /// Measured resident memory used by model weights + compute buffers, in bytes
+  /// (summed across all devices in the final fit-params breakdown).
+  /// 0 if unknown (e.g. fit-params failed). Maps to CatalogEntry.fitResidentBytes.
+  let residentBytes: Int
+
+  init(ctxBytesPer1kTokens: Int, residentBytes: Int = 0) {
+    self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
+    self.residentBytes = residentBytes
+  }
 }
 
 /// Runs the llama-fit-params binary to determine a model's memory characteristics.
@@ -88,86 +97,92 @@ enum FitParamsRunner {
 
   /// Parses the llama_memory_breakdown_print output.
   ///
-  /// Expected format:
+  /// fit-params prints one breakdown per search iteration; we only care about the last.
+  /// Each breakdown has one row per device (MTL0, Host, and sometimes CPU_REPACK for
+  /// MoE models whose experts spill off GPU). On Apple Silicon unified memory all
+  /// devices share one physical RAM pool, so every row counts toward the budget.
+  ///
+  /// Row format (the numbers we care about are "self = model + context + compute"):
   /// ```
-  /// llama_memory_breakdown_print: |   - MTL0 (Apple M1)    |  5461 = 5460 + (3961 =  1794 +    1650 +     517) + ... |
-  /// llama_memory_breakdown_print: |   - Host               |                 2587 =   680 +    1084 +     823         |
+  /// |   - MTL0 (Apple M1)    |  5461 = 5460 + (3961 =  1794 +    1650 +     517) + ... |
+  /// |   - Host               |                 2587 =   680 +    1084 +     823         |
+  /// |   - CPU_REPACK         |                 3617 =  3617 +       0 +       0         |
   /// ```
   ///
-  /// We extract: self = model + context + compute
-  /// ctxBytesPer1kTokens = ((MTL0 context + Host context) / 128) * 1024 * 1024
+  /// Weight memory = sum over devices of (model + compute). Compute buffers are
+  /// resident during inference, so they belong with weights, not context.
+  /// Per-1k-token cost = sum over devices of context / 128 (we run at 128k).
   private static func parseOutput(_ output: String) -> FitParams? {
     let lines = output.components(separatedBy: "\n")
     let breakdownLines = lines.filter { $0.contains("llama_memory_breakdown_print") }
 
-    // Pattern captures "self = model + context + compute" — four numbers
-    let selfPattern = try! NSRegularExpression(
-      pattern: #"(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)"#
-    )
-
-    var mtl0Ctx = 0
-    var hostCtx = 0
-
+    // Split into per-iteration groups, each starting with a "memory breakdown" header.
+    var groups: [[String]] = []
     for line in breakdownLines {
-      // Skip the header line
-      if line.contains("memory breakdown") { continue }
-
-      let isMtl0 = line.contains("MTL0")
-      let isHost = line.contains("Host")
-      guard isMtl0 || isHost else { continue }
-
-      // For MTL0, extract the part inside parens: (self = model + context + compute)
-      var searchStr = line
-      if isMtl0 {
-        let parenPattern = try! NSRegularExpression(
-          pattern: #"\((\d+\s*=\s*\d+\s*\+\s*\d+\s*\+\s*\d+)\)"#
-        )
-        if let match = parenPattern.firstMatch(
-          in: line, range: NSRange(line.startIndex..., in: line)
-        ),
-          let range = Range(match.range(at: 1), in: line)
-        {
-          searchStr = String(line[range])
-        }
-      }
-
-      guard
-        let match = selfPattern.firstMatch(
-          in: searchStr, range: NSRange(searchStr.startIndex..., in: searchStr)
-        )
-      else {
-        logger.warning("Could not parse memory breakdown from line: \(line)")
-        continue
-      }
-
-      // Extract the context value (3rd number in "self = model + context + compute")
-      if let ctxRange = Range(match.range(at: 3), in: searchStr),
-        let ctx = Int(searchStr[ctxRange])
-      {
-        if isMtl0 {
-          mtl0Ctx = ctx
-        } else {
-          hostCtx = ctx
-        }
+      if line.contains("memory breakdown") {
+        groups.append([])
+      } else if !groups.isEmpty {
+        groups[groups.count - 1].append(line)
       }
     }
 
-    // Both must be found for a valid result
-    guard mtl0Ctx > 0 || hostCtx > 0 else {
+    guard let lastGroup = groups.last, !lastGroup.isEmpty else {
+      logger.error("Failed to find any memory breakdown in llama-fit-params output")
+      return nil
+    }
+
+    // "self = model + context + compute" — four numbers inside the optional parens.
+    let pattern = try! NSRegularExpression(
+      pattern: #"(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)"#
+    )
+
+    var totalModelMib = 0
+    var totalCtxMib = 0
+    var totalComputeMib = 0
+
+    // Each non-header line in the last group is a device row. Sum all of them —
+    // don't filter by device name, since CPU_REPACK and future devices count too.
+    // The MTL0 row wraps its breakdown in parens (to disambiguate from the leading
+    // "total = free + self" sum), but the regex's `\d+ \+ \d+ \+ \d+` shape
+    // only matches the inner "self = model + context + compute" form anyway —
+    // the outer `5460 + (` breaks the digit-only pattern. So firstMatch is enough.
+    for line in lastGroup {
+      let range = NSRange(line.startIndex..., in: line)
+      guard let match = pattern.firstMatch(in: line, range: range) else {
+        continue  // not a device row (blank / divider)
+      }
+
+      if let modelRange = Range(match.range(at: 2), in: line),
+        let ctxRange = Range(match.range(at: 3), in: line),
+        let computeRange = Range(match.range(at: 4), in: line),
+        let model = Int(line[modelRange]),
+        let ctx = Int(line[ctxRange]),
+        let compute = Int(line[computeRange])
+      {
+        totalModelMib += model
+        totalCtxMib += ctx
+        totalComputeMib += compute
+      }
+    }
+
+    // Context is the primary signal; a breakdown with zero context is malformed.
+    guard totalCtxMib > 0 else {
       logger.error("Failed to parse memory breakdown from llama-fit-params output")
       return nil
     }
 
-    // Total context memory at 128k, divide by 128 to get per-1k-token cost (MiB),
-    // then convert to bytes
-    let totalCtxMib = Double(mtl0Ctx + hostCtx) / 128.0
-    let ctxBytesPer1kTokens = Int(totalCtxMib * 1_048_576.0)
+    // Per-1k-token cost: fit-params was invoked at 128k, so divide total context by 128.
+    let ctxMibPer1k = Double(totalCtxMib) / 128.0
+    let ctxBytesPer1kTokens = Int(ctxMibPer1k * 1_048_576.0)
+
+    // Weight memory: model + compute buffers (both resident during inference).
+    let residentBytes = (totalModelMib + totalComputeMib) * 1_048_576
 
     logger.info(
-      "Fit params: ctx=\(mtl0Ctx)+\(hostCtx) MiB at 128k → \(ctxBytesPer1kTokens) bytes/1k tokens"
+      "Fit params: model=\(totalModelMib) MiB + compute=\(totalComputeMib) MiB, ctx=\(totalCtxMib) MiB at 128k → \(ctxBytesPer1kTokens) bytes/1k tokens, \(residentBytes) resident bytes"
     )
 
-    return FitParams(ctxBytesPer1kTokens: ctxBytesPer1kTokens)
+    return FitParams(ctxBytesPer1kTokens: ctxBytesPer1kTokens, residentBytes: residentBytes)
   }
 }
 

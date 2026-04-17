@@ -33,8 +33,8 @@ extension CatalogEntry {
     guard sysMem > 0 else { return nil }
 
     let budgetMb = Self.memoryBudget(systemMemoryMb: sysMem)
-    let fileSizeWithOverheadMb = fileSizeWithOverhead
-    if fileSizeWithOverheadMb > budgetMb { return nil }
+    let weightMb = weightMemoryMb
+    if weightMb > budgetMb { return nil }
 
     // Default to 4k context unless maximizing or explicitly requested
     let defaultContext = maximizeContext ? ctxWindow : minimumTokens
@@ -47,7 +47,7 @@ extension CatalogEntry {
       if ctxBytesPerToken <= 0 {
         return Double(ctxWindow)
       }
-      let remainingMb = budgetMb - fileSizeWithOverheadMb
+      let remainingMb = budgetMb - weightMb
       if remainingMb <= 0 { return 0 }
       let remainingBytes = remainingMb * 1_048_576.0
       return remainingBytes / ctxBytesPerToken
@@ -80,11 +80,11 @@ extension CatalogEntry {
     ctxWindowTokens: Double = compatibilityCtxWindowTokens
   ) -> UInt64 {
     // Memory calculations use binary units so they line up with Activity Monitor.
-    let fileSizeWithOverheadMb = fileSizeWithOverhead
+    let weightMb = weightMemoryMb
     let ctxMultiplier = ctxWindowTokens / 1_000.0
     let ctxBytes = Double(ctxBytesPer1kTokens) * ctxMultiplier
     let ctxMb = ctxBytes / 1_048_576.0
-    let totalMb = fileSizeWithOverheadMb + ctxMb
+    let totalMb = weightMb + ctxMb
     return UInt64(ceil(totalMb))
   }
 
@@ -95,8 +95,14 @@ extension CatalogEntry {
     Double(bytes) / 1_048_576.0
   }
 
-  /// Calculates file size in MB including overhead multiplier
-  private var fileSizeWithOverhead: Double {
+  /// Weight memory (MB) used by compatibility math.
+  /// For sideloaded models with a fit-params result, uses the measured resident weight
+  /// size (correct for MoE models). Otherwise falls back to fileSize * overheadMultiplier,
+  /// which is the only option for catalog entries (evaluated pre-download).
+  private var weightMemoryMb: Double {
+    if fitResidentBytes > 0 {
+      return Double(fitResidentBytes) / 1_048_576.0
+    }
     let fileSizeMb = Self.bytesToMb(fileSize)
     return fileSizeMb * overheadMultiplier
   }

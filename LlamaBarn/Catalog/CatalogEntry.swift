@@ -13,6 +13,12 @@ struct CatalogEntry: Identifiable {
   /// This helps us preflight memory requirements before launching llama-server.
   /// For sideloaded models, starts at 0 and is updated async by llama-fit-params.
   var ctxBytesPer1kTokens: Int
+  /// Measured resident weight memory in bytes, from llama-fit-params.
+  /// 0 means unavailable — compatibility math falls back to fileSize * overheadMultiplier.
+  /// Only populated for sideloaded models (catalog models are evaluated pre-download).
+  /// For MoE models this is much smaller than fileSize, since only active experts
+  /// contribute to resident memory.
+  var fitResidentBytes: Int
   /// Overhead multiplier for the model file size (e.g., 1.3 = 30% overhead).
   /// Applied during memory calculations to account for loading overhead.
   let overheadMultiplier: Double
@@ -53,6 +59,7 @@ struct CatalogEntry: Identifiable {
     ctxWindow: Int,
     fileSize: Int64,
     ctxBytesPer1kTokens: Int,
+    fitResidentBytes: Int = 0,
     overheadMultiplier: Double = 1.05,
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
@@ -73,6 +80,7 @@ struct CatalogEntry: Identifiable {
     self.ctxWindow = ctxWindow
     self.fileSize = fileSize
     self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
+    self.fitResidentBytes = fitResidentBytes
     self.overheadMultiplier = overheadMultiplier
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts
