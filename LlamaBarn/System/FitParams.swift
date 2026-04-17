@@ -4,6 +4,12 @@ import os.log
 
 /// Memory characteristics computed by llama-fit-params for a model.
 /// Cached to disk so we don't re-run on every launch.
+///
+/// All fields are non-optional on purpose: when we add a new field, synthesized
+/// Codable fails to decode old cache entries (keyNotFound), `FitParamsCache.get`
+/// returns nil, and we re-run fit-params to produce a fresh entry. Don't switch
+/// to `decodeIfPresent` or a custom `init(from:)` with defaults — that would
+/// silently keep stale entries across upgrades.
 struct FitParams: Codable {
   /// KV-cache footprint for a 1k-token context, in bytes.
   /// Maps directly to CatalogEntry.ctxBytesPer1kTokens.
