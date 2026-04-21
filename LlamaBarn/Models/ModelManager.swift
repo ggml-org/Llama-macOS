@@ -6,6 +6,10 @@ import os.log
 enum ModelStatus: Equatable {
   case available
   case downloading(Progress)
+  /// A `.partial` file exists on disk from a previous session but no transfer is active.
+  /// `bytesOnDisk` is the sum of the model's `.partial` file sizes; `totalBytes` is the
+  /// catalog-declared full size. See RFC 016 for the partial-file layout.
+  case paused(bytesOnDisk: Int64, totalBytes: Int64)
   case installed
 }
 
@@ -21,17 +25,33 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// deletion, and determining which files need downloading.
   var resolvedPaths: [String: ResolvedPaths] = [:]
 
-  /// Returns a sorted list of all models that are either installed or currently downloading.
+  /// Returns a sorted list of all models that are either installed, currently downloading,
+  /// or paused (have a leftover `.partial` dir from a previous session).
   /// This is the primary list shown in the "Installed" section of the menu.
   var managedModels: [CatalogEntry] {
-    (downloadedModels + downloadingModels).sorted(by: CatalogEntry.displayOrder(_:_:))
+    (downloadedModels + downloadingModels + pausedModels)
+      .sorted(by: CatalogEntry.displayOrder(_:_:))
   }
 
   var downloadingModels: [CatalogEntry] {
     activeDownloads.values.map { $0.model }
   }
 
+  /// Catalog entries with on-disk `.partial` bytes but no in-flight transfer.
+  /// `pausedDownloads` is kept in sync so this is just a catalog-lookup map; no
+  /// defensive filtering needed — `updateDownloadedModels` excludes ids that are
+  /// installed or actively downloading at refresh time.
+  var pausedModels: [CatalogEntry] {
+    pausedDownloads.keys.compactMap { Catalog.findModel(id: $0) }
+  }
+
   var activeDownloads: [String: ActiveDownload] = [:]
+
+  /// Model id → bytes on disk in the `.partial` staging dir, for any download that
+  /// isn't currently transferring. Sources: the init scan (interrupted by quit),
+  /// `pauseModelDownload` (manually paused this session), and the internal failure
+  /// paths (transient failures that exhausted retries).
+  var pausedDownloads: [String: Int64] = [:]
 
   /// HF download context per model ID, gathered before download starts.
   /// Contains commit hash and blob hashes needed to write into HF cache layout.
@@ -85,6 +105,10 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       return
     }
 
+    // Transition paused → downloading. Bytes-on-disk are already in the `.partial`
+    // file, so no need to hold them in pausedDownloads once the transfer is live.
+    pausedDownloads.removeValue(forKey: model.id)
+
     let filesToDownload = try prepareDownload(for: model)
     guard !filesToDownload.isEmpty else { return }
 
@@ -110,8 +134,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       await MainActor.run {
         guard let ctx else {
           self.logger.error("HF metadata fetch failed for \(model.displayName); aborting download")
-          self.cancelActiveDownload(modelId: modelId)
-          self.postDownloadsDidChange()
+          self.tearDownActiveDownload(modelId: modelId, outcome: .pause)
           NotificationCenter.default.post(
             name: .LBModelDownloadDidFail,
             object: self,
@@ -137,7 +160,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let modelId = model.id
     guard let ctx = downloadContexts[modelId] else {
       logger.error("Missing HF context when starting tasks for \(model.displayName)")
-      cancelActiveDownload(modelId: modelId)
+      tearDownActiveDownload(modelId: modelId, outcome: .pause)
       return
     }
     let cacheDir = UserSettings.hfCacheDirectory
@@ -163,7 +186,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         // Abort the whole model download — we can't proceed with a missing partial.
         // Cancel any tasks already started for this model.
         activeDownloads[modelId] = aggregate
-        cancelActiveDownload(modelId: modelId)
+        tearDownActiveDownload(modelId: modelId, outcome: .pause)
         NotificationCenter.default.post(
           name: .LBModelDownloadDidFail, object: self,
           userInfo: [
@@ -267,6 +290,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
     if let download = activeDownloads[model.id] {
       return .downloading(download.progress)
+    }
+    if let bytes = pausedDownloads[model.id] {
+      return .paused(bytesOnDisk: bytes, totalBytes: model.fileSize)
     }
     return .available
   }
@@ -508,9 +534,18 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       let allDownloaded = catalogDownloaded + sideloadedEntries
 
       let pendingFitParams = needsFitParams
+
+      // Scan `.llamabarn-partial/` for interrupted downloads from a previous session.
+      // Done on the same detached task so we know exactly which ids are already
+      // installed (stale partial dirs for installed models get cleaned here).
+      let installedIds = Set(allDownloaded.map(\.id))
+      let knownIds = Set(allCatalogModels.map(\.id))
+      let paused = HFCache.scanPartials(
+        cacheDir: hfCacheDir, knownIds: knownIds, installedIds: installedIds)
+
       await MainActor.run {
         Self.updateDownloadedModels(
-          allDownloaded, resolved: finalResolved, pending: pendingFitParams)
+          allDownloaded, resolved: finalResolved, pending: pendingFitParams, paused: paused)
       }
     }
   }
@@ -518,11 +553,19 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   private static func updateDownloadedModels(
     _ models: [CatalogEntry],
     resolved: [String: ResolvedPaths],
-    pending: [(id: String, path: String)] = []
+    pending: [(id: String, path: String)] = [],
+    paused: [String: Int64] = [:]
   ) {
     let manager = ModelManager.shared
     manager.downloadedModels = models.sorted(by: CatalogEntry.displayOrder(_:_:))
     manager.resolvedPaths = resolved
+    // Refresh paused downloads from the partial-dir scan. Authoritative — callers
+    // from refreshDownloadedModels always pass the latest scan (possibly empty).
+    // Drop active ids: their `.partial` files are on disk but owned by the transfer,
+    // and they'd otherwise coexist in both `activeDownloads` and `pausedDownloads`.
+    let excluded = Set(manager.downloadedModels.map(\.id))
+      .union(manager.activeDownloads.keys)
+    manager.pausedDownloads = paused.filter { !excluded.contains($0.key) }
 
     // Only reload server if models.ini actually changed
     if manager.updateModelsFile() {
@@ -579,24 +622,17 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
   }
 
-  /// Cancels an ongoing download (user-initiated).
-  /// Per RFC 016 §Cleanup, also removes the model's `.partial` staging directory so the user
-  /// gets a clean state — a subsequent download starts from zero, not from a stale partial.
+  /// Discards an ongoing or paused download — removes `.partial` files, clears
+  /// bookkeeping. Per RFC 016 §Cleanup: a subsequent start begins from byte zero.
   func cancelModelDownload(_ model: CatalogEntry) {
-    let modelId = model.id
-    if activeDownloads[modelId] != nil {
-      cancelTasks(for: modelId)
-      activeDownloads.removeValue(forKey: modelId)
-      lastNotificationTime.removeValue(forKey: modelId)
-      downloadContexts.removeValue(forKey: modelId)
+    tearDownActiveDownload(modelId: model.id, outcome: .discard)
+  }
 
-      // Clear retry state for all URLs associated with this model
-      for url in model.allDownloadUrls {
-        clearRetryState(for: url)
-      }
-    }
-    HFCache.removePartials(cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)
-    NotificationCenter.default.post(name: .LBModelDownloadsDidChange, object: self)
+  /// Stops an in-flight download but keeps the `.partial` bytes on disk so the user
+  /// can resume it later. The model reappears in the Installed section as paused.
+  func pauseModelDownload(_ model: CatalogEntry) {
+    guard activeDownloads[model.id] != nil else { return }
+    tearDownActiveDownload(modelId: model.id, outcome: .pause)
   }
 
   // MARK: - Convenience Methods
@@ -900,8 +936,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
       self.logger.error("Model download failed (\(reason)) for model: \(model.displayName)")
-      self.cancelActiveDownload(modelId: modelId)
-      self.postDownloadsDidChange()
+      self.tearDownActiveDownload(modelId: modelId, outcome: .pause)
       NotificationCenter.default.post(
         name: .LBModelDownloadDidFail,
         object: self,
@@ -1075,16 +1110,56 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
   }
 
-  /// Cancels all tasks for a model and removes it from active downloads.
-  /// Internal (used by failure paths). Leaves `.partial` files in place — the user hasn't
-  /// asked to discard them, and they're useful if they retry manually.
-  private func cancelActiveDownload(modelId: String) {
+  /// What to do with the on-disk `.partial` bytes when tearing down an active download.
+  private enum TeardownOutcome {
+    /// User asked to throw the download away — remove partials, drop any paused state.
+    case discard
+    /// Stop the transfer but keep partials so the model shows up as paused.
+    /// Used by the user "pause" action and by internal failure paths — if the failure
+    /// cleanup already deleted the file (401/403/404, hash mismatch, too-small), the
+    /// paused entry is skipped and the row simply disappears.
+    case pause
+  }
+
+  /// Stops every in-flight URLSession task for a model, clears in-memory bookkeeping,
+  /// and either surfaces the leftover bytes as a paused row or discards them.
+  /// The single teardown path means cancel, pause, and internal failure all behave
+  /// identically except for what happens to the `.partial` files.
+  private func tearDownActiveDownload(modelId: String, outcome: TeardownOutcome) {
+    let model = activeDownloads[modelId]?.model
+
     if activeDownloads[modelId] != nil {
       cancelTasks(for: modelId)
       activeDownloads.removeValue(forKey: modelId)
       lastNotificationTime.removeValue(forKey: modelId)
       downloadContexts.removeValue(forKey: modelId)
+      // Clear retry counters — a subsequent resume/retry should start a fresh budget.
+      if let model {
+        for url in model.allDownloadUrls { clearRetryState(for: url) }
+      }
     }
+
+    switch outcome {
+    case .discard:
+      pausedDownloads.removeValue(forKey: modelId)
+      HFCache.removePartials(cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)
+    case .pause:
+      let bytes = HFCache.partialBytes(
+        cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)
+      if bytes > 0 {
+        pausedDownloads[modelId] = bytes
+      } else {
+        // Failure path already wiped the partials (e.g. 404, hash mismatch) — nothing
+        // to resume, so don't leave a ghost entry in pausedDownloads.
+        pausedDownloads.removeValue(forKey: modelId)
+      }
+    }
+
+    // Every teardown changes the Installed section shape AND progress state.
+    // Posting here keeps the three callers (cancel / pause / internal failure)
+    // from having to remember to fire the right notifications.
+    NotificationCenter.default.post(name: .LBModelDownloadsDidChange, object: self)
+    NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
   }
 
   /// Recomputes the aggregate progress for a model from its per-task writer state.

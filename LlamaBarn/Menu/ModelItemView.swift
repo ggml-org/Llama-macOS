@@ -51,6 +51,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   // Icon and action buttons
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
+  /// Combined pause/play affordance: shows `pause.circle` while a download is in flight,
+  /// `play.circle` when the row is in the paused state (partials on disk, no transfer).
+  /// Clicking it toggles between the two; the same toggle also fires on row-body clicks.
+  private let pausePlayImageView = NSImageView()
   private let unloadButton = NSButton()
 
   // Checkmark badge shown when the row represents an installed model inside
@@ -87,6 +91,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Configure action buttons
     Theme.configure(cancelImageView, symbol: "xmark", color: .systemRed)
+    // Pause/play icon: actual symbol is set in `refresh()` based on status.
+    Theme.configure(pausePlayImageView, symbol: "pause.circle", color: .tertiaryLabelColor)
     Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
 
     // Installed badge: subtle checkmark in the accessory area.
@@ -115,6 +121,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Start hidden
     cancelImageView.isHidden = true
+    pausePlayImageView.isHidden = true
     unloadButton.isHidden = true
     progressLabel.isHidden = true
     hoverButtonsStack.isHidden = true
@@ -145,9 +152,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // Accessory stack
+    // Accessory stack — pause/play sits between the progress label and the cancel X,
+    // mirroring iOS's "tap-to-pause + X-to-discard" progress affordance.
     let accessoryStack = NSStackView(views: [
-      progressLabel, cancelImageView, hoverButtonsStack, unloadButton, installedBadge,
+      progressLabel, pausePlayImageView, cancelImageView, hoverButtonsStack, unloadButton,
+      installedBadge,
     ])
     accessoryStack.orientation = .horizontal
     accessoryStack.alignment = .centerY
@@ -171,6 +180,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
+    Layout.constrainToIconSize(pausePlayImageView)
     Layout.constrainToIconSize(unloadButton)
     Layout.constrainToIconSize(copyIdButton)
     Layout.constrainToIconSize(deleteButton)
@@ -186,11 +196,25 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     progressLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
+    pausePlayImageView.setContentHuggingPriority(.required, for: .horizontal)
+    pausePlayImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
   }
 
   private func setupGestures() {
     let rowClickRecognizer = addGesture(action: #selector(didClickRow))
     rowClickRecognizer.delegate = self
+
+    // Dedicated click target on the red X so paused rows can be cancelled explicitly
+    // (the row body itself resumes a paused download — opposite action, same row).
+    let cancelClick = NSClickGestureRecognizer(target: self, action: #selector(didClickCancel))
+    cancelImageView.addGestureRecognizer(cancelClick)
+
+    // Pause/play button. Same action as clicking the row body; the button just makes
+    // the affordance discoverable on downloading rows without requiring the user to
+    // guess that "click the row" pauses.
+    let pausePlayClick = NSClickGestureRecognizer(
+      target: self, action: #selector(didClickPausePlay))
+    pausePlayImageView.addGestureRecognizer(pausePlayClick)
   }
 
   @objc private func didClickRow() {
@@ -216,6 +240,20 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
   }
 
+  @objc private func didClickCancel() {
+    // Explicit discard — works for both active downloads and paused (interrupted) ones.
+    // In both cases we want the `.partial` staging dir gone and the row removed.
+    actionHandler.cancelDownload(for: model)
+  }
+
+  @objc private func didClickPausePlay() {
+    // Same toggle as row-body click — performPrimaryAction already dispatches to
+    // pause (when downloading) or resume (when paused). The button just makes the
+    // affordance discoverable; it's not a separate code path.
+    actionHandler.performPrimaryAction(for: model)
+    refresh()
+  }
+
   @objc private func didClickUnload() {
     actionHandler.performPrimaryAction(for: model)
   }
@@ -235,13 +273,16 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     actionHandler.delete(model: model)
   }
 
-  // Prevent row toggle when clicking action buttons
+  // Prevent row toggle when clicking action buttons. Each listed view owns its own
+  // click gesture — excluding it here stops the row-body gesture from also firing.
   func gestureRecognizer(
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
     let loc = event.locationInWindow
-    let actionButtons = [unloadButton, copyIdButton, deleteButton]
-    return !actionButtons.contains { view in
+    let actionTargets: [NSView] = [
+      unloadButton, copyIdButton, deleteButton, cancelImageView, pausePlayImageView,
+    ]
+    return !actionTargets.contains { view in
       !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
     }
   }
@@ -252,18 +293,32 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let progress = modelManager.downloadProgress(for: model)
     let isDownloading = progress != nil
     let isInstalled = modelManager.isInstalled(model)
+    let status = modelManager.status(for: model)
+
+    // Paused: interrupted or manually-paused transfer — `.partial` bytes on disk,
+    // no active tasks. Rendered like downloading (progress % + red X) but with a
+    // "Paused · " prefix. Keep `isPaused` independent of fraction so a catalog entry
+    // with an unexpected zero totalBytes still renders as paused, not as available.
+    var isPaused = false
+    var pausedFraction: Double?
+    if case .paused(let bytes, let total) = status {
+      isPaused = true
+      if total > 0 {
+        pausedFraction = max(0, min(1, Double(bytes) / Double(total)))
+      }
+    }
 
     // If the item was downloading and is now available (cancelled), it will be removed from the list.
     // We preserve the "downloading" styling to avoid a flicker of the "available" styling (primary color)
     // before the item disappears.
     let wasDownloading = !cancelImageView.isHidden
-    let isCancelled = wasDownloading && !isDownloading && !isInstalled
+    let isCancelled = wasDownloading && !isDownloading && !isPaused && !isInstalled
 
     // Progress and cancel affordances are owned by the installed section --
     // the drawer stays informational. didClickRow already blocks interaction
     // for non-available rows in the drawer, so the row's subdued default
     // appearance is enough.
-    let showAsDownloading = !isInCatalog && (isDownloading || isCancelled)
+    let showAsDownloading = !isInCatalog && (isDownloading || isPaused || isCancelled)
 
     let baseTextColor = showAsDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
     let isCompatible = model.isCompatible()
@@ -287,11 +342,26 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       incompatibility: incompatibility
     )
 
-    if let progress {
+    if isPaused {
+      progressLabel.stringValue =
+        pausedFraction.map { "Paused · " + Format.percentText($0) } ?? "Paused"
+    } else if let progress {
       progressLabel.stringValue = Format.progressText(progress)
     }
     progressLabel.isHidden = !showAsDownloading
     cancelImageView.isHidden = !showAsDownloading
+
+    // Pause/play icon swaps based on live vs. paused state. Hidden during the post-cancel
+    // flicker window (isCancelled) so the about-to-disappear row doesn't show a resume arrow.
+    let showPausePlay = !isInCatalog && (isDownloading || isPaused)
+    pausePlayImageView.isHidden = !showPausePlay
+    if showPausePlay {
+      let symbol = isDownloading ? "pause.circle" : "play.circle"
+      let tooltip = isDownloading ? "Pause download" : "Resume download"
+      pausePlayImageView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+      pausePlayImageView.toolTip = tooltip
+    }
+
     unloadButton.isHidden = !isActive
     // Only the in-catalog installed case shows the checkmark badge. The
     // installed section already signals "installed" through its surrounding

@@ -27,10 +27,13 @@ final class ModelActionHandler {
         server.loadModel(model)
       }
     } else if modelManager.isDownloading(model) {
-      modelManager.cancelModelDownload(model)
+      // Non-destructive: stop the transfer but keep the `.partial` bytes so the row
+      // flips to paused and the user can resume with another click. Discard is the
+      // explicit red-X action, not row-body / pause-button click.
+      modelManager.pauseModelDownload(model)
       onMembershipChange(model)
     } else {
-      // Available -> Download
+      // Available OR paused — downloadModel resumes from an existing `.partial` if present.
       startDownload(for: model)
     }
   }
@@ -38,6 +41,13 @@ final class ModelActionHandler {
   func delete(model: CatalogEntry) {
     guard modelManager.isInstalled(model) else { return }
     modelManager.deleteDownloadedModel(model)
+    onMembershipChange(model)
+  }
+
+  /// Discards an in-flight or paused download and its `.partial` files.
+  /// Used by the red X button; works in both `.downloading` and `.paused` states.
+  func cancelDownload(for model: CatalogEntry) {
+    modelManager.cancelModelDownload(model)
     onMembershipChange(model)
   }
 

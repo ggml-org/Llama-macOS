@@ -85,6 +85,60 @@ enum HFCache {
     try? FileManager.default.removeItem(at: dir)
   }
 
+  /// Sum of `.partial` file sizes in a single model's staging dir.
+  /// Returns 0 if the dir doesn't exist or contains no `.partial` files.
+  static func partialBytes(cacheDir: URL, modelId: String) -> Int64 {
+    let dir = partialDir(cacheDir: cacheDir, modelId: modelId)
+    guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else {
+      return 0
+    }
+    var total: Int64 = 0
+    for file in files where file.hasSuffix(".partial") {
+      let path = dir.appendingPathComponent(file).path
+      if let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+        let size = (attrs[.size] as? NSNumber)?.int64Value
+      {
+        total += size
+      }
+    }
+    return total
+  }
+
+  /// Scans `<cacheDir>/.llamabarn-partial/` for interrupted downloads.
+  /// Returns `[modelId: bytesOnDisk]` — the sum of all `.partial` file sizes
+  /// inside each per-model subdirectory. Orphan dirs (ids not in `knownIds`)
+  /// are skipped but left on disk, matching RFC 016 §Cleanup.
+  /// Ids present in `installedIds` are skipped AND their partial dirs removed,
+  /// since an installed model shadowing a partial dir indicates a stale leak.
+  static func scanPartials(
+    cacheDir: URL, knownIds: Set<String>, installedIds: Set<String>
+  ) -> [String: Int64] {
+    let root = cacheDir.appendingPathComponent(".llamabarn-partial")
+    guard let subdirs = try? FileManager.default.contentsOfDirectory(atPath: root.path) else {
+      return [:]
+    }
+
+    var result: [String: Int64] = [:]
+    for modelId in subdirs {
+      // Skip unknown catalog ids — leave their files on disk.
+      guard knownIds.contains(modelId) else { continue }
+
+      let dir = root.appendingPathComponent(modelId)
+
+      // Already installed? Clean up the stale partial dir, don't surface it.
+      if installedIds.contains(modelId) {
+        try? FileManager.default.removeItem(at: dir)
+        continue
+      }
+
+      let total = partialBytes(cacheDir: cacheDir, modelId: modelId)
+      if total > 0 {
+        result[modelId] = total
+      }
+    }
+    return result
+  }
+
   // MARK: - API Calls
 
   /// Metadata returned by a HEAD request to a HF file URL.

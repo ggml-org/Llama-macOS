@@ -61,8 +61,14 @@ enum Format {
   static func progressText(_ progress: Progress) -> String {
     guard progress.totalUnitCount > 0 else { return "0%" }
     let fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
-    let percentage = max(0, min(100, fraction * 100))
-    return formatDecimal(percentage, unit: "%")
+    return percentText(fraction)
+  }
+
+  /// Formats a 0.0–1.0 fraction as a percentage string (e.g., "42%" or "42.5%").
+  /// Shared by the active-download progress label and the paused-row percentage.
+  static func percentText(_ fraction: Double) -> String {
+    let pct = max(0, min(100, fraction * 100))
+    return formatDecimal(pct, unit: "%")
   }
 
   // MARK: - Private Helpers
