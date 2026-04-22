@@ -172,6 +172,7 @@ class LlamaServer {
       "--models-max", "1",
       "--log-file", "/tmp/llama-server.log",
       "--jinja",
+      "--spec-default",
       "--fit-target", String(Int(CatalogEntry.memOverheadMb)),
     ]
 
