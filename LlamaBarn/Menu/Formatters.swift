@@ -57,15 +57,7 @@ enum Format {
 
   // MARK: - Progress Formatting
 
-  /// Formats progress percentage as a string (e.g., "42%" or "42.5%").
-  static func progressText(_ progress: Progress) -> String {
-    guard progress.totalUnitCount > 0 else { return "0%" }
-    let fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
-    return percentText(fraction)
-  }
-
   /// Formats a 0.0–1.0 fraction as a percentage string (e.g., "42%" or "42.5%").
-  /// Shared by the active-download progress label and the paused-row percentage.
   static func percentText(_ fraction: Double) -> String {
     let pct = max(0, min(100, fraction * 100))
     return formatDecimal(pct, unit: "%")
@@ -110,6 +102,30 @@ extension Format {
   }
 
   // MARK: - Model Metadata (composite)
+
+  /// Attributed subtitle for a downloading or paused row — e.g. "42% of 3.1 GB"
+  /// or "42% of 3.1 GB · Paused". Uses the same secondary font as `modelMetadata`
+  /// and the same no-tightening paragraph style so truncation behaves consistently.
+  /// Replaces the usual "<size> ∣ <ctx>" metadata while a transfer is in flight;
+  /// ctx tier is only meaningful for fully-downloaded models. When `fraction` is
+  /// nil (paused with unknown total), falls back to just the size.
+  static func downloadSubtitle(
+    fraction: Double?, totalBytes: Int64, paused: Bool, color: NSColor
+  ) -> NSAttributedString {
+    let head =
+      fraction.map { "\(percentText($0)) of \(gigabytes(totalBytes))" }
+      ?? gigabytes(totalBytes)
+    let text = paused ? "\(head) · Paused" : head
+    let paragraphStyle = NSMutableParagraphStyle()
+    paragraphStyle.allowsDefaultTighteningForTruncation = false
+    return NSAttributedString(
+      string: text,
+      attributes: [
+        .font: Theme.Fonts.secondary,
+        .foregroundColor: color,
+        .paragraphStyle: paragraphStyle,
+      ])
+  }
 
   /// Formats model metadata text.
   /// Format: "3.1 GB  ∣  128k" (file size + effective context tier)

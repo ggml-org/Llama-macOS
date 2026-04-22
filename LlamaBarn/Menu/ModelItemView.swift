@@ -41,12 +41,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     label.allowsDefaultTighteningForTruncation = false
     return label
   }()
-  private let progressLabel: NSTextField = {
-    let label = Theme.secondaryLabel()
-    label.font = Theme.Fonts.primary
-    label.alignment = .right
-    return label
-  }()
 
   // Icon and action buttons
   private let iconView = IconView()
@@ -123,7 +117,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     cancelImageView.isHidden = true
     pausePlayImageView.isHidden = true
     unloadButton.isHidden = true
-    progressLabel.isHidden = true
     hoverButtonsStack.isHidden = true
     installedBadge.isHidden = true
 
@@ -152,10 +145,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // Accessory stack — pause/play sits between the progress label and the cancel X,
-    // mirroring iOS's "tap-to-pause + X-to-discard" progress affordance.
+    // Accessory stack — pause/play sits next to the cancel X, mirroring iOS's
+    // "tap-to-pause + X-to-discard" progress affordance. Percent/bytes readout
+    // lives in the subtitle (see `Format.downloadSubtitle`), not here.
     let accessoryStack = NSStackView(views: [
-      progressLabel, pausePlayImageView, cancelImageView, hoverButtonsStack, unloadButton,
+      pausePlayImageView, cancelImageView, hoverButtonsStack, unloadButton,
       installedBadge,
     ])
     accessoryStack.orientation = .horizontal
@@ -185,15 +179,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     Layout.constrainToIconSize(copyIdButton)
     Layout.constrainToIconSize(deleteButton)
     Layout.constrainToIconSize(installedBadge)
-    progressLabel.widthAnchor.constraint(lessThanOrEqualToConstant: Layout.progressWidth).isActive =
-      true
 
     titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
     titleLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
     // Allow subtitle to compress and truncate when hover buttons appear
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-    progressLabel.setContentHuggingPriority(.required, for: .horizontal)
-    progressLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
     pausePlayImageView.setContentHuggingPriority(.required, for: .horizontal)
@@ -296,16 +286,22 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let status = modelManager.status(for: model)
 
     // Paused: interrupted or manually-paused transfer — `.partial` bytes on disk,
-    // no active tasks. Rendered like downloading (progress % + red X) but with a
-    // "Paused · " prefix. Keep `isPaused` independent of fraction so a catalog entry
-    // with an unexpected zero totalBytes still renders as paused, not as available.
+    // no active tasks. Rendered like downloading (bytes + %, red X) with " · Paused"
+    // appended to the subtitle. `isPaused` stays independent of `fraction` so a
+    // catalog entry with an unexpected zero totalBytes still renders as paused,
+    // not as available.
     var isPaused = false
-    var pausedFraction: Double?
-    if case .paused(let bytes, let total) = status {
+    // Single 0…1 fraction for the subtitle, derived from whichever status applies.
+    // Nil when there's no transfer in flight, or when paused with unknown total.
+    var fraction: Double?
+    switch status {
+    case .paused(let bytes, let total):
       isPaused = true
-      if total > 0 {
-        pausedFraction = max(0, min(1, Double(bytes) / Double(total)))
-      }
+      if total > 0 { fraction = max(0, min(1, Double(bytes) / Double(total))) }
+    case .downloading(let progress) where progress.totalUnitCount > 0:
+      fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
+    default:
+      break
     }
 
     // If the item was downloading and is now available (cancelled), it will be removed from the list.
@@ -336,19 +332,25 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     )
 
     let incompatibility = !isCompatible ? model.incompatibilitySummary() : nil
-    subtitleLabel.attributedStringValue = Format.modelMetadata(
-      for: model,
-      color: textColor,
-      incompatibility: incompatibility
-    )
-
-    if isPaused {
-      progressLabel.stringValue =
-        pausedFraction.map { "Paused · " + Format.percentText($0) } ?? "Paused"
-    } else if let progress {
-      progressLabel.stringValue = Format.progressText(progress)
+    // Subtitle swaps between size+ctx (for installed/available rows) and a
+    // transfer-centric "42% of 3.1 GB [· Paused]" readout while a download is
+    // in flight. Ctx tier is only meaningful once the model is fully downloaded,
+    // so we don't show it for downloading/paused rows.
+    if showAsDownloading {
+      subtitleLabel.attributedStringValue = Format.downloadSubtitle(
+        fraction: fraction,
+        totalBytes: model.fileSize,
+        paused: isPaused,
+        color: textColor
+      )
+    } else {
+      subtitleLabel.attributedStringValue = Format.modelMetadata(
+        for: model,
+        color: textColor,
+        incompatibility: incompatibility
+      )
     }
-    progressLabel.isHidden = !showAsDownloading
+
     cancelImageView.isHidden = !showAsDownloading
 
     // Pause/play icon swaps based on live vs. paused state. Hidden during the post-cancel

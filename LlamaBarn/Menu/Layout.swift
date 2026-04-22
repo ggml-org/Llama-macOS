@@ -16,8 +16,6 @@ enum Layout {
   static let uiIconSize: CGFloat = 16
   /// Size for IconView containers (circular backgrounds for installed model icons).
   static let iconViewSize: CGFloat = 28
-  /// Maximum width for download progress labels.
-  static let progressWidth: CGFloat = 48
   /// Vertical spacing between text lines in stacked labels (e.g., model name and metadata).
   static let textLineSpacing: CGFloat = 2
   /// Indent width to align expanded content with model text (icon + spacing).
