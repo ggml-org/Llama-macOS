@@ -280,28 +280,29 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   func refresh() {
     let isActive = server.isActive(model: model)
     let isLoading = server.isLoading(model: model)
-    let progress = modelManager.downloadProgress(for: model)
-    let isDownloading = progress != nil
-    let isInstalled = modelManager.isInstalled(model)
     let status = modelManager.status(for: model)
 
-    // Paused: interrupted or manually-paused transfer — `.partial` bytes on disk,
-    // no active tasks. Rendered like downloading (bytes + %, red X) with " · Paused"
-    // appended to the subtitle. `isPaused` stays independent of `fraction` so a
-    // catalog entry with an unexpected zero totalBytes still renders as paused,
-    // not as available.
+    // Derive row state from a single status switch. `fraction` drives the subtitle's
+    // percentage; nil means "unknown" (downloading before first response, or paused
+    // with a zero total). Paused and downloading share the same in-flight styling;
+    // only the label suffix and the pause/play icon differ.
+    var isDownloading = false
     var isPaused = false
-    // Single 0…1 fraction for the subtitle, derived from whichever status applies.
-    // Nil when there's no transfer in flight, or when paused with unknown total.
+    var isInstalled = false
     var fraction: Double?
     switch status {
+    case .available:
+      break
+    case .downloading(let progress):
+      isDownloading = true
+      if progress.totalUnitCount > 0 {
+        fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
+      }
     case .paused(let bytes, let total):
       isPaused = true
-      if total > 0 { fraction = max(0, min(1, Double(bytes) / Double(total))) }
-    case .downloading(let progress) where progress.totalUnitCount > 0:
-      fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
-    default:
-      break
+      if total > 0 { fraction = Double(bytes) / Double(total) }
+    case .installed:
+      isInstalled = true
     }
 
     // If the item was downloading and is now available (cancelled), it will be removed from the list.

@@ -107,7 +107,10 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
     // Transition paused → downloading. Bytes-on-disk are already in the `.partial`
     // file, so no need to hold them in pausedDownloads once the transfer is live.
-    pausedDownloads.removeValue(forKey: model.id)
+    // We do keep the byte count around to pre-seed the placeholder Progress below —
+    // without it, the row flashes 0% while HF metadata is being fetched (before
+    // writers open and `refreshProgress` can re-derive the real figure).
+    let resumedBytes = pausedDownloads.removeValue(forKey: model.id) ?? 0
 
     let filesToDownload = try prepareDownload(for: model)
     guard !filesToDownload.isEmpty else { return }
@@ -115,12 +118,17 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     logger.info("Starting download for model: \(model.displayName)")
 
     // Add placeholder entry immediately so the model appears as "downloading"
-    // in the UI before the async HF metadata fetch completes.
+    // in the UI before the async HF metadata fetch completes. Seed completedUnitCount
+    // from the resumed bytes so the first refresh shows the correct percentage; the
+    // value matches what `ActiveDownload.refreshProgress` will compute once writers open
+    // (completedFilesBytes=0 + activeBytes=existing partial bytes), so there's no jump.
     let modelId = model.id
     let totalUnitCount = max(remainingBytesRequired(for: model), 1)
+    let progress = Progress(totalUnitCount: totalUnitCount)
+    progress.completedUnitCount = min(resumedBytes, totalUnitCount)
     activeDownloads[modelId] = ActiveDownload(
       model: model,
-      progress: Progress(totalUnitCount: totalUnitCount),
+      progress: progress,
       tasks: [:],
       completedFilesBytes: 0
     )
@@ -646,12 +654,6 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   func isDownloading(_ model: CatalogEntry) -> Bool {
     if case .downloading = status(for: model) { return true }
     return false
-  }
-
-  /// Returns the download progress if the model is currently downloading, nil otherwise.
-  func downloadProgress(for model: CatalogEntry) -> Progress? {
-    if case .downloading(let progress) = status(for: model) { return progress }
-    return nil
   }
 
   // MARK: - URLSessionDataDelegate
