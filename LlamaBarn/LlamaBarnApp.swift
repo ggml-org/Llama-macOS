@@ -126,7 +126,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Create the AppKit-based status bar menu (installed models only for now)
     menuController = MenuController()
-    DeeplinkHandler.shared.menuController = menuController
 
     // Initialize settings window controller (listens for LBShowSettings notifications)
     settingsWindowController = SettingsWindowController.shared

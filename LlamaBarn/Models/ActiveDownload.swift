@@ -1,5 +1,13 @@
 import Foundation
 
+/// Paused download state. Carries the `CatalogEntry` so deeplink-sideload
+/// placeholders (which aren't in `Catalog`) can still render a paused row
+/// after their active download is torn down.
+struct PausedDownload {
+  let model: CatalogEntry
+  let bytesOnDisk: Int64
+}
+
 /// Tracks the progress of a multi-file model download.
 ///
 /// Bytes-in-flight are tracked externally (ModelManager owns the per-task
