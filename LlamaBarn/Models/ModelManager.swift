@@ -702,28 +702,19 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
   // MARK: - Pending Installs (deeplink)
 
-  /// Registers a deeplink-originated install and kicks off the download.
+  /// Registers or updates a deeplink-originated pending install.
   /// The placeholder `entry` is a sideloaded-style `CatalogEntry` whose id
   /// matches what `HFCache.buildSideloadedEntry` will emit once the files
   /// are on disk — so the row's identity survives the post-download handoff.
-  func registerPendingInstall(entry: CatalogEntry, descriptor: PendingInstallDescriptor) {
+  func upsertPendingInstall(entry: CatalogEntry, descriptor: PendingInstallDescriptor) {
     // Idempotent: a repeated deeplink for the same id is a no-op if we're
-    // already tracking it (pending, downloading, or installed).
+    // already tracking it as installed or actively downloading.
     if downloadedModels.contains(where: { $0.id == entry.id }) { return }
     if activeDownloads[entry.id] != nil { return }
 
     pendingInstalls[entry.id] = entry
     PendingInstallStore.upsert(descriptor)
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
-
-    do {
-      try downloadModel(entry)
-    } catch {
-      // `downloadModel` can throw if preflight fails (e.g. disk space). Keep
-      // the pending row around so the user can retry, but log.
-      logger.error(
-        "registerPendingInstall: download start failed: \(error.localizedDescription)")
-    }
   }
 
   /// Removes a pending install and persists the change. Called on explicit
@@ -1147,8 +1138,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       guard let self = self else { return }
 
       // Verify download is still active (user may have cancelled)
-      guard self.activeDownloads[modelId] != nil,
-        let model = Catalog.findModel(id: modelId)
+      guard let model = self.activeDownloads[modelId]?.model
       else {
         self.retryAttempts.removeValue(forKey: url)
         return
@@ -1374,7 +1364,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   private func hfFileExists(model: CatalogEntry, url: URL) -> Bool {
     guard let repoDir = model.hfRepoDir else { return false }
     let cacheDir = UserSettings.hfCacheDirectory
-    let filename = url.lastPathComponent
+    let filename = HFCache.repoRelativePath(from: url) ?? url.lastPathComponent
     let snapshotsDir =
       cacheDir
       .appendingPathComponent(repoDir)

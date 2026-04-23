@@ -3,8 +3,8 @@ import Foundation
 import os.log
 
 /// Consumes `llamabarn://` URLs and turns them into `ModelManager` state:
-/// parses → resolves against HF → registers a pending install → starts the
-/// download.
+/// parses → resolves against HF → registers pending state when needed → starts
+/// the download.
 ///
 /// Errors surface as `NSAlert`; malformed URLs are swallowed (and logged).
 /// The browser's "Open this link in LlamaBarn?" prompt is the consent
@@ -131,7 +131,7 @@ final class DeeplinkHandler {
     }) {
       // On rehydrate the catalog might have absorbed this repo between sessions.
       manager.discardPendingInstall(id: resolved.modelId)
-      startCatalogDownload(catalogEntry, manager: manager, origin: origin)
+      startDownload(catalogEntry, manager: manager, origin: origin)
       return
     }
 
@@ -149,11 +149,11 @@ final class DeeplinkHandler {
       fileSize: resolved.approximateBytes)
     let descriptor = PendingInstallDescriptor(
       modelId: resolved.modelId, repo: resolved.repo, quant: resolved.quant)
-    manager.registerPendingInstall(entry: entry, descriptor: descriptor)
-    if origin.revealsMenu { menuController?.openMenu() }
+    manager.upsertPendingInstall(entry: entry, descriptor: descriptor)
+    startDownload(entry, manager: manager, origin: origin)
   }
 
-  private func startCatalogDownload(
+  private func startDownload(
     _ entry: CatalogEntry, manager: ModelManager, origin: Origin
   ) {
     do {

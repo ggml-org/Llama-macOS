@@ -21,7 +21,7 @@ enum HFRepoResolver {
     let modelId: String
     /// `"{org}/{repo}"` — mirrors the `repo` query param.
     let repo: String
-    /// Canonical quant label (uppercased, `UD-` prefix stripped for display).
+    /// Canonical quant label, matching the sideloaded scan's id grammar.
     let quant: String
     /// Main GGUF URL (goes into `CatalogEntry.downloadUrl`).
     let mainUrl: URL
@@ -33,11 +33,6 @@ enum HFRepoResolver {
     /// 0 when the API didn't return per-file sizes. We start the download either way;
     /// `fetchHFContext` does HEAD requests that produce real byte counts.
     let approximateBytes: Int64
-    /// True if the resolver decided the picked quant fits the device's memory budget.
-    /// False when the user chose an explicit quant that exceeds the budget — we still
-    /// return a result so the download path can warn via its existing failure channel,
-    /// but the caller can surface the warning up-front.
-    let fitsMemoryBudget: Bool
   }
 
   /// User-facing errors. All map to `NSAlert` surface text in `DeeplinkHandler`.
@@ -144,8 +139,7 @@ enum HFRepoResolver {
       mainUrl: mainUrl,
       additionalParts: Array(extraUrls),
       mmprojUrl: mmprojUrl,
-      approximateBytes: approxBytes,
-      fitsMemoryBudget: pick.fits
+      approximateBytes: approxBytes
     )
   }
 
@@ -212,7 +206,6 @@ enum HFRepoResolver {
   private struct Pick {
     let rfilename: String  // repo-relative path
     let quant: String  // canonical label
-    let fits: Bool  // picked file's total bytes ≤ memory budget
   }
 
   private static func selectMain(
@@ -228,7 +221,7 @@ enum HFRepoResolver {
         guard let label = GGUFQuantLabel.parse(sib.rfilename) else { return false }
         return GGUFQuantLabel.matches(label, requested)
       }
-      guard let picked = largest(matches) else {
+      guard let picked = largest(matches, siblings: siblings, repo: repo) else {
         throw ResolveError.quantNotFound(repo: repo, quant: requested)
       }
       if matches.count > 1 {
@@ -241,8 +234,7 @@ enum HFRepoResolver {
       let canonical = GGUFQuantLabel.parse(picked.rfilename) ?? requested.uppercased()
       return Pick(
         rfilename: picked.rfilename,
-        quant: canonical,
-        fits: fits(bytes: picked.size ?? 0, budgetMb: budgetMb))
+        quant: canonical)
     }
 
     // 2. No quant, catalog hit: find catalog entries pointing at this repo,
@@ -252,22 +244,24 @@ enum HFRepoResolver {
       !entry.isSideloaded && entry.hfRepoDir == repoDir
     }
     let catalogCompatible = catalogHits.filter { $0.isCompatible() }
-    let bestCompat = catalogCompatible.max(by: { $0.fileSize < $1.fileSize })
-    let bestAny = catalogHits.max(by: { $0.fileSize < $1.fileSize })
-    if let best = bestCompat ?? bestAny {
+    if !catalogHits.isEmpty {
+      guard let best = catalogCompatible.max(by: { $0.fileSize < $1.fileSize }) else {
+        throw ResolveError.noCompatibleFile(repo: repo)
+      }
       // Use the catalog entry's main file path directly — it already resolves
       // against the cache's scan layer and carries all the display metadata.
       let mainPath =
         HFCache.repoRelativePath(from: best.downloadUrl)
         ?? best.downloadUrl.lastPathComponent
-      let fitsBudget = catalogCompatible.contains(where: { $0.id == best.id })
       return Pick(
         rfilename: mainPath,
-        quant: best.quantization,
-        fits: fitsBudget)
+        quant: best.quantization)
     }
 
-    // 3. No quant, no catalog: pick the largest compatible GGUF sibling.
+    // 3. No quant, no catalog: pick the largest compatible GGUF variant.
+    // For sharded quants, compatibility/ranking use the sum of all shards when
+    // HF provided per-shard sizes; otherwise we fall back to the first shard's
+    // size, matching the old behavior.
     // Skip imatrix/mmproj/split-shard-continuations — we only want standalone
     // mains or the first shard of a sharded set.
     let selectable = allGgufs.filter { sib in
@@ -279,15 +273,10 @@ enum HFRepoResolver {
     }
     guard !selectable.isEmpty else { throw ResolveError.noGgufFiles(repo) }
 
-    let compatible = selectable.filter { fits(bytes: $0.size ?? 0, budgetMb: budgetMb) }
-    guard let best = largest(compatible) ?? largest(selectable) else {
-      throw ResolveError.noCompatibleFile(repo: repo)
+    let compatible = selectable.filter {
+      fits(bytes: estimatedModelBytes(for: $0, siblings: siblings, repo: repo), budgetMb: budgetMb)
     }
-    if compatible.isEmpty {
-      // Per open question 1 in the plan: error out rather than installing a
-      // file that won't run. The aggregated size counts here are per-file;
-      // shards are counted in expandShards, so this is an approximation that
-      // biases toward success — we'll still surface incompatibility at launch.
+    guard let best = largest(compatible, siblings: siblings, repo: repo) else {
       throw ResolveError.noCompatibleFile(repo: repo)
     }
     let label =
@@ -296,25 +285,52 @@ enum HFRepoResolver {
       ?? "unknown"
     return Pick(
       rfilename: best.rfilename,
-      quant: label.uppercased(),
-      fits: true)
+      quant: label.uppercased())
   }
 
-  /// Picks the largest sibling from a list. Ties broken by rfilename for
+  /// Picks the largest sibling from a list, ranking sharded variants by the
+  /// sum of all shard sizes when available. Ties broken by rfilename for
   /// determinism. Returns nil for empty input.
-  private static func largest(_ sibs: [Sibling]) -> Sibling? {
+  private static func largest(
+    _ sibs: [Sibling], siblings: [Sibling], repo: String
+  ) -> Sibling? {
     sibs.max { a, b in
-      if a.size != b.size { return (a.size ?? 0) < (b.size ?? 0) }
+      let aBytes = estimatedModelBytes(for: a, siblings: siblings, repo: repo) ?? 0
+      let bBytes = estimatedModelBytes(for: b, siblings: siblings, repo: repo) ?? 0
+      if aBytes != bBytes { return aBytes < bBytes }
       return a.rfilename < b.rfilename
     }
   }
 
-  private static func fits(bytes: Int64, budgetMb: Double) -> Bool {
+  /// Estimated bytes for a runnable quant. If `main` is the first shard of a
+  /// split model and all sibling sizes are known, returns the total across all
+  /// shards; otherwise falls back to the main file's size.
+  private static func estimatedModelBytes(
+    for main: Sibling, siblings: [Sibling], repo: String
+  ) -> Int64? {
+    guard let shardPaths = try? expandShards(main: main.rfilename, siblings: siblings, repo: repo)
+    else { return main.size }
+    guard shardPaths.count > 1 else { return main.size }
+
+    let sizeByPath = Dictionary(
+      uniqueKeysWithValues: siblings.compactMap { sibling in
+        sibling.size.map { (sibling.rfilename, $0) }
+      })
+
+    var total: Int64 = 0
+    for path in shardPaths {
+      guard let size = sizeByPath[path] else { return main.size }
+      total += size
+    }
+    return total
+  }
+
+  private static func fits(bytes: Int64?, budgetMb: Double) -> Bool {
     // Model weight memory ≈ fileSize × overheadMultiplier (see
     // `CatalogEntry.weightMemoryMb`). We reuse the catalog's default of 1.05.
     // This is a rough pre-download filter; the real compatibility check runs
     // at launch once fit-params has measured resident bytes.
-    guard bytes > 0 else { return true }  // unknown size → don't filter out
+    guard let bytes, bytes > 0 else { return true }  // unknown size → don't filter out
     let mb = Double(bytes) / 1_048_576.0 * 1.05
     return mb <= budgetMb
   }
