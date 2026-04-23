@@ -31,6 +31,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var settingsWindowController: SettingsWindowController?
   private var updatesObserver: NSObjectProtocol?
 
+  // Deeplink (llamabarn://) plumbing.
+  // Cold-launch URL events arrive before `applicationDidFinishLaunching`, so we have
+  // to register the Apple-event handler in `applicationWillFinishLaunching`. The app's
+  // menu/ModelManager/alert infra isn't ready yet at that point, so the handler just
+  // enqueues — the queue drains once full setup completes.
+  private var pendingURLs: [URL] = []
+  private var didBootstrap = false
+
+  func applicationWillFinishLaunching(_ notification: Notification) {
+    NSAppleEventManager.shared().setEventHandler(
+      self,
+      andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+      forEventClass: AEEventClass(kInternetEventClass),
+      andEventID: AEEventID(kAEGetURL)
+    )
+  }
+
+  @MainActor
+  @objc func handleGetURLEvent(
+    _ event: NSAppleEventDescriptor, withReplyEvent _: NSAppleEventDescriptor
+  ) {
+    guard
+      let str = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+      let url = URL(string: str)
+    else { return }
+
+    if didBootstrap {
+      DeeplinkHandler.shared.handle(url: url)
+    } else {
+      pendingURLs.append(url)
+    }
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     // Enable visual debugging if LB_DEBUG_UI is set
     NSView.swizzleDebugBehavior()
@@ -93,6 +126,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Create the AppKit-based status bar menu (installed models only for now)
     menuController = MenuController()
+    DeeplinkHandler.shared.menuController = menuController
 
     // Initialize settings window controller (listens for LBShowSettings notifications)
     settingsWindowController = SettingsWindowController.shared
@@ -113,6 +147,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self?.menuController?.openMenu()
       }
     #endif
+
+    // Drain any llamabarn:// URLs that arrived during cold-launch before the rest
+    // of the app was ready.
+    didBootstrap = true
+    let queued = pendingURLs
+    pendingURLs.removeAll()
+    for url in queued {
+      DeeplinkHandler.shared.handle(url: url)
+    }
 
     logger.info("LlamaBarn startup complete")
   }

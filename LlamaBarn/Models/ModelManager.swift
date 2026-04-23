@@ -8,7 +8,7 @@ enum ModelStatus: Equatable {
   case downloading(Progress)
   /// A `.partial` file exists on disk from a previous session but no transfer is active.
   /// `bytesOnDisk` is the sum of the model's `.partial` file sizes; `totalBytes` is the
-  /// catalog-declared full size. See RFC 016 for the partial-file layout.
+  /// catalog-declared full size.
   case paused(bytesOnDisk: Int64, totalBytes: Int64)
   case installed
 }
@@ -26,10 +26,14 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   var resolvedPaths: [String: ResolvedPaths] = [:]
 
   /// Returns a sorted list of all models that are either installed, currently downloading,
-  /// or paused (have a leftover `.partial` dir from a previous session).
+  /// paused (have a leftover `.partial` dir from a previous session), or pending
+  /// from a `llamabarn://` deeplink that hasn't started transferring yet.
   /// This is the primary list shown in the "Installed" section of the menu.
   var managedModels: [CatalogEntry] {
-    (downloadedModels + downloadingModels + pausedModels)
+    let covered = Set(
+      downloadedModels.map(\.id) + downloadingModels.map(\.id) + pausedModels.map(\.id))
+    let stalePending = pendingInstalls.values.filter { !covered.contains($0.id) }
+    return (downloadedModels + downloadingModels + pausedModels + stalePending)
       .sorted(by: CatalogEntry.displayOrder(_:_:))
   }
 
@@ -37,15 +41,33 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     activeDownloads.values.map { $0.model }
   }
 
-  /// Catalog entries with on-disk `.partial` bytes but no in-flight transfer.
-  /// `pausedDownloads` is kept in sync so this is just a catalog-lookup map; no
-  /// defensive filtering needed — `updateDownloadedModels` excludes ids that are
-  /// installed or actively downloading at refresh time.
+  /// Catalog or pending entries with on-disk `.partial` bytes but no in-flight
+  /// transfer. `pausedDownloads` is kept in sync so this is just a lookup map;
+  /// no defensive filtering needed — `updateDownloadedModels` excludes ids that
+  /// are installed or actively downloading at refresh time.
   var pausedModels: [CatalogEntry] {
-    pausedDownloads.keys.compactMap { Catalog.findModel(id: $0) }
+    pausedDownloads.keys.compactMap { findManagedModel(id: $0) }
   }
 
   var activeDownloads: [String: ActiveDownload] = [:]
+
+  /// Pending sideload installs originated by `llamabarn://` deeplinks.
+  /// Keyed by the stable sideloaded id `"{org}/{repo}:{QUANT}"` — same shape
+  /// `HFCache.buildSideloadedEntry` produces, so identity survives the handoff
+  /// to `scanForSideloaded` once the download lands.
+  /// Persisted to `UserDefaults` via `PendingInstallStore` so pending rows
+  /// reappear after relaunch.
+  var pendingInstalls: [String: CatalogEntry] = [:]
+
+  /// Catalog-first, then pending deeplinks, then already-downloaded sideloaded
+  /// entries. Used anywhere we need to resolve a model id back to a
+  /// `CatalogEntry` — paused-row resolution, URLSession delegate callbacks,
+  /// partial-scan allowlist.
+  func findManagedModel(id: String) -> CatalogEntry? {
+    if let m = Catalog.findModel(id: id) { return m }
+    if let m = pendingInstalls[id] { return m }
+    return downloadedModels.first { $0.id == id }
+  }
 
   /// Model id → bytes on disk in the `.partial` staging dir, for any download that
   /// isn't currently transferring. Sources: the init scan (interrupted by quit),
@@ -91,6 +113,10 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     config.timeoutIntervalForResource = 60 * 60 * 24  // 24 hours for large files
 
     urlSession = URLSession(configuration: config, delegate: self, delegateQueue: queue)
+
+    // Rehydrate pending deeplink installs BEFORE refreshDownloadedModels so the
+    // partial-scan allowlist sees their ids.
+    hydratePendingInstalls()
 
     refreshDownloadedModels()
   }
@@ -229,11 +255,15 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
   /// Opens (or creates) the `.partial` file for a remote URL and rebuilds the running SHA256
   /// hash over any already-present prefix. The re-hash cost is bounded by existing file size,
-  /// which is small relative to the remaining download — see RFC 016 §Hash verification.
+  /// which is small relative to the remaining download.
   private func openPartialWriter(
     modelId: String, cacheDir: URL, url: URL, ctx: HFDownloadCtx
   ) throws -> PartialWriter {
-    let filename = url.lastPathComponent
+    // `filename` is repo-relative (e.g. `Q4_K_M/model.gguf`), not just a basename,
+    // so `writeBlobAndLink` places the snapshot symlink at the correct nested
+    // path. Entries whose download URL already points at a flat filename fall
+    // through to `lastPathComponent`, same value as before — no behavior change.
+    let filename = HFCache.repoRelativePath(from: url) ?? url.lastPathComponent
     let partialURL = HFCache.partialPath(cacheDir: cacheDir, modelId: modelId, filename: filename)
     let dir = partialURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -331,7 +361,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let cacheDir = UserSettings.hfCacheDirectory
     Task.detached {
       do {
-        // Clean up any lingering partial files for this model (RFC 016 §Cleanup).
+        // Clean up any lingering partial files for this model.
         HFCache.removePartials(cacheDir: cacheDir, modelId: modelId)
 
         if let paths {
@@ -547,7 +577,11 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       // Done on the same detached task so we know exactly which ids are already
       // installed (stale partial dirs for installed models get cleaned here).
       let installedIds = Set(allDownloaded.map(\.id))
-      let knownIds = Set(allCatalogModels.map(\.id))
+      // Pending deeplink installs are valid owners of `.partial` directories
+      // too — without them in `knownIds`, `scanPartials` would skip their
+      // bytes-on-disk after a mid-download relaunch.
+      let pendingIds = await MainActor.run { Set(ModelManager.shared.pendingInstalls.keys) }
+      let knownIds = Set(allCatalogModels.map(\.id)).union(pendingIds)
       let paused = HFCache.scanPartials(
         cacheDir: hfCacheDir, knownIds: knownIds, installedIds: installedIds)
 
@@ -574,6 +608,16 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let excluded = Set(manager.downloadedModels.map(\.id))
       .union(manager.activeDownloads.keys)
     manager.pausedDownloads = paused.filter { !excluded.contains($0.key) }
+
+    // Drop pending-install entries that have landed as installed sideloaded
+    // models. Identity matches because both paths derive `{org}/{repo}:{QUANT}`
+    // the same way, so the same id that was registered on deeplink pickup is
+    // what `scanForSideloaded` emits post-download.
+    let installedIds = Set(manager.downloadedModels.map(\.id))
+    for id in manager.pendingInstalls.keys where installedIds.contains(id) {
+      manager.pendingInstalls.removeValue(forKey: id)
+      PendingInstallStore.remove(modelId: id)
+    }
 
     // Only reload server if models.ini actually changed
     if manager.updateModelsFile() {
@@ -631,7 +675,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   }
 
   /// Discards an ongoing or paused download — removes `.partial` files, clears
-  /// bookkeeping. Per RFC 016 §Cleanup: a subsequent start begins from byte zero.
+  /// bookkeeping. A subsequent start begins from byte zero.
   func cancelModelDownload(_ model: CatalogEntry) {
     tearDownActiveDownload(modelId: model.id, outcome: .discard)
   }
@@ -656,6 +700,73 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     return false
   }
 
+  // MARK: - Pending Installs (deeplink)
+
+  /// Registers a deeplink-originated install and kicks off the download.
+  /// The placeholder `entry` is a sideloaded-style `CatalogEntry` whose id
+  /// matches what `HFCache.buildSideloadedEntry` will emit once the files
+  /// are on disk — so the row's identity survives the post-download handoff.
+  func registerPendingInstall(entry: CatalogEntry, descriptor: PendingInstallDescriptor) {
+    // Idempotent: a repeated deeplink for the same id is a no-op if we're
+    // already tracking it (pending, downloading, or installed).
+    if downloadedModels.contains(where: { $0.id == entry.id }) { return }
+    if activeDownloads[entry.id] != nil { return }
+
+    pendingInstalls[entry.id] = entry
+    PendingInstallStore.upsert(descriptor)
+    NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
+
+    do {
+      try downloadModel(entry)
+    } catch {
+      // `downloadModel` can throw if preflight fails (e.g. disk space). Keep
+      // the pending row around so the user can retry, but log.
+      logger.error(
+        "registerPendingInstall: download start failed: \(error.localizedDescription)")
+    }
+  }
+
+  /// Removes a pending install and persists the change. Called on explicit
+  /// cancel (red X) — completion-on-download cleanup lives in
+  /// `updateDownloadedModels`.
+  func discardPendingInstall(id: String) {
+    pendingInstalls.removeValue(forKey: id)
+    PendingInstallStore.remove(modelId: id)
+  }
+
+  /// Rehydrates `pendingInstalls` from disk at app launch:
+  ///   1. Seeds a minimal placeholder `CatalogEntry` so the row shows up in
+  ///      the menu immediately (no waiting on the network).
+  ///   2. Kicks off an async re-resolve via `DeeplinkHandler` — on success
+  ///      the placeholder is replaced with a real resolved entry and the
+  ///      download resumes from any `.partial` bytes already on disk.
+  ///   3. On re-resolve failure (offline, network error, repo gone), leaves
+  ///      the placeholder in place and logs. The row will just sit there
+  ///      until the user triggers the deeplink again.
+  func hydratePendingInstalls() {
+    let descriptors = PendingInstallStore.load()
+    for descriptor in descriptors {
+      guard pendingInstalls[descriptor.modelId] == nil else { continue }
+      // `mainUrl: nil` produces a sentinel-URL placeholder — `downloadModel`
+      // refuses to act on it, and the async re-resolve below swaps it for a
+      // real entry before the user can click.
+      pendingInstalls[descriptor.modelId] = CatalogEntry.sideloadPlaceholder(
+        modelId: descriptor.modelId,
+        repo: descriptor.repo,
+        quant: descriptor.quant,
+        mainUrl: nil,
+        additionalParts: [],
+        mmprojUrl: nil,
+        fileSize: 0)
+    }
+
+    // Kick off re-resolve AFTER seeding placeholders so the menu shows a row
+    // immediately at launch even if the network is slow.
+    for descriptor in descriptors {
+      DeeplinkHandler.shared.rehydrate(descriptor: descriptor)
+    }
+  }
+
   // MARK: - URLSessionDataDelegate
 
   nonisolated func urlSession(
@@ -663,8 +774,13 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     didReceive response: URLResponse,
     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
   ) {
+    // `findManagedModel` runs on the main actor — we already bounce to main
+    // elsewhere in this delegate (e.g. `UserSettings.hfCacheDirectory` on the
+    // 416 path), so one more sync hop is consistent with the existing shape.
     guard let modelId = dataTask.taskDescription,
-      let model = Catalog.findModel(id: modelId),
+      let model = DispatchQueue.main.sync(execute: {
+        ModelManager.shared.findManagedModel(id: modelId)
+      }),
       let http = response as? HTTPURLResponse
     else {
       completionHandler(.cancel)
@@ -785,8 +901,11 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   nonisolated func urlSession(
     _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
   ) {
+    // See note in the `didReceive` delegate above on the main-actor hop.
     guard let modelId = task.taskDescription,
-      let model = Catalog.findModel(id: modelId),
+      let model = DispatchQueue.main.sync(execute: {
+        ModelManager.shared.findManagedModel(id: modelId)
+      }),
       let dataTask = task as? URLSessionDataTask
     else { return }
 
@@ -1145,6 +1264,13 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     case .discard:
       pausedDownloads.removeValue(forKey: modelId)
       HFCache.removePartials(cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)
+      // Deeplink-originated pending installs don't have a catalog fallback —
+      // discarding means the row should disappear entirely, not revert to an
+      // "available" catalog entry. Same-identity sideloaded entries get
+      // rebuilt by `scanForSideloaded` if the user re-downloads.
+      if pendingInstalls.removeValue(forKey: modelId) != nil {
+        PendingInstallStore.remove(modelId: modelId)
+      }
     case .pause:
       let bytes = HFCache.partialBytes(
         cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)

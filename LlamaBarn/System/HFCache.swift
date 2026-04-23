@@ -36,6 +36,20 @@ enum HFCache {
     return "models--\(org)--\(repo)"
   }
 
+  /// The repo-relative path a HF download URL points at (everything past
+  /// `resolve/{branch}/`), preserving subdir structure. e.g.
+  /// `https://huggingface.co/org/repo/resolve/main/Q4_K_M/model.gguf`
+  /// → `"Q4_K_M/model.gguf"`.
+  /// Returns nil for URLs that don't match the HF resolve shape.
+  static func repoRelativePath(from url: URL) -> String? {
+    // ["", org, repo, "resolve", branch, ...rest]
+    let components = url.pathComponents
+    guard components.count >= 6,
+      components[3] == "resolve"
+    else { return nil }
+    return components[5...].joined(separator: "/")
+  }
+
   /// Path to a blob file in the HF cache.
   static func blobPath(cacheDir: URL, repoDir: String, sha256: String) -> URL {
     cacheDir
@@ -65,7 +79,7 @@ enum HFCache {
 
   /// Directory that holds in-progress `.partial` files for a model.
   /// Lives under the HF cache so promoting `.partial` → `blobs/<hash>` stays on the
-  /// same filesystem (moveItem is atomic). See RFC 016 §File layout.
+  /// same filesystem (moveItem is atomic).
   static func partialDir(cacheDir: URL, modelId: String) -> URL {
     cacheDir
       .appendingPathComponent(".llamabarn-partial")
@@ -87,19 +101,29 @@ enum HFCache {
 
   /// Sum of `.partial` file sizes in a single model's staging dir.
   /// Returns 0 if the dir doesn't exist or contains no `.partial` files.
+  ///
+  /// Walks recursively — some HF repos nest GGUFs in per-quant subdirs
+  /// (e.g. `Q4_K_M/model.gguf`), and the partial layout mirrors the repo
+  /// layout, so partials can live one level deep.
   static func partialBytes(cacheDir: URL, modelId: String) -> Int64 {
     let dir = partialDir(cacheDir: cacheDir, modelId: modelId)
-    guard let files = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else {
-      return 0
-    }
+    let fm = FileManager.default
+    guard
+      let enumerator = fm.enumerator(
+        at: dir,
+        includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
+        options: [.skipsHiddenFiles]
+      )
+    else { return 0 }
+
     var total: Int64 = 0
-    for file in files where file.hasSuffix(".partial") {
-      let path = dir.appendingPathComponent(file).path
-      if let attrs = try? FileManager.default.attributesOfItem(atPath: path),
-        let size = (attrs[.size] as? NSNumber)?.int64Value
-      {
-        total += size
-      }
+    for case let url as URL in enumerator {
+      guard url.pathExtension == "partial" else { continue }
+      guard
+        let vals = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
+        vals.isRegularFile == true
+      else { continue }
+      total += Int64(vals.fileSize ?? 0)
     }
     return total
   }
@@ -107,7 +131,7 @@ enum HFCache {
   /// Scans `<cacheDir>/.llamabarn-partial/` for interrupted downloads.
   /// Returns `[modelId: bytesOnDisk]` — the sum of all `.partial` file sizes
   /// inside each per-model subdirectory. Orphan dirs (ids not in `knownIds`)
-  /// are skipped but left on disk, matching RFC 016 §Cleanup.
+  /// are skipped but left on disk.
   /// Ids present in `installedIds` are skipped AND their partial dirs removed,
   /// since an installed model shadowing a partial dir indicates a stale leak.
   static func scanPartials(
@@ -242,13 +266,22 @@ enum HFCache {
     }
 
     // Create symlink: snapshots/{commit}/{filename} → ../../blobs/{sha256}
+    // `filename` is repo-relative and may contain a subdir (e.g.
+    // `Q4_K_M/model.gguf`). In that case:
+    //   - the symlink's parent (`snapshots/{commit}/Q4_K_M/`) has to exist, and
+    //   - the relative target needs one extra `..` per extra path component
+    //     because we're one directory deeper than the flat case.
     let symlinkPath = snapshotDir.appendingPathComponent(filename)
+    try fm.createDirectory(
+      at: symlinkPath.deletingLastPathComponent(),
+      withIntermediateDirectories: true)
     if fm.fileExists(atPath: symlinkPath.path)
       || (try? fm.destinationOfSymbolicLink(atPath: symlinkPath.path)) != nil
     {
       try? fm.removeItem(at: symlinkPath)
     }
-    let relativeTarget = "../../blobs/\(blobHash)"
+    let depth = filename.split(separator: "/").count - 1  // 0 for flat, 1 for one subdir, etc.
+    let relativeTarget = String(repeating: "../", count: 2 + depth) + "blobs/\(blobHash)"
     try fm.createSymbolicLink(atPath: symlinkPath.path, withDestinationPath: relativeTarget)
 
     // Write refs/main with commit hash
@@ -412,20 +445,44 @@ enum HFCache {
         continue
       }
 
-      // For each snapshot (commit), collect available files
+      // For each snapshot (commit), collect available files.
+      // We now match on repo-relative paths (e.g. `Q4_K_M/model.gguf`) rather
+      // than basenames, since deeplink installs can store GGUFs in per-quant
+      // subdirs. Falling back to basename matching would collide between
+      // sibling subdirs that both contain `model.gguf`.
       for commit in commits {
         let snapshotDir = snapshotsDir.appendingPathComponent(commit)
-        guard let files = try? fm.contentsOfDirectory(atPath: snapshotDir.path) else {
+
+        // One-level recursive walk, same shape as `scanForSideloaded`.
+        guard let topFiles = try? fm.contentsOfDirectory(atPath: snapshotDir.path) else {
           continue
         }
-        let fileSet = Set(files)
+        var relativePaths: [String] = []
+        for item in topFiles {
+          let itemPath = snapshotDir.appendingPathComponent(item).path
+          var isDir: ObjCBool = false
+          if fm.fileExists(atPath: itemPath, isDirectory: &isDir), isDir.boolValue {
+            if let subFiles = try? fm.contentsOfDirectory(atPath: itemPath) {
+              for subFile in subFiles {
+                relativePaths.append("\(item)/\(subFile)")
+              }
+            }
+          } else {
+            relativePaths.append(item)
+          }
+        }
+        let fileSet = Set(relativePaths)
 
         // Check each catalog entry against this snapshot's files
         for entry in entries {
           // Skip if we already found this model in a different snapshot
           guard result[entry.id] == nil else { continue }
 
-          let mainFile = entry.downloadUrl.lastPathComponent
+          // Catalog entries whose URLs carry flat filenames fall back to
+          // `lastPathComponent` — same key shape as before subdir support.
+          let mainFile =
+            repoRelativePath(from: entry.downloadUrl)
+            ?? entry.downloadUrl.lastPathComponent
           guard fileSet.contains(mainFile) else { continue }
 
           // Check additional parts (shards)
@@ -433,7 +490,7 @@ enum HFCache {
           var partPaths: [String] = []
           if let additionalParts = entry.additionalParts {
             for part in additionalParts {
-              let partFile = part.lastPathComponent
+              let partFile = repoRelativePath(from: part) ?? part.lastPathComponent
               if fileSet.contains(partFile) {
                 partPaths.append(snapshotDir.appendingPathComponent(partFile).path)
               } else {
@@ -448,7 +505,7 @@ enum HFCache {
           // (no mmprojLocalFilename override needed since each repo has its own dir)
           var mmprojPath: String?
           if let mmprojUrl = entry.mmprojUrl {
-            let mmprojFile = mmprojUrl.lastPathComponent
+            let mmprojFile = repoRelativePath(from: mmprojUrl) ?? mmprojUrl.lastPathComponent
             if fileSet.contains(mmprojFile) {
               mmprojPath = snapshotDir.appendingPathComponent(mmprojFile).path
             } else {
@@ -463,14 +520,18 @@ enum HFCache {
             isLegacy: false
           )
 
-          // Track matched files so scanForSideloaded() can skip them
+          // Track matched files so scanForSideloaded() can skip them.
+          // Keys are repo-relative paths (matching `scanForSideloaded`'s key shape).
           matchedFiles.insert("\(repoDir)/\(mainFile)")
-          for partPath in partPaths {
-            let partFilename = URL(fileURLWithPath: partPath).lastPathComponent
-            matchedFiles.insert("\(repoDir)/\(partFilename)")
+          if let additionalParts = entry.additionalParts {
+            for part in additionalParts {
+              let partFile = repoRelativePath(from: part) ?? part.lastPathComponent
+              matchedFiles.insert("\(repoDir)/\(partFile)")
+            }
           }
           if let mmprojUrl = entry.mmprojUrl {
-            matchedFiles.insert("\(repoDir)/\(mmprojUrl.lastPathComponent)")
+            let mmprojFile = repoRelativePath(from: mmprojUrl) ?? mmprojUrl.lastPathComponent
+            matchedFiles.insert("\(repoDir)/\(mmprojFile)")
           }
         }
       }
@@ -600,6 +661,14 @@ enum HFCache {
   }
 
   /// Builds a sideloaded CatalogEntry + ResolvedPaths from a discovered GGUF file.
+  ///
+  /// Migration note: quant derivation uses `GGUFQuantLabel.parse` first and
+  /// falls back to `HFRepoParser.parseQuant` — this makes deeplink-originated
+  /// installs and sideloaded-scanned installs agree on `{org}/{repo}:{QUANT}`.
+  /// Side effect on first upgrade: a small set of existing sideloaded models
+  /// get a new id (UD-prefixed quants, imatrix-suffixed files, previously-
+  /// `:unknown` subdir-stored files). Affected users lose saved ctx-tier
+  /// preferences and trigger a one-time fit-params re-measure. One-time cost.
   private static func buildSideloadedEntry(
     repoDir: String,
     filename: String,
@@ -610,11 +679,20 @@ enum HFCache {
     // Parse metadata from repo dir name
     guard let parsed = HFRepoParser.parse(repoDir: repoDir) else { return nil }
 
-    // Parse quantization from the filename's last path component.
-    // filename may include a subdir prefix (e.g. "Q4_K_M/model-00001-of-00003.gguf")
-    // but parseQuant expects just the filename.
+    // Parse quantization. `GGUFQuantLabel` runs the full HF grammar against the
+    // whole repo-relative path, so it catches the label whether it's in a subdir
+    // prefix (`Q4_K_M/model.gguf`), in the filename (`model-Q4_K_M.gguf`), or
+    // wearing an Unsloth `UD-` prefix. This is load-bearing for identity: the
+    // deeplink resolver builds `{org}/{repo}:{QUANT}` using the same function,
+    // and `updateDownloadedModels` cleans up pending rows by id match —
+    // diverging grammars here means pending entries never get reaped.
+    // `HFRepoParser.parseQuant` is the fallback for legacy flat filenames
+    // where the label sits outside the HF enum but still starts with Q/F/IQ.
     let fileBaseName = URL(fileURLWithPath: filename).lastPathComponent
-    let quant = HFRepoParser.parseQuant(filename: fileBaseName) ?? "unknown"
+    let quant =
+      GGUFQuantLabel.parse(filename)
+      ?? HFRepoParser.parseQuant(filename: fileBaseName)
+      ?? "unknown"
 
     // Calculate file size (sum all shards if split)
     let filePaths: [String]
