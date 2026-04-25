@@ -668,7 +668,7 @@ enum HFCache {
   /// Side effect on first upgrade: a small set of existing sideloaded models
   /// get a new id (UD-prefixed quants, imatrix-suffixed files, previously-
   /// `:unknown` subdir-stored files). Affected users lose saved ctx-tier
-  /// preferences and trigger a one-time fit-params re-measure. One-time cost.
+  /// preferences and trigger a one-time MemProfile re-measure. One-time cost.
   private static func buildSideloadedEntry(
     repoDir: String,
     filename: String,
@@ -730,7 +730,7 @@ enum HFCache {
       size: sizeLabel,
       ctxWindow: 131_072,  // 128k upper bound — clamped by memory budget
       fileSize: totalFileSize,
-      ctxBytesPer1kTokens: 0,  // Updated async by llama-fit-params
+      ctxBytesPer1kTokens: 0,  // Updated async from the cached MemProfile
       downloadUrl: URL(string: "file:///")!,
       serverArgs: [],  // Newer GGUFs embed sampling params; llama-server auto-applies them
       icon: "sideloaded",

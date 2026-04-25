@@ -471,8 +471,8 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     return content
   }
 
-  /// Active fit-params enrichment task. Cancelled on refresh to avoid stale updates.
-  private var fitParamsTask: Task<Void, Never>?
+  /// Active mem-profile enrichment task. Cancelled on refresh to avoid stale updates.
+  private var memProfileTask: Task<Void, Never>?
 
   /// Scans both the legacy directory and HF cache for installed models,
   /// including sideloaded models that don't match any catalog entry.
@@ -538,16 +538,16 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         cacheDir: hfCacheDir, knownFiles: hfScan.matchedFiles
       )
 
-      // Apply cached fit-params to sideloaded models, track those still pending
+      // Apply cached mem-profile to sideloaded models, track those still pending
       var sideloadedEntries: [CatalogEntry] = []
-      var needsFitParams: [(id: String, path: String)] = []
+      var needsProfile: [(id: String, path: String)] = []
       for (entry, paths) in sideloaded {
         var entry = entry
-        if let cached = FitParamsCache.get(modelId: entry.id) {
+        if let cached = MemProfileCache.get(modelId: entry.id) {
           entry.ctxBytesPer1kTokens = cached.ctxBytesPer1kTokens
-          entry.fitResidentBytes = cached.residentBytes
+          entry.residentBytes = cached.residentBytes
         } else {
-          needsFitParams.append((id: entry.id, path: paths.modelFile))
+          needsProfile.append((id: entry.id, path: paths.modelFile))
         }
         allResolved[entry.id] = paths
         sideloadedEntries.append(entry)
@@ -558,7 +558,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       let catalogDownloaded = allCatalogModels.filter { finalResolved[$0.id] != nil }
       let allDownloaded = catalogDownloaded + sideloadedEntries
 
-      let pendingFitParams = needsFitParams
+      let pendingProfile = needsProfile
 
       // Scan `.llamabarn-partial/` for interrupted downloads from a previous session.
       // Done on the same detached task so we know exactly which ids are already
@@ -570,7 +570,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
       await MainActor.run {
         Self.updateDownloadedModels(
-          allDownloaded, resolved: finalResolved, pending: pendingFitParams, paused: paused)
+          allDownloaded, resolved: finalResolved, pending: pendingProfile, paused: paused)
       }
     }
   }
@@ -611,41 +611,41 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: manager)
 
-    // Kick off async fit-params computation for sideloaded models without cached results
+    // Kick off async mem-profile probing for sideloaded models without cached results
     if !pending.isEmpty {
       manager.enrichSideloadedModels(pending)
     }
   }
 
-  /// Runs llama-fit-params for sideloaded models that don't have cached results.
+  /// Probes sideloaded models that don't have a cached MemProfile.
   /// Updates each model's ctxBytesPer1kTokens as results come in, refreshing the UI.
   /// Runs sequentially (one model at a time) to avoid GPU contention.
   private func enrichSideloadedModels(_ models: [(id: String, path: String)]) {
     // Cancel any previous enrichment task (e.g. from a previous refresh).
-    // The withTaskCancellationHandler in FitParamsRunner.run() ensures the
+    // The withTaskCancellationHandler in MemProfileRunner.run() ensures the
     // subprocess is terminated when the task is cancelled.
-    fitParamsTask?.cancel()
+    memProfileTask?.cancel()
 
-    fitParamsTask = Task.detached { [weak self] in
+    memProfileTask = Task.detached { [weak self] in
       for (modelId, modelPath) in models {
         guard !Task.isCancelled else { return }
 
-        let params = await FitParamsRunner.run(modelPath: modelPath)
+        let profile = await MemProfileRunner.run(modelPath: modelPath)
         guard !Task.isCancelled else { return }
 
         // On failure, cache a sentinel (-1) so the UI stops showing "estimating..."
         // and we don't re-run on next launch. The model falls back to 4k context.
-        let resolved = params ?? FitParams(ctxBytesPer1kTokens: -1)
+        let resolved = profile ?? MemProfile(ctxBytesPer1kTokens: -1)
 
         // Cache the result to disk
-        FitParamsCache.set(resolved, for: modelId)
+        MemProfileCache.set(resolved, for: modelId)
 
         // Update the in-memory model entry and refresh the UI
         guard let mgr = self else { return }
         await MainActor.run {
           if let idx = mgr.downloadedModels.firstIndex(where: { $0.id == modelId }) {
             mgr.downloadedModels[idx].ctxBytesPer1kTokens = resolved.ctxBytesPer1kTokens
-            mgr.downloadedModels[idx].fitResidentBytes = resolved.residentBytes
+            mgr.downloadedModels[idx].residentBytes = resolved.residentBytes
           }
 
           // Regenerate models.ini now that we have accurate memory info

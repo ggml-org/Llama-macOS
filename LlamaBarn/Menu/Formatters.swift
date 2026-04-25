@@ -130,7 +130,7 @@ extension Format {
   /// Formats model metadata text.
   /// Format: "3.1 GB  ∣  128k" (file size + effective context tier)
   /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
-  /// For sideloaded models awaiting fit-params: "3.1 GB  ∣  estimating..."
+  /// For sideloaded models awaiting their MemProfile: "3.1 GB  ∣  estimating..."
   static func modelMetadata(
     for model: CatalogEntry,
     color: NSColor = Theme.Colors.textPrimary,
@@ -163,7 +163,7 @@ extension Format {
       // Pipe separator
       result.append(NSAttributedString(string: "  ∣  ", attributes: secondaryAttributes))
 
-      // Context tier or status for sideloaded models pending/failed fit-params
+      // Context tier or status for sideloaded models pending/failed MemProfile
       if model.isSideloaded && model.ctxBytesPer1kTokens == 0 {
         result.append(NSAttributedString(string: "estimating...", attributes: secondaryAttributes))
       } else if model.isSideloaded && model.ctxBytesPer1kTokens < 0 {

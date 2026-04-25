@@ -329,7 +329,7 @@ enum HFRepoResolver {
     // Model weight memory ≈ fileSize × overheadMultiplier (see
     // `CatalogEntry.weightMemoryMb`). We reuse the catalog's default of 1.05.
     // This is a rough pre-download filter; the real compatibility check runs
-    // at launch once fit-params has measured resident bytes.
+    // at launch once the MemProfile probe has measured resident bytes.
     guard let bytes, bytes > 0 else { return true }  // unknown size → don't filter out
     let mb = Double(bytes) / 1_048_576.0 * 1.05
     return mb <= budgetMb

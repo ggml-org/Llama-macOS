@@ -4,7 +4,7 @@ extension CatalogEntry {
 
   /// Builds a sideloaded-style `CatalogEntry` for a deeplink install.
   /// Mirrors the defaults in `HFCache.buildSideloadedEntry` (same id shape,
-  /// icon, ctx ceiling, "no ctxBytesPer1kTokens yet, fit-params fills it in
+  /// icon, ctx ceiling, "no ctxBytesPer1kTokens yet, MemProfile fills it in
   /// later" posture) so identity round-trips once `scanForSideloaded`
   /// surfaces the landed files post-download.
   static func sideloadPlaceholder(
@@ -30,7 +30,7 @@ extension CatalogEntry {
       size: sizeLabel,
       ctxWindow: 131_072,  // 128k upper bound, clamped by memory budget
       fileSize: fileSize,
-      ctxBytesPer1kTokens: 0,  // Filled in async by llama-fit-params post-install
+      ctxBytesPer1kTokens: 0,  // Filled in async from the MemProfile probe post-install
       downloadUrl: mainUrl,
       additionalParts: additionalParts.isEmpty ? nil : additionalParts,
       mmprojUrl: mmprojUrl,

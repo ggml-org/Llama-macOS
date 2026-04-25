@@ -87,7 +87,7 @@ final class ExpandedModelDetailsView: ItemView {
 
     mainStack.addArrangedSubview(headerRow)
 
-    // For sideloaded models awaiting fit-params, show a placeholder message
+    // For sideloaded models awaiting their MemProfile, show a placeholder message
     // instead of tier rows (we don't have accurate memory estimates yet).
     // For failed estimation (-1), show a failure message with the 4k fallback.
     if model.isSideloaded && model.ctxBytesPer1kTokens == 0 {

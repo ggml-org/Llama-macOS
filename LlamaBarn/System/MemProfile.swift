@@ -2,15 +2,17 @@ import CommonCrypto
 import Foundation
 import os.log
 
-/// Memory characteristics computed by llama-fit-params for a model.
+/// Per-model memory profile: parameters of an affine estimator that predicts
+/// total memory at any context size. Currently produced by probing with
+/// `llama-fit-params`, but the data is independent of how it's measured.
 /// Cached to disk so we don't re-run on every launch.
 ///
 /// All fields are non-optional on purpose: when we add a new field, synthesized
-/// Codable fails to decode old cache entries (keyNotFound), `FitParamsCache.get`
-/// returns nil, and we re-run fit-params to produce a fresh entry. Don't switch
-/// to `decodeIfPresent` or a custom `init(from:)` with defaults — that would
+/// Codable fails to decode old cache entries (keyNotFound), `MemProfileCache.get`
+/// returns nil, and we re-probe to produce a fresh entry. Don't switch to
+/// `decodeIfPresent` or a custom `init(from:)` with defaults — that would
 /// silently keep stale entries across upgrades.
-struct FitParams: Codable {
+struct MemProfile: Codable {
   /// Slope of the affine memory model, in bytes per 1k tokens.
   ///   mem(ctx) = residentBytes + ctxBytesPer1kTokens · ctx / 1000
   /// Maps directly to CatalogEntry.ctxBytesPer1kTokens.
@@ -18,8 +20,8 @@ struct FitParams: Codable {
   /// Intercept of the affine memory model, in bytes. Total footprint at ctx=0 —
   /// includes model weights, compute buffers, and any ctx-independent KV state
   /// (e.g. the per-layer local cache that SWA models like Gemma keep regardless
-  /// of ctx). Maps to CatalogEntry.fitResidentBytes.
-  /// 0 if unknown (e.g. fit-params failed).
+  /// of ctx). Maps to CatalogEntry.residentBytes.
+  /// 0 if unknown (e.g. probe failed).
   let residentBytes: Int
   /// Schema version. Bumping invalidates on-disk caches via the Codable
   /// keyNotFound mechanism documented at the top of this file.
@@ -34,11 +36,11 @@ struct FitParams: Codable {
   }
 }
 
-/// Runs the llama-fit-params binary to determine a model's memory characteristics.
+/// Probes a model with the `llama-fit-params` binary to derive a `MemProfile`.
 /// Used for sideloaded models that don't have hardcoded values in the catalog.
-enum FitParamsRunner {
+enum MemProfileRunner {
 
-  private static let logger = Logger(subsystem: Logging.subsystem, category: "FitParamsRunner")
+  private static let logger = Logger(subsystem: Logging.subsystem, category: "MemProfileRunner")
 
   /// Probes a model at two context sizes and fits an affine memory model
   ///   mem(ctx) = a + b·ctx
@@ -54,7 +56,7 @@ enum FitParamsRunner {
   ///
   /// Takes ~2s per model (two probes). Returns nil on failure.
   /// Supports cancellation — terminates the subprocess if the Task is cancelled.
-  static func run(modelPath: String) async -> FitParams? {
+  static func run(modelPath: String) async -> MemProfile? {
     let binaryPath = Bundle.main.bundlePath + "/Contents/MacOS/llama-cpp/llama-fit-params"
 
     guard FileManager.default.fileExists(atPath: binaryPath) else {
@@ -94,10 +96,10 @@ enum FitParamsRunner {
     let bBytesPer1k = Int(bPerToken * 1000.0 * 1_048_576.0)
 
     logger.info(
-      "Fit params (affine): total(\(ctxLo))=\(loMib) MiB, total(\(ctxHi))=\(hiMib) MiB → a=\(aBytes) bytes, b=\(bBytesPer1k) bytes/1k"
+      "Mem profile (affine): total(\(ctxLo))=\(loMib) MiB, total(\(ctxHi))=\(hiMib) MiB → a=\(aBytes) bytes, b=\(bBytesPer1k) bytes/1k"
     )
 
-    return FitParams(ctxBytesPer1kTokens: bBytesPer1k, residentBytes: aBytes)
+    return MemProfile(ctxBytesPer1kTokens: bBytesPer1k, residentBytes: aBytes)
   }
 
   /// Runs `llama-fit-params -c <ctx> -fitp on` and returns the total MiB
@@ -179,31 +181,32 @@ enum FitParamsRunner {
   }
 }
 
-/// Disk cache for llama-fit-params results.
-/// Stored in ~/Library/Caches/{bundleId}/fitparams/ — the macOS-standard location
-/// for derived, recreatable data. If the system purges the cache, we re-run.
-enum FitParamsCache {
+/// Disk cache for `MemProfile` results.
+/// Stored in ~/Library/Caches/{bundleId}/MemProfile/ — the macOS-standard
+/// location for derived, recreatable data. If the system purges the cache, we
+/// re-probe.
+enum MemProfileCache {
 
-  private static let logger = Logger(subsystem: Logging.subsystem, category: "FitParamsCache")
+  private static let logger = Logger(subsystem: Logging.subsystem, category: "MemProfileCache")
 
-  /// Returns cached FitParams for a model ID, or nil if not cached.
-  static func get(modelId: String) -> FitParams? {
+  /// Returns the cached MemProfile for a model ID, or nil if not cached.
+  static func get(modelId: String) -> MemProfile? {
     let path = cachePath(for: modelId)
     guard let data = try? Data(contentsOf: path) else { return nil }
-    return try? JSONDecoder().decode(FitParams.self, from: data)
+    return try? JSONDecoder().decode(MemProfile.self, from: data)
   }
 
-  /// Stores FitParams for a model ID.
-  static func set(_ params: FitParams, for modelId: String) {
+  /// Stores a MemProfile for a model ID.
+  static func set(_ profile: MemProfile, for modelId: String) {
     let path = cachePath(for: modelId)
     do {
       try FileManager.default.createDirectory(
         at: path.deletingLastPathComponent(), withIntermediateDirectories: true
       )
-      let data = try JSONEncoder().encode(params)
+      let data = try JSONEncoder().encode(profile)
       try data.write(to: path, options: .atomic)
     } catch {
-      logger.error("Failed to cache fit params for \(modelId): \(error.localizedDescription)")
+      logger.error("Failed to cache mem profile for \(modelId): \(error.localizedDescription)")
     }
   }
 
@@ -220,7 +223,7 @@ enum FitParamsCache {
     let bundleId = Bundle.main.bundleIdentifier ?? "app.llamabarn.LlamaBarn"
     return FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
       .appendingPathComponent(bundleId)
-      .appendingPathComponent("fitparams")
+      .appendingPathComponent("MemProfile")
   }
 
   private static func sha256(_ string: String) -> String {

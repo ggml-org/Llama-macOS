@@ -11,14 +11,14 @@ struct CatalogEntry: Identifiable {
   let fileSize: Int64  // File size in bytes for progress tracking and display
   /// Estimated KV-cache footprint for a 1k-token context, in bytes.
   /// This helps us preflight memory requirements before launching llama-server.
-  /// For sideloaded models, starts at 0 and is updated async by llama-fit-params.
+  /// For sideloaded models, starts at 0 and is updated async from the cached MemProfile.
   var ctxBytesPer1kTokens: Int
-  /// Measured resident weight memory in bytes, from llama-fit-params.
+  /// Measured resident weight memory in bytes, from the model's MemProfile.
   /// 0 means unavailable — compatibility math falls back to fileSize * overheadMultiplier.
   /// Only populated for sideloaded models (catalog models are evaluated pre-download).
   /// For MoE models this is much smaller than fileSize, since only active experts
   /// contribute to resident memory.
-  var fitResidentBytes: Int
+  var residentBytes: Int
   /// Overhead multiplier for the model file size (e.g., 1.3 = 30% overhead).
   /// Applied during memory calculations to account for loading overhead.
   let overheadMultiplier: Double
@@ -40,7 +40,7 @@ struct CatalogEntry: Identifiable {
   // MARK: - Sideloaded Model Properties
 
   /// True for models discovered in the HF cache that don't match any catalog entry.
-  /// Sideloaded models have less metadata and get memory estimates via llama-fit-params.
+  /// Sideloaded models have less metadata and get memory estimates from a measured MemProfile.
   let isSideloaded: Bool
 
   /// HF org for sideloaded models (e.g. "bartowski"). Nil for catalog models.
@@ -59,7 +59,7 @@ struct CatalogEntry: Identifiable {
     ctxWindow: Int,
     fileSize: Int64,
     ctxBytesPer1kTokens: Int,
-    fitResidentBytes: Int = 0,
+    residentBytes: Int = 0,
     overheadMultiplier: Double = 1.05,
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
@@ -80,7 +80,7 @@ struct CatalogEntry: Identifiable {
     self.ctxWindow = ctxWindow
     self.fileSize = fileSize
     self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
-    self.fitResidentBytes = fitResidentBytes
+    self.residentBytes = residentBytes
     self.overheadMultiplier = overheadMultiplier
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts

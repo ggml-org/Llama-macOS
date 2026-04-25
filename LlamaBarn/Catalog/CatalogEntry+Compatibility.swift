@@ -96,12 +96,12 @@ extension CatalogEntry {
   }
 
   /// Weight memory (MB) used by compatibility math.
-  /// For sideloaded models with a fit-params result, uses the measured resident weight
+  /// For sideloaded models with a measured MemProfile, uses the resident weight
   /// size (correct for MoE models). Otherwise falls back to fileSize * overheadMultiplier,
   /// which is the only option for catalog entries (evaluated pre-download).
   private var weightMemoryMb: Double {
-    if fitResidentBytes > 0 {
-      return Double(fitResidentBytes) / 1_048_576.0
+    if residentBytes > 0 {
+      return Double(residentBytes) / 1_048_576.0
     }
     let fileSizeMb = Self.bytesToMb(fileSize)
     return fileSizeMb * overheadMultiplier
@@ -164,9 +164,9 @@ extension CatalogEntry {
 
   /// Returns all context tiers that this model can support given device memory constraints.
   /// Shows all standard tiers (4K through 128K) that are compatible, plus 256K if supported.
-  /// For sideloaded models still awaiting fit-params, returns only 4K as a safe default.
+  /// For sideloaded models still awaiting their MemProfile, returns only 4K as a safe default.
   var supportedContextTiers: [ContextTier] {
-    // Sideloaded models without fit-params (0 = estimating, -1 = failed): allow 4K
+    // Sideloaded models without a MemProfile (0 = estimating, -1 = failed): allow 4K
     // only as a conservative default. Without ctxBytesPer1kTokens, memory estimates
     // are artificially low and all tiers would appear compatible.
     if isSideloaded && ctxBytesPer1kTokens <= 0 {
