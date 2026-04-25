@@ -8,12 +8,28 @@ enum LlamabarnURL: Equatable {
   /// `llamabarn://install?repo={org}/{repo}[&quant={label}]`
   case install(repo: String, quant: String?)
 
+  /// The URL scheme this build registers, read from `CFBundleURLTypes` in
+  /// `Info.plist`. Production builds register `llamabarn`; dev builds register
+  /// `llamabarn-dev`, so a developer with both installed can route deeplinks
+  /// deterministically (Launch Services would otherwise pick whichever build
+  /// it ranked higher).
+  private static let registeredScheme: String = {
+    guard
+      let types = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes")
+        as? [[String: Any]],
+      let schemes = types.first?["CFBundleURLSchemes"] as? [String],
+      let first = schemes.first
+    else { return "llamabarn" }
+    return first.lowercased()
+  }()
+
   /// Parses a URL into a `LlamabarnURL`. Returns nil for anything that isn't a
-  /// recognized `llamabarn://` verb or that fails shallow validation (shape of
-  /// `repo`). Deeper validation (quant label canonicalization, repo existence)
-  /// happens downstream in `HFRepoResolver` / `GGUFQuantLabel`.
+  /// recognized verb under our registered scheme or that fails shallow
+  /// validation (shape of `repo`). Deeper validation (quant label
+  /// canonicalization, repo existence) happens downstream in `HFRepoResolver`
+  /// / `GGUFQuantLabel`.
   static func parse(_ url: URL) -> LlamabarnURL? {
-    guard url.scheme?.lowercased() == "llamabarn" else { return nil }
+    guard url.scheme?.lowercased() == registeredScheme else { return nil }
 
     // Use URLComponents to get a tolerant parse of the query string.
     // `host` normalizes to lowercase, so case in the authority doesn't matter.

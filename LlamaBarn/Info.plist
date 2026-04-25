@@ -13,7 +13,7 @@
 			<string>app.llamabarn.install</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>llamabarn</string>
+				<string>$(URL_SCHEME)</string>
 			</array>
 		</dict>
 	</array>
