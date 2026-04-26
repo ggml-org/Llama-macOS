@@ -8,11 +8,11 @@ import os.log
 /// File-selection priority:
 ///   1. Explicit `quant` → sibling whose `parseGGUFQuantLabel` matches.
 ///   2. No quant, catalog hit → largest compatible catalog entry for this repo.
-///   3. No quant, no catalog → highest-preference quant that fits the budget
-///      (Q4_K_M family first; F16/BF16/F32 only when no quantized variant
-///      exists). Picking the largest fits-budget file would systematically
-///      hand users BF16/F16 just because their Mac has the headroom — almost
-///      never what the click intended.
+///   3. No quant, no catalog → mirror llama.cpp's `find_best_model` (try Q4_K_M
+///      tag, then Q4_0, else fall back to largest fits-budget). Pre-filters
+///      candidates by `memBudget` so a small Mac doesn't get handed a too-big
+///      Q4_K_M; final fallback is "largest" rather than llama.cpp's "first
+///      listed" (alphabetical) which would systematically pick BF16.
 enum HFRepoResolver {
 
   private static let logger = Logger(subsystem: Logging.subsystem, category: "HFRepoResolver")
@@ -262,12 +262,13 @@ enum HFRepoResolver {
         quant: best.quantization)
     }
 
-    // 3. No quant, no catalog: pick the largest compatible GGUF variant.
-    // For sharded quants, compatibility/ranking use the sum of all shards when
-    // HF provided per-shard sizes; otherwise we fall back to the first shard's
-    // size, matching the old behavior.
-    // Skip imatrix/mmproj/split-shard-continuations — we only want standalone
-    // mains or the first shard of a sharded set.
+    // 3. No quant, no catalog: mirror llama.cpp's `find_best_model`
+    // (`common/download.cpp:623`) — try Q4_K_M tag, then Q4_0 tag, else fall
+    // back to the largest fits-budget candidate. Skip imatrix/mmproj/split-
+    // shard-continuations — we only want standalone mains or the first shard
+    // of a sharded set. For sharded quants, compatibility uses the sum of all
+    // shard sizes when HF provided per-shard sizes; otherwise we fall back to
+    // the first shard's size.
     let selectable = allGgufs.filter { sib in
       let name = (sib.rfilename as NSString).lastPathComponent
       if name.lowercased().hasPrefix("mmproj") { return false }
@@ -280,7 +281,23 @@ enum HFRepoResolver {
     let compatible = selectable.filter {
       fits(bytes: estimatedModelBytes(for: $0, siblings: siblings, repo: repo), budgetMb: budgetMb)
     }
-    guard let best = preferredDefault(compatible, siblings: siblings, repo: repo) else {
+
+    // Tag preference: try each in order, take the first matching candidate.
+    // The boundary `[.-]` mirrors llama.cpp's regex exactly, so e.g.
+    // `UD-Q4_K_XL.gguf` doesn't get treated as Q4_K_M.
+    let preferred: Sibling? = ["Q4_K_M", "Q4_0"].lazy.compactMap { tag in
+      compatible.first { sib in
+        sib.rfilename.range(
+          of: "\(tag)[.-]",
+          options: [.regularExpression, .caseInsensitive]) != nil
+      }
+    }.first
+
+    // Fallback: largest fits-budget candidate. We deviate from llama.cpp's
+    // "first listed" (alphabetical) here — alphabetical fallback systematically
+    // picks BF16/F16 over smaller quants in repos that have them, which is
+    // exactly the surprise we're trying to avoid.
+    guard let best = preferred ?? largest(compatible, siblings: siblings, repo: repo) else {
       throw ResolveError.noCompatibleFile(repo: repo)
     }
     let label =
@@ -303,57 +320,6 @@ enum HFRepoResolver {
       let bBytes = estimatedModelBytes(for: b, siblings: siblings, repo: repo) ?? 0
       if aBytes != bBytes { return aBytes < bBytes }
       return a.rfilename < b.rfilename
-    }
-  }
-
-  /// Picks the sibling a typical user would expect when they didn't choose a
-  /// quant: Q4_K_M family first, then nearby tiers, with F16/BF16/F32 reserved
-  /// for "no quantized variant exists." Within a tier, prefer the larger file
-  /// (handles imatrix vs plain at the same label) and break ties by rfilename
-  /// for determinism. Returns nil for empty input.
-  private static func preferredDefault(
-    _ sibs: [Sibling], siblings: [Sibling], repo: String
-  ) -> Sibling? {
-    sibs.min { a, b in
-      let ap = defaultQuantPriority(a.rfilename)
-      let bp = defaultQuantPriority(b.rfilename)
-      if ap != bp { return ap < bp }
-      let aBytes = estimatedModelBytes(for: a, siblings: siblings, repo: repo) ?? 0
-      let bBytes = estimatedModelBytes(for: b, siblings: siblings, repo: repo) ?? 0
-      if aBytes != bBytes { return aBytes > bBytes }
-      return a.rfilename < b.rfilename
-    }
-  }
-
-  /// Preference rank for a sibling's quant label — lower = more preferred.
-  /// The ordering reflects the "good default" intuition the GGUF community
-  /// has converged on (Q4_K_M as the canonical balance of quality and size),
-  /// expanding outward to nearby tiers, then i-quants, then full precision.
-  /// Unknown / unparseable labels rank below F32 so they only get picked when
-  /// nothing else fits.
-  private static func defaultQuantPriority(_ rfilename: String) -> Int {
-    let parsed = (GGUFQuantLabel.parse(rfilename) ?? "").uppercased()
-    // UD-* are Unsloth's dynamic variants of the same base quant; rank them
-    // alongside their base so e.g. UD-Q4_K_XL competes with Q4_K_M, not F16.
-    let base = parsed.hasPrefix("UD-") ? String(parsed.dropFirst(3)) : parsed
-    switch base {
-    case "Q4_K_M", "Q4_K_XL": return 0
-    case "Q5_K_M": return 1
-    case "Q4_K_S": return 2
-    case "Q5_K_S": return 3
-    case "Q6_K": return 4
-    case "Q4_0", "Q4_1": return 5
-    case "Q3_K_M": return 6
-    case "Q8_0": return 7
-    case "Q3_K_S", "Q3_K_L": return 8
-    case "IQ4_XS", "IQ4_NL": return 9
-    case "Q2_K", "Q2_K_L": return 10
-    case "IQ3_M", "IQ3_S", "IQ3_XS", "IQ3_XXS": return 11
-    case "IQ2_M", "IQ2_S", "IQ2_XS", "IQ2_XXS": return 12
-    case "IQ1_M", "IQ1_S": return 13
-    case "F16", "BF16": return 14
-    case "F32": return 15
-    default: return 100
     }
   }
 
