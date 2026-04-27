@@ -136,7 +136,7 @@ final class ExpandedModelDetailsView: ItemView {
     // Fixed row height prevents menu resizing when expanding different models
     row.heightAnchor.constraint(equalToConstant: 16).isActive = true
 
-    let infoLabel = Theme.secondaryLabel()
+    let tierLabel = Theme.secondaryLabel()
     let labelColor = Theme.Colors.modelIconTint
     let valueColor = Theme.Colors.textPrimary
 
@@ -175,8 +175,8 @@ final class ExpandedModelDetailsView: ItemView {
     result.append(NSAttributedString(string: ramStr, attributes: valueAttrs))
     result.append(NSAttributedString(string: " mem", attributes: labelAttrs))
 
-    infoLabel.attributedStringValue = result
-    row.addArrangedSubview(infoLabel)
+    tierLabel.attributedStringValue = result
+    row.addArrangedSubview(tierLabel)
 
     // Make the row clickable to select this tier
     let clickRecognizer = NSClickGestureRecognizer(
