@@ -35,7 +35,7 @@ enum HFRepoResolver {
     let mmprojUrl: URL?
     /// Size in bytes if the HF API disclosed it (aggregated across main+shards+mmproj).
     /// 0 when the API didn't return per-file sizes. We start the download either way;
-    /// `fetchHFContext` does HEAD requests that produce real byte counts.
+    /// `fetchHFDownloadPlan` does HEAD requests that produce real byte counts.
     let approximateBytes: Int64
   }
 

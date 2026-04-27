@@ -66,10 +66,10 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// teardown without a separate placeholder registry.
   var pausedDownloads: [String: PausedDownload] = [:]
 
-  /// HF download context per model ID, gathered before download starts.
+  /// HF download plan per model ID, gathered before download starts.
   /// Contains commit hash and blob hashes needed to write into HF cache layout.
   /// Nil for legacy flat-directory downloads (fallback when HF API calls fail).
-  var downloadContexts: [String: HFDownloadCtx] = [:]
+  var downloadPlans: [String: HFDownloadPlan] = [:]
 
   /// Per-task streaming state for in-flight downloads. Keyed by URLSessionTask.taskIdentifier.
   /// Accessed from both the URLSession delegate queue (nonisolated) and the main actor.
@@ -151,9 +151,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // HF cache is the only download destination; if metadata fetch fails, we abort —
     // there's no legacy flat fallback anymore.
     Task {
-      let ctx = await self.fetchHFContext(for: model)
+      let plan = await self.fetchHFDownloadPlan(for: model)
       await MainActor.run {
-        guard let ctx else {
+        guard let plan else {
           self.logger.error("HF metadata fetch failed for \(model.displayName); aborting download")
           self.tearDownActiveDownload(modelId: modelId, outcome: .pause)
           NotificationCenter.default.post(
@@ -167,8 +167,8 @@ class ModelManager: NSObject, URLSessionDataDelegate {
           )
           return
         }
-        self.downloadContexts[modelId] = ctx
-        self.logger.info("HF context ready for \(model.displayName): \(ctx.repoDir)")
+        self.downloadPlans[modelId] = plan
+        self.logger.info("HF download plan ready for \(model.displayName): \(plan.repoDir)")
         self.startDownloadTasks(model: model, files: filesToDownload)
       }
     }
@@ -179,8 +179,8 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// if a partial already exists on disk, we resume via a `Range` header.
   private func startDownloadTasks(model: CatalogEntry, files: [URL]) {
     let modelId = model.id
-    guard let ctx = downloadContexts[modelId] else {
-      logger.error("Missing HF context when starting tasks for \(model.displayName)")
+    guard let plan = downloadPlans[modelId] else {
+      logger.error("Missing HF download plan when starting tasks for \(model.displayName)")
       tearDownActiveDownload(modelId: modelId, outcome: .pause)
       return
     }
@@ -196,7 +196,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     for fileUrl in files {
       do {
         let writer = try openPartialWriter(
-          modelId: modelId, cacheDir: cacheDir, url: fileUrl, ctx: ctx)
+          modelId: modelId, cacheDir: cacheDir, url: fileUrl, plan: plan)
         let task = makeDataTask(for: fileUrl, modelId: modelId, writer: writer)
         writersQueue.sync { writers[task.taskIdentifier] = writer }
         aggregate.addTask(task)
@@ -244,7 +244,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// hash over any already-present prefix. The re-hash cost is bounded by existing file size,
   /// which is small relative to the remaining download.
   private func openPartialWriter(
-    modelId: String, cacheDir: URL, url: URL, ctx: HFDownloadCtx
+    modelId: String, cacheDir: URL, url: URL, plan: HFDownloadPlan
   ) throws -> PartialWriter {
     // `filename` is repo-relative (e.g. `Q4_K_M/model.gguf`), not just a basename,
     // so `writeBlobAndLink` places the snapshot symlink at the correct nested
@@ -277,14 +277,14 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       modelId: modelId, url: url, filename: filename,
       partialURL: partialURL, handle: handle, hasher: hasher,
       bytesWritten: existing,
-      expectedBlobHash: ctx.blobHashes[url]
+      expectedBlobHash: plan.blobHashes[url]
     )
   }
 
   /// Fetches HF file metadata (commit hash, blob hashes) for a model via HEAD requests.
   /// Each HEAD request returns both X-Repo-Commit and X-Linked-Etag, so one request
   /// per file gives us everything we need. Returns nil on failure (caller aborts download).
-  private nonisolated func fetchHFContext(for model: CatalogEntry) async -> HFDownloadCtx? {
+  private nonisolated func fetchHFDownloadPlan(for model: CatalogEntry) async -> HFDownloadPlan? {
     guard let repoDir = HFCache.repoDirName(from: model.downloadUrl) else { return nil }
 
     let token = await MainActor.run { UserSettings.hfToken }
@@ -305,7 +305,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       }
     }
 
-    return HFDownloadCtx(repoDir: repoDir, commit: commit, blobHashes: blobHashes)
+    return HFDownloadPlan(repoDir: repoDir, commit: commit, blobHashes: blobHashes)
   }
 
   /// Gets the current status of a model.
@@ -924,11 +924,11 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
     let blobHash = writer.expectedBlobHash ?? computed
 
-    // Fetch HF ctx (commit/repoDir) on main actor.
-    let ctx: HFDownloadCtx? = DispatchQueue.main.sync {
-      self.downloadContexts[modelId]
+    // Fetch HF download plan (commit/repoDir) on main actor.
+    let plan: HFDownloadPlan? = DispatchQueue.main.sync {
+      self.downloadPlans[modelId]
     }
-    guard let ctx else {
+    guard let plan else {
       handleDownloadFailure(
         modelId: modelId, model: model,
         reason: "Missing Hugging Face metadata for \(model.displayName).")
@@ -938,7 +938,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
     do {
       try HFCache.writeBlobAndLink(
-        cacheDir: cacheDir, repoDir: ctx.repoDir, commit: ctx.commit,
+        cacheDir: cacheDir, repoDir: plan.repoDir, commit: plan.commit,
         blobHash: blobHash, filename: writer.filename,
         from: writer.partialURL)
     } catch {
@@ -958,7 +958,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       }
       if wasCompleted {
         self.logger.info("All downloads completed for model: \(model.displayName)")
-        self.downloadContexts.removeValue(forKey: modelId)
+        self.downloadPlans.removeValue(forKey: modelId)
         // Clean up the now-empty partial dir (the file itself moved to blobs).
         HFCache.removePartials(cacheDir: cacheDir, modelId: modelId)
         self.refreshDownloadedModels()
@@ -1081,11 +1081,11 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// If we can't re-open the partial file, fail the whole model download rather than
   /// leave it hanging in `.downloading` with no forward progress.
   private func restartTask(model: CatalogEntry, url: URL) {
-    guard let ctx = downloadContexts[model.id] else { return }
+    guard let plan = downloadPlans[model.id] else { return }
     let cacheDir = UserSettings.hfCacheDirectory
     do {
       let writer = try openPartialWriter(
-        modelId: model.id, cacheDir: cacheDir, url: url, ctx: ctx)
+        modelId: model.id, cacheDir: cacheDir, url: url, plan: plan)
       let task = makeDataTask(for: url, modelId: model.id, writer: writer)
       writersQueue.sync { writers[task.taskIdentifier] = writer }
       _ = updateActiveDownload(modelId: model.id) { agg in
@@ -1170,7 +1170,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       cancelTasks(for: modelId)
       activeDownloads.removeValue(forKey: modelId)
       lastNotificationTime.removeValue(forKey: modelId)
-      downloadContexts.removeValue(forKey: modelId)
+      downloadPlans.removeValue(forKey: modelId)
       // Clear retry counters — a subsequent resume/retry should start a fresh budget.
       if let model {
         for url in model.allDownloadUrls { clearRetryState(for: url) }

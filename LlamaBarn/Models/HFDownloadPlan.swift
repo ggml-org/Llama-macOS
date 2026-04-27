@@ -1,8 +1,8 @@
 import Foundation
 
-/// Context gathered from HF API before starting a download.
+/// Metadata gathered from the HF API before starting a download.
 /// Provides the information needed to write files into the HF cache layout.
-struct HFDownloadCtx {
+struct HFDownloadPlan {
   /// HF cache repo directory name (e.g. "models--unsloth--Qwen3.5-2B-GGUF")
   let repoDir: String
   /// Git commit hash for the snapshot directory
