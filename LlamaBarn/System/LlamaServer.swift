@@ -160,7 +160,10 @@ class LlamaServer {
     }
 
     // Add custom arguments for cache types and flash attention
-    arguments.append(contentsOf: ["-ctk", "q8_0", "-ctv", "q8_0", "-fa", "on"])
+    arguments.append(contentsOf: ["-ctk", UserSettings.cacheTypeK.rawValue, "-ctv", UserSettings.cacheTypeV.rawValue])
+    if UserSettings.flashAttentionEnabled {
+      arguments.append(contentsOf: ["-fa", "on"])
+    }
 
     // Merge in caller-provided args (may include ctx-size from catalog), but we'll prepend
     // an auto-selected ctx-size later if none is provided.

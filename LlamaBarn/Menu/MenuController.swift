@@ -291,7 +291,11 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     menu.addItem(.separator())
     menu.addItem(makeLaunchAtLoginItem())
+    menu.addItem(makeExposeToNetworkItem())
     menu.addItem(makeContextLengthItem())
+    menu.addItem(makeCacheTypeKItem())
+    menu.addItem(makeCacheTypeVItem())
+    menu.addItem(makeFlashAttentionItem())
   }
 
   private func makeLaunchAtLoginItem() -> NSMenuItem {
@@ -320,6 +324,64 @@ final class MenuController: NSObject, NSMenuDelegate {
           if index >= 0 && index < UserSettings.ContextWindowSize.allCases.count {
             UserSettings.defaultContextWindow = UserSettings.ContextWindowSize.allCases[index]
           }
+        }
+      ))
+  }
+
+  private func makeExposeToNetworkItem() -> NSMenuItem {
+    NSMenuItem.viewItem(
+      with: SettingsItemView(
+        title: "Expose to network",
+        getValue: { UserSettings.exposeToNetwork },
+        onToggle: { newValue in
+          UserSettings.exposeToNetwork = newValue
+        }
+      ))
+  }
+
+  private func makeCacheTypeKItem() -> NSMenuItem {
+    let cacheLabels = UserSettings.CacheType.allCases.map { $0.displayName }
+    return NSMenuItem.viewItem(
+      with: SettingsSegmentedView(
+        title: "KV Cache (K)",
+        infoText: "Lower quantization (Q4) saves memory but reduces precision.",
+        labels: cacheLabels,
+        getSelectedIndex: {
+          UserSettings.CacheType.allCases.firstIndex(of: UserSettings.cacheTypeK) ?? 0
+        },
+        onSelect: { index in
+          if index >= 0 && index < UserSettings.CacheType.allCases.count {
+            UserSettings.cacheTypeK = UserSettings.CacheType.allCases[index]
+          }
+        }
+      ))
+  }
+
+  private func makeCacheTypeVItem() -> NSMenuItem {
+    let cacheLabels = UserSettings.CacheType.allCases.map { $0.displayName }
+    return NSMenuItem.viewItem(
+      with: SettingsSegmentedView(
+        title: "KV Cache (V)",
+        infoText: "Lower quantization (Q4) saves memory but reduces precision.",
+        labels: cacheLabels,
+        getSelectedIndex: {
+          UserSettings.CacheType.allCases.firstIndex(of: UserSettings.cacheTypeV) ?? 0
+        },
+        onSelect: { index in
+          if index >= 0 && index < UserSettings.CacheType.allCases.count {
+            UserSettings.cacheTypeV = UserSettings.CacheType.allCases[index]
+          }
+        }
+      ))
+  }
+
+  private func makeFlashAttentionItem() -> NSMenuItem {
+    NSMenuItem.viewItem(
+      with: SettingsItemView(
+        title: "Flash Attention",
+        getValue: { UserSettings.flashAttentionEnabled },
+        onToggle: { newValue in
+          UserSettings.flashAttentionEnabled = newValue
         }
       ))
   }
