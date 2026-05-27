@@ -39,6 +39,8 @@
 				libggml.0.dylib,
 				libllama.0.dylib,
 				"libllama-common.0.dylib",
+				"libllama-fit-params-impl.dylib",
+				"libllama-server-impl.dylib",
 				libmtmd.0.dylib,
 				"llama-fit-params",
 				"llama-server",
@@ -59,6 +61,8 @@
 				libggml.0.dylib = (CodeSignOnCopy, );
 				libllama.0.dylib = (CodeSignOnCopy, );
 				"libllama-common.0.dylib" = (CodeSignOnCopy, );
+				"libllama-fit-params-impl.dylib" = (CodeSignOnCopy, );
+				"libllama-server-impl.dylib" = (CodeSignOnCopy, );
 				libmtmd.0.dylib = (CodeSignOnCopy, );
 				"llama-fit-params" = (CodeSignOnCopy, );
 				"llama-server" = (CodeSignOnCopy, );
@@ -73,6 +77,8 @@
 				libggml.0.dylib,
 				libllama.0.dylib,
 				"libllama-common.0.dylib",
+				"libllama-fit-params-impl.dylib",
+				"libllama-server-impl.dylib",
 				libmtmd.0.dylib,
 				"llama-fit-params",
 				"llama-server",
