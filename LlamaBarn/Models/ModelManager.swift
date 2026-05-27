@@ -516,12 +516,18 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         let profile = await MemProfileRunner.run(modelPath: modelPath)
         guard !Task.isCancelled else { return }
 
-        // On failure, cache a sentinel (-1) so the UI stops showing "estimating..."
-        // and we don't re-run on next launch. The model falls back to 4k context.
+        // On failure, use a sentinel (-1) in memory so the UI drops out of
+        // "estimating..." for this session — but don't persist it. A transient
+        // failure (e.g. a broken-build window after a llama.cpp update where
+        // llama-fit-params can't dyld-link) would otherwise stick across
+        // launches and never re-probe. Cost of not persisting: a few seconds
+        // of "estimating..." next launch for genuinely unprobable models.
         let resolved = profile ?? MemProfile(ctxBytesPer1kTokens: -1)
 
-        // Cache the result to disk
-        MemProfileCache.set(resolved, for: modelId)
+        // Only cache successful probes to disk.
+        if profile != nil {
+          MemProfileCache.set(resolved, for: modelId)
+        }
 
         // Update the in-memory model entry and refresh the UI
         guard let mgr = self else { return }
