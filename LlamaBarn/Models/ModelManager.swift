@@ -496,14 +496,14 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
     // Kick off async mem-profile probing for models without cached results
     if !pending.isEmpty {
-      manager.enrichSideloadedModels(pending)
+      manager.enrichWithMemProfiles(pending)
     }
   }
 
   /// Probes sideloaded models that don't have a cached MemProfile.
   /// Updates each model's ctxBytesPer1kTokens as results come in, refreshing the UI.
   /// Runs sequentially (one model at a time) to avoid GPU contention.
-  private func enrichSideloadedModels(_ models: [(id: String, path: String)]) {
+  private func enrichWithMemProfiles(_ models: [(id: String, path: String)]) {
     // Cancel any previous enrichment task (e.g. from a previous refresh).
     // The withTaskCancellationHandler in MemProfileRunner.run() ensures the
     // subprocess is terminated when the task is cancelled.
@@ -783,7 +783,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }()
 
     // Sanity check: reject obviously broken downloads (error pages, empty files).
-    // We don't require exact size match — catalog sizes can drift when HF re-uploads.
+    // We don't require an exact size match — expected sizes can drift when HF re-uploads.
     let minThreshold: Int64 = 1_000_000
     if fileSize <= minThreshold {
       try? FileManager.default.removeItem(at: writer.partialURL)
@@ -881,7 +881,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         "Hugging Face refused the download (HTTP \(status)). This usually means a rate limit — try again in a few minutes, or set a Hugging Face token in Settings to lift the limit."
     case 404:
       return
-        "Hugging Face returned 404 for this file. The catalog URL may be out of date — please report this at https://github.com/ggml-org/LlamaBarn/issues."
+        "Hugging Face returned 404 for this file. The repo may have moved or been removed."
     case 500...599:
       return
         "Hugging Face is temporarily unavailable (HTTP \(status)). Try again in a few minutes."

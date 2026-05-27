@@ -289,7 +289,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     titleLabel.attributedStringValue = Format.modelName(
       family: model.family,
-      size: model.sizeLabel,
+      size: model.size,
       familyColor: textColor,
       sizeColor: textColor,
       hasVision: model.hasVisionSupport,

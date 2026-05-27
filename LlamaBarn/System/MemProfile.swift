@@ -37,7 +37,7 @@ struct MemProfile: Codable {
 }
 
 /// Probes a model with the `llama-fit-params` binary to derive a `MemProfile`.
-/// Used for sideloaded models that don't have hardcoded values in the catalog.
+/// Run once per installed model; the result is cached on disk.
 enum MemProfileRunner {
 
   private static let logger = Logger(subsystem: Logging.subsystem, category: "MemProfileRunner")

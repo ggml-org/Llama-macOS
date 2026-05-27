@@ -39,8 +39,9 @@ struct ActiveDownload {
   /// `expectedActiveBytes` is the sum of each task's known total size (0 before the response arrives).
   mutating func refreshProgress(activeBytes: Int64, expectedActiveBytes: Int64) {
     let totalCompleted = completedFilesBytes + activeBytes
-    // Don't shrink totalUnitCount — it's initialized from catalog-declared sizes and a
-    // response's Content-Length may be missing until the first byte arrives.
+    // Don't shrink totalUnitCount — it's seeded from the HF resolve's
+    // aggregated byte count and a response's Content-Length may be missing
+    // until the first byte arrives.
     let totalExpected = max(progress.totalUnitCount, completedFilesBytes + expectedActiveBytes)
     progress.totalUnitCount = max(totalExpected, 1)
     progress.completedUnitCount = totalCompleted

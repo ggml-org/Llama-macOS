@@ -86,9 +86,6 @@ struct Model: Identifiable {
     "\(family) \(size)"
   }
 
-  /// Size label (e.g. "30B") — alias kept for callers that read this name.
-  var sizeLabel: String { size }
-
   /// Pretty quantization label (e.g. "Q4") for the row subtitle.
   /// Nil when the label maps to "no qualifier needed" (full precision, empty).
   var quantizationLabel: String? {
@@ -104,15 +101,6 @@ struct Model: Identifiable {
   /// Vision support is implied by an attached mmproj sidecar.
   var hasVisionSupport: Bool {
     mmprojUrl != nil
-  }
-
-  /// Estimated runtime memory (in MB) at the model's max context length.
-  var estimatedRuntimeMemoryMbAtMaxContext: UInt64 {
-    let maxTokens =
-      ctxWindow > 0
-      ? Double(ctxWindow)
-      : Self.compatibilityCtxWindowTokens
-    return runtimeMemoryUsageMb(ctxWindowTokens: maxTokens)
   }
 
   /// All remote URLs this model needs to download (main + shards + mmproj).
