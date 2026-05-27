@@ -4,6 +4,9 @@ import Foundation
 enum UserSettings {
   enum SleepIdleTime: Int, CaseIterable {
     case disabled = -1
+    #if DEBUG
+      case thirtySec = 30
+    #endif
     case fiveMin = 300
     case fifteenMin = 900
     case oneHour = 3600
@@ -11,6 +14,9 @@ enum UserSettings {
     var displayName: String {
       switch self {
       case .disabled: return "Off"
+      #if DEBUG
+        case .thirtySec: return "30 sec (debug)"
+      #endif
       case .fiveMin: return "5 min"
       case .fifteenMin: return "15 min"
       case .oneHour: return "1 hour"
