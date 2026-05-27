@@ -267,9 +267,6 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // Always show models
     buildInstalledItems(models).forEach { menu.addItem($0) }
-
-    // Trailing separator after installed section
-    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
   }
 
   private func buildInstalledItems(_ models: [Model]) -> [NSMenuItem] {
