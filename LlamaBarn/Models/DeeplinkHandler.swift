@@ -36,14 +36,12 @@ final class DeeplinkHandler {
       let t = UserSettings.hfToken ?? ""
       return t.isEmpty ? nil : t
     }()
-    let catalog = Catalog.allModels() + manager.downloadedModels.filter(\.isSideloaded)
 
     let resolved: HFRepoResolver.Resolved
     do {
       resolved = try await HFRepoResolver.resolve(
         repo: repo,
         quant: quant,
-        catalog: catalog,
         systemMemoryMb: SystemMemory.memoryMb,
         token: token
       )
@@ -72,18 +70,14 @@ final class DeeplinkHandler {
       return
     }
 
-    // Prefer the catalog entry when the resolved URL is one we already ship —
-    // keeps identity and metadata consistent with the normal download flow.
-    let entry: CatalogEntry =
-      Catalog.allModels().first(where: { $0.downloadUrl == resolved.mainUrl })
-      ?? CatalogEntry.sideloadPlaceholder(
-        modelId: resolved.modelId,
-        repo: resolved.repo,
-        quant: resolved.quant,
-        mainUrl: resolved.mainUrl,
-        additionalParts: resolved.additionalParts,
-        mmprojUrl: resolved.mmprojUrl,
-        fileSize: resolved.approximateBytes)
+    let entry = Model.placeholderForDownload(
+      modelId: resolved.modelId,
+      repo: resolved.repo,
+      quant: resolved.quant,
+      mainUrl: resolved.mainUrl,
+      additionalParts: resolved.additionalParts,
+      mmprojUrl: resolved.mmprojUrl,
+      fileSize: resolved.approximateBytes)
 
     do {
       try manager.downloadModel(entry)

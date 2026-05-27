@@ -5,7 +5,7 @@ import Foundation
 /// Shows selectable context tiers with memory usage.
 /// Selecting a tier updates user preferences and reloads the server if running.
 final class ExpandedModelDetailsView: ItemView {
-  private let model: CatalogEntry
+  private let model: Model
   private let actionHandler: ModelActionHandler
   private unowned let server: LlamaServer
 
@@ -19,7 +19,7 @@ final class ExpandedModelDetailsView: ItemView {
   private let onInfoToggle: ((Bool) -> Void)?
 
   init(
-    model: CatalogEntry,
+    model: Model,
     actionHandler: ModelActionHandler,
     server: LlamaServer,
     isInfoExpanded: Bool = false,
@@ -90,12 +90,12 @@ final class ExpandedModelDetailsView: ItemView {
     // For sideloaded models awaiting their MemProfile, show a placeholder message
     // instead of tier rows (we don't have accurate memory estimates yet).
     // For failed estimation (-1), show a failure message with the 4k fallback.
-    if model.isSideloaded && model.ctxBytesPer1kTokens == 0 {
+    if model.ctxBytesPer1kTokens == 0 {
       let estimatingLabel = Theme.secondaryLabel()
       estimatingLabel.stringValue = "Estimating memory requirements..."
       estimatingLabel.textColor = Theme.Colors.textSecondary
       mainStack.addArrangedSubview(estimatingLabel)
-    } else if model.isSideloaded && model.ctxBytesPer1kTokens < 0 {
+    } else if model.ctxBytesPer1kTokens < 0 {
       let failedLabel = Theme.secondaryLabel()
       failedLabel.stringValue = "Could not estimate memory — using 4k context"
       failedLabel.textColor = Theme.Colors.textSecondary

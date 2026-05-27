@@ -7,12 +7,11 @@ import os.log
 ///
 /// File-selection priority:
 ///   1. Explicit `quant` → sibling whose `parseGGUFQuantLabel` matches.
-///   2. No quant, catalog hit → largest compatible catalog entry for this repo.
-///   3. No quant, no catalog → mirror llama.cpp's `find_best_model` (try Q4_K_M
-///      tag, then Q4_0, else fall back to largest fits-budget). Pre-filters
-///      candidates by `memBudget` so a small Mac doesn't get handed a too-big
-///      Q4_K_M; final fallback is "largest" rather than llama.cpp's "first
-///      listed" (alphabetical) which would systematically pick BF16.
+///   2. No quant → mirror llama.cpp's `find_best_model` (try Q4_K_M tag,
+///      then Q4_0, else fall back to largest fits-budget). Pre-filters
+///      candidates by `memBudget` so a small Mac doesn't get handed a
+///      too-big Q4_K_M; final fallback is "largest" rather than llama.cpp's
+///      "first listed" (alphabetical) which would systematically pick BF16.
 enum HFRepoResolver {
 
   private static let logger = Logger(subsystem: Logging.subsystem, category: "HFRepoResolver")
@@ -27,7 +26,7 @@ enum HFRepoResolver {
     let repo: String
     /// Canonical quant label, matching the sideloaded scan's id grammar.
     let quant: String
-    /// Main GGUF URL (goes into `CatalogEntry.downloadUrl`).
+    /// Main GGUF URL (goes into `Model.downloadUrl`).
     let mainUrl: URL
     /// Sharded parts, if any (`-00002-of-NNNNN.gguf`, ...).
     let additionalParts: [URL]
@@ -90,7 +89,6 @@ enum HFRepoResolver {
   static func resolve(
     repo: String,
     quant: String?,
-    catalog: [CatalogEntry],
     systemMemoryMb: UInt64,
     token: String?
   ) async throws -> Resolved {
@@ -106,17 +104,17 @@ enum HFRepoResolver {
       throw ResolveError.noGgufFiles(repo)
     }
 
-    let budgetMb = CatalogEntry.memoryBudget(systemMemoryMb: systemMemoryMb)
+    let budgetMb = Model.memoryBudget(systemMemoryMb: systemMemoryMb)
 
     // File selection: pick the main GGUF (plus an optional canonical quant label).
     let pick = try selectMain(
       repo: repo, requestedQuant: quant,
-      siblings: siblings, catalog: catalog, budgetMb: budgetMb
+      siblings: siblings, budgetMb: budgetMb
     )
 
     // Expand shards + attach mmproj.
     let shards = try expandShards(main: pick.rfilename, siblings: siblings, repo: repo)
-    let mmproj = pickMmproj(repo: repo, siblings: siblings, catalog: catalog)
+    let mmproj = pickMmproj(repo: repo, siblings: siblings)
 
     // Aggregate size (main + shards + mmproj), dropping unknown entries.
     var allPicked: [String] = shards  // includes the main shard at index 0
@@ -214,7 +212,7 @@ enum HFRepoResolver {
 
   private static func selectMain(
     repo: String, requestedQuant: String?,
-    siblings: [Sibling], catalog: [CatalogEntry], budgetMb: Double
+    siblings: [Sibling], budgetMb: Double
   ) throws -> Pick {
     let allGgufs = siblings.filter { isGgufCandidate($0.rfilename) }
     guard !allGgufs.isEmpty else { throw ResolveError.noGgufFiles(repo) }
@@ -241,28 +239,7 @@ enum HFRepoResolver {
         quant: canonical)
     }
 
-    // 2. No quant, catalog hit: find catalog entries pointing at this repo,
-    // prefer the largest compatible one.
-    let repoDir = "models--" + repo.replacingOccurrences(of: "/", with: "--")
-    let catalogHits = catalog.filter { entry in
-      !entry.isSideloaded && entry.hfRepoDir == repoDir
-    }
-    let catalogCompatible = catalogHits.filter { $0.isCompatible() }
-    if !catalogHits.isEmpty {
-      guard let best = catalogCompatible.max(by: { $0.fileSize < $1.fileSize }) else {
-        throw ResolveError.noCompatibleFile(repo: repo)
-      }
-      // Use the catalog entry's main file path directly — it already resolves
-      // against the cache's scan layer and carries all the display metadata.
-      let mainPath =
-        HFCache.repoRelativePath(from: best.downloadUrl)
-        ?? best.downloadUrl.lastPathComponent
-      return Pick(
-        rfilename: mainPath,
-        quant: best.quantization)
-    }
-
-    // 3. No quant, no catalog: mirror llama.cpp's `find_best_model`
+    // 2. No quant: mirror llama.cpp's `find_best_model`
     // (`common/download.cpp:623`) — try Q4_K_M tag, then Q4_0 tag, else fall
     // back to the largest fits-budget candidate. Skip imatrix/mmproj/split-
     // shard-continuations — we only want standalone mains or the first shard
@@ -347,10 +324,9 @@ enum HFRepoResolver {
   }
 
   private static func fits(bytes: Int64?, budgetMb: Double) -> Bool {
-    // Model weight memory ≈ fileSize × overheadMultiplier (see
-    // `CatalogEntry.weightMemoryMb`). We reuse the catalog's default of 1.05.
-    // This is a rough pre-download filter; the real compatibility check runs
-    // at launch once the MemProfile probe has measured resident bytes.
+    // Model weight memory ≈ fileSize × 1.05. This is a rough pre-download
+    // filter; the real compatibility check runs at launch once the MemProfile
+    // probe has measured resident bytes.
     guard let bytes, bytes > 0 else { return true }  // unknown size → don't filter out
     let mb = Double(bytes) / 1_048_576.0 * 1.05
     return mb <= budgetMb
@@ -407,19 +383,10 @@ enum HFRepoResolver {
     return shards
   }
 
-  /// Picks an mmproj sidecar: catalog declaration wins; else a lone
-  /// `mmproj*.gguf` sibling; else nothing (log if multiple candidates).
-  private static func pickMmproj(
-    repo: String, siblings: [Sibling], catalog: [CatalogEntry]
-  ) -> Sibling? {
-    let repoDir = "models--" + repo.replacingOccurrences(of: "/", with: "--")
-    if let catalogHit = catalog.first(where: {
-      $0.hfRepoDir == repoDir && $0.mmprojUrl != nil
-    }), let mmprojUrl = catalogHit.mmprojUrl {
-      let path = HFCache.repoRelativePath(from: mmprojUrl) ?? mmprojUrl.lastPathComponent
-      return siblings.first(where: { $0.rfilename == path })
-    }
-
+  /// Picks an mmproj sidecar: a lone `mmproj*.gguf` sibling, else nothing
+  /// (logs when multiple candidates exist — picking silently would risk
+  /// installing the wrong variant, e.g. F16 vs Q8, for vision).
+  private static func pickMmproj(repo: String, siblings: [Sibling]) -> Sibling? {
     let candidates = siblings.filter { sib in
       let name = (sib.rfilename as NSString).lastPathComponent.lowercased()
       return name.hasPrefix("mmproj") && name.hasSuffix(".gguf")
@@ -428,10 +395,7 @@ enum HFRepoResolver {
 
     if candidates.count == 1 { return candidates[0] }
 
-    // Multiple mmproj without catalog guidance → skip and log. Picking silently
-    // would risk installing the wrong variant (F16 vs Q8, etc.) for vision.
-    logger.info(
-      "Multiple mmproj candidates in \(repo) with no catalog hint; skipping attach.")
+    logger.info("Multiple mmproj candidates in \(repo); skipping attach.")
     return nil
   }
 

@@ -173,7 +173,7 @@ class LlamaServer {
       "--log-file", "/tmp/llama-server.log",
       "--jinja",
       "--spec-default",
-      "--fit-target", String(Int(CatalogEntry.memOverheadMb)),
+      "--fit-target", String(Int(Model.memOverheadMb)),
     ]
 
     // Bind to custom address if network exposure is enabled
@@ -311,17 +311,17 @@ class LlamaServer {
   }
 
   /// Checks if the specified model is currently active
-  func isActive(model: CatalogEntry) -> Bool {
+  func isActive(model: Model) -> Bool {
     return modelStatuses[model.id] == "loaded"
   }
 
   /// Checks if the specified model is currently loading
-  func isLoading(model: CatalogEntry) -> Bool {
+  func isLoading(model: Model) -> Bool {
     return modelStatuses[model.id] == "loading"
   }
 
   /// Returns the ID of the currently loaded variant for the given model, if any.
-  func loadedVariantId(for model: CatalogEntry) -> String? {
+  func loadedVariantId(for model: Model) -> String? {
     if modelStatuses[model.id] == "loaded" {
       return model.id
     }
@@ -330,7 +330,7 @@ class LlamaServer {
 
   /// Switch the active model in the UI. In Router Mode, this doesn't restart the server,
   /// but updates what LlamaBarn considers the "current" model.
-  func loadModel(_ model: CatalogEntry) {
+  func loadModel(_ model: Model) {
     if !isRunning && !isLoading {
       start()
     }
@@ -350,7 +350,7 @@ class LlamaServer {
   }
 
   /// Deselects the current model in the UI.
-  func unloadModel(_ model: CatalogEntry) {
+  func unloadModel(_ model: Model) {
     // Optimistically set status to "unloaded" for immediate UI feedback.
     // The polling will confirm once the server acknowledges.
     let idToUnload = loadedVariantId(for: model) ?? model.id

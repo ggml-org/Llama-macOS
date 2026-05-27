@@ -11,7 +11,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   private var actionHandler: ModelActionHandler!
 
   // Section State
-  private var selectedFamily: String?
   private var expandedModelIds: Set<String> = []
   private var infoExpandedModelIds: Set<String> = []  // Models with info text expanded
 
@@ -95,7 +94,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     guard menu === statusItem.menu else { return }
 
     // Reset section collapse state
-    selectedFamily = nil
     expandedModelIds.removeAll()
     infoExpandedModelIds.removeAll()
   }
@@ -117,13 +115,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
 
     addInstalledSection(to: menu)
-
-    if let selectedFamily {
-      addFamilyDetailSection(to: menu, familyName: selectedFamily)
-    } else {
-      addCatalogSection(to: menu)
-    }
-
     addFooter(to: menu)
   }
 
@@ -203,7 +194,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   private func handleDownloadFailure(notification: Notification) {
     guard let userInfo = notification.userInfo,
-      let model = userInfo["model"] as? CatalogEntry,
+      let model = userInfo["model"] as? Model,
       let error = userInfo["error"] as? String
     else { return }
 
@@ -268,19 +259,11 @@ final class MenuController: NSObject, NSMenuDelegate {
     let models = modelManager.managedModels
     guard !models.isEmpty else { return }
 
-    // Build the /models endpoint URL using the resolved host (handles 0.0.0.0 -> local IP)
+    // "Installed" header with a link to the running server's /models endpoint
     let host = LlamaServer.resolvedHost
     let modelsUrl = URL(string: "http://\(host):\(LlamaServer.defaultPort)/models")
-
-    // Create family item (not collapsible) with link to /models endpoint
-    let familyView = FamilyItemView(
-      family: "Installed",
-      sizes: [],
-      linkText: "models",
-      linkUrl: modelsUrl
-    )
-    let familyItem = NSMenuItem.viewItem(with: familyView)
-    menu.addItem(familyItem)
+    let header = InstalledHeaderView(linkText: "models", linkUrl: modelsUrl)
+    menu.addItem(NSMenuItem.viewItem(with: header))
 
     // Always show models
     buildInstalledItems(models).forEach { menu.addItem($0) }
@@ -289,7 +272,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
   }
 
-  private func buildInstalledItems(_ models: [CatalogEntry]) -> [NSMenuItem] {
+  private func buildInstalledItems(_ models: [Model]) -> [NSMenuItem] {
     var items = [NSMenuItem]()
 
     for model in models {
@@ -338,90 +321,6 @@ final class MenuController: NSObject, NSMenuDelegate {
       expandedModelIds.insert(modelId)
     }
     rebuildMenuIfPossible()
-  }
-
-  // MARK: - Catalog Section
-
-  private func addFamilyDetailSection(to menu: NSMenu, familyName: String) {
-    guard let family = Catalog.families.first(where: { $0.name == familyName }) else { return }
-
-    // Back Item
-    let backView = TextItemView(text: "back", showBackArrow: true) { [weak self] in
-      self?.selectedFamily = nil
-      self?.rebuildMenuIfPossible()
-    }
-    menu.addItem(NSMenuItem.viewItem(with: backView))
-
-    // Family Title
-    let titleView = TextItemView(text: familyName)
-    menu.addItem(NSMenuItem.viewItem(with: titleView))
-
-    if let description = family.description {
-      let descriptionView = TextItemView(text: description, style: .description)
-      menu.addItem(NSMenuItem.viewItem(with: descriptionView))
-    }
-
-    // The catalog is canonical: every size the family offers is listed, with
-    // installed sizes marked by the row itself.
-    let validModels = family.selectableModels()
-
-    for model in validModels {
-      let view = ModelItemView(
-        model: model,
-        server: server,
-        modelManager: modelManager,
-        actionHandler: actionHandler,
-        isInCatalog: true
-      )
-      menu.addItem(NSMenuItem.viewItem(with: view))
-    }
-  }
-
-  private func addCatalogSection(to menu: NSMenu) {
-    var items: [NSMenuItem] = []
-
-    for family in Catalog.activeFamilies {
-      // List every size regardless of install state -- the drawer marks
-      // installed sizes, keeping the family visible even when fully installed.
-      let validModels = family.selectableModels()
-
-      if validModels.isEmpty {
-        continue
-      }
-
-      // Collect unique sizes for the family row, covering every selectable size.
-      let sizes =
-        validModels
-        .sorted { $0.parameterCount < $1.parameterCount }
-        .map { model -> (String, Bool) in
-          let sizeName = model.size
-            .replacingOccurrences(of: " Thinking", with: "")
-            .replacingOccurrences(of: " Reasoning", with: "")
-          return (sizeName, model.isCompatible())
-        }
-        .reduce(into: [(String, Bool)]()) { result, item in
-          if let lastIndex = result.indices.last, result[lastIndex].0 == item.0 {
-            if item.1 { result[lastIndex].1 = true }
-          } else {
-            result.append(item)
-          }
-        }
-
-      let familyView = FamilyItemView(
-        family: family.name,
-        sizes: sizes,
-        description: family.description
-      ) { [weak self] familyName in
-        self?.selectedFamily = familyName
-        self?.rebuildMenuIfPossible()
-      }
-      let familyItem = NSMenuItem.viewItem(with: familyView)
-      items.append(familyItem)
-    }
-
-    guard !items.isEmpty else { return }
-
-    items.forEach { menu.addItem($0) }
   }
 
   // MARK: - Settings Section

@@ -15,12 +15,12 @@ import os.log
 struct MemProfile: Codable {
   /// Slope of the affine memory model, in bytes per 1k tokens.
   ///   mem(ctx) = residentBytes + ctxBytesPer1kTokens · ctx / 1000
-  /// Maps directly to CatalogEntry.ctxBytesPer1kTokens.
+  /// Maps directly to Model.ctxBytesPer1kTokens.
   let ctxBytesPer1kTokens: Int
   /// Intercept of the affine memory model, in bytes. Total footprint at ctx=0 —
   /// includes model weights, compute buffers, and any ctx-independent KV state
   /// (e.g. the per-layer local cache that SWA models like Gemma keep regardless
-  /// of ctx). Maps to CatalogEntry.residentBytes.
+  /// of ctx). Maps to Model.residentBytes.
   /// 0 if unknown (e.g. probe failed).
   let residentBytes: Int
   /// Schema version. Bumping invalidates on-disk caches via the Codable

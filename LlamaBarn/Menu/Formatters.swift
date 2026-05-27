@@ -132,7 +132,7 @@ extension Format {
   /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
   /// For sideloaded models awaiting their MemProfile: "3.1 GB  ∣  estimating..."
   static func modelMetadata(
-    for model: CatalogEntry,
+    for model: Model,
     color: NSColor = Theme.Colors.textPrimary,
     incompatibility: String? = nil
   ) -> NSAttributedString {
@@ -164,9 +164,9 @@ extension Format {
       result.append(NSAttributedString(string: "  ∣  ", attributes: secondaryAttributes))
 
       // Context tier or status for sideloaded models pending/failed MemProfile
-      if model.isSideloaded && model.ctxBytesPer1kTokens == 0 {
+      if model.ctxBytesPer1kTokens == 0 {
         result.append(NSAttributedString(string: "estimating...", attributes: secondaryAttributes))
-      } else if model.isSideloaded && model.ctxBytesPer1kTokens < 0 {
+      } else if model.ctxBytesPer1kTokens < 0 {
         result.append(NSAttributedString(string: "4k ctx", attributes: secondaryAttributes))
       } else if let tier = model.effectiveCtxTier {
         // When the device-fit tier is below the model's native max, show both:
@@ -185,58 +185,8 @@ extension Format {
     return result
   }
 
-  /// Formats family item text as "Family  ∣  Size · Size".
-  static func familyItem(name: String, sizes: [(String, Bool)]) -> NSAttributedString {
-    let result = NSMutableAttributedString()
-
-    // Family name (more prominent)
-    result.append(
-      NSAttributedString(
-        string: name,
-        attributes: [
-          .font: Theme.Fonts.secondary,
-          .foregroundColor: Theme.Colors.textPrimary,
-        ]))
-
-    if !sizes.isEmpty {
-      // Separator
-      result.append(
-        NSAttributedString(
-          string: "  ∣  ",
-          attributes: [
-            .font: Theme.Fonts.secondary,
-            .foregroundColor: Theme.Colors.textSecondary,
-          ]))
-
-      // Sizes list
-      for (index, (size, isCompatible)) in sizes.enumerated() {
-        if index > 0 {
-          result.append(
-            NSAttributedString(
-              string: " · ",
-              attributes: [
-                .font: Theme.Fonts.secondary,
-                .foregroundColor: Theme.Colors.textSecondary,
-              ]))
-        }
-
-        let color = isCompatible ? Theme.Colors.modelIconTint : Theme.Colors.textSecondary
-        result.append(
-          NSAttributedString(
-            string: size,
-            attributes: [
-              .font: Theme.Fonts.secondary,
-              .foregroundColor: color,
-            ]))
-      }
-    }
-
-    return result
-  }
-
   /// Formats model name as "Family Size" with configurable colors.
-  /// For sideloaded models, prepends "org /" and appends tags after size.
-  /// Used by both installed and catalog model item views.
+  /// Prepends "org /" and appends tags after size.
   static func modelName(
     family: String,
     size: String,

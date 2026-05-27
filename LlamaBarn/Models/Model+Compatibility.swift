@@ -1,6 +1,6 @@
 import Foundation
 
-extension CatalogEntry {
+extension Model {
   // MARK: - Memory Calculations
 
   /// We evaluate compatibility assuming a 4k-token context, which is the
@@ -96,9 +96,9 @@ extension CatalogEntry {
   }
 
   /// Weight memory (MB) used by compatibility math.
-  /// For sideloaded models with a measured MemProfile, uses the resident weight
-  /// size (correct for MoE models). Otherwise falls back to fileSize * overheadMultiplier,
-  /// which is the only option for catalog entries (evaluated pre-download).
+  /// Prefers the measured `residentBytes` (correct for MoE models). Falls
+  /// back to `fileSize * overheadMultiplier` when the MemProfile probe
+  /// hasn't landed yet (pre-download placeholders).
   private var weightMemoryMb: Double {
     if residentBytes > 0 {
       return Double(residentBytes) / 1_048_576.0
@@ -164,12 +164,11 @@ extension CatalogEntry {
 
   /// Returns all context tiers that this model can support given device memory constraints.
   /// Shows all standard tiers (4K through 128K) that are compatible, plus 256K if supported.
-  /// For sideloaded models still awaiting their MemProfile, returns only 4K as a safe default.
+  /// When the MemProfile probe is still pending (or failed), returns only 4K as a safe
+  /// default — without `ctxBytesPer1kTokens`, memory estimates are artificially low and
+  /// all tiers would falsely appear compatible.
   var supportedContextTiers: [ContextTier] {
-    // Sideloaded models without a MemProfile (0 = estimating, -1 = failed): allow 4K
-    // only as a conservative default. Without ctxBytesPer1kTokens, memory estimates
-    // are artificially low and all tiers would appear compatible.
-    if isSideloaded && ctxBytesPer1kTokens <= 0 {
+    if ctxBytesPer1kTokens <= 0 {
       return [.k4]
     }
 

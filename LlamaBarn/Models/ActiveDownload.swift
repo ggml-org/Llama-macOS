@@ -1,10 +1,10 @@
 import Foundation
 
-/// Paused download state. Carries the `CatalogEntry` so deeplink-sideload
+/// Paused download state. Carries the `Model` so deeplink-sideload
 /// placeholders (which aren't in `Catalog`) can still render a paused row
 /// after their active download is torn down.
 struct PausedDownload {
-  let model: CatalogEntry
+  let model: Model
   let bytesOnDisk: Int64
 }
 
@@ -15,7 +15,7 @@ struct PausedDownload {
 /// rather than relying on URLSession's `countOfBytesReceived`). The caller
 /// passes current sums into `refreshProgress`.
 struct ActiveDownload {
-  let model: CatalogEntry
+  let model: Model
   var progress: Progress
   var tasks: [Int: URLSessionDataTask]
   /// Bytes belonging to files that have already completed (hash-verified and promoted into HF cache).

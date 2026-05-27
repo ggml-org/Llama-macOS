@@ -1,20 +1,17 @@
 import AppKit
 import Foundation
 
-/// Interactive menu item representing a single model (installed, downloading, or available).
+/// Interactive menu item representing a single installed/downloading model.
 /// Visual states:
-/// - Available: rounded square icon (inactive) + label
 /// - Downloading: rounded square icon (inactive) + progress
 /// - Installed: rounded square icon (inactive) + label
-/// - Installed in catalog drawer: icon + label + checkmark badge, non-interactive
 /// - Loading: rounded square icon (active)
 /// - Running: rounded square icon (active)
 final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
-  private let model: CatalogEntry
+  private let model: Model
   private unowned let server: LlamaServer
   private unowned let modelManager: ModelManager
   private let actionHandler: ModelActionHandler
-  private let isInCatalog: Bool
 
   // Internal state for expansion
   private let isExpanded: Bool
@@ -51,49 +48,32 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let pausePlayImageView = NSImageView()
   private let unloadButton = NSButton()
 
-  // Checkmark badge shown when the row represents an installed model inside
-  // the catalog family drawer. Communicates "you already have this" without
-  // duplicating the interactive affordances of the installed section.
-  private let installedBadge = NSImageView()
-
   // Hover action buttons (shown on hover for installed models)
   private let copyIdButton = NSButton()
   private let deleteButton = NSButton()
   private let hoverButtonsStack = NSStackView()
 
   init(
-    model: CatalogEntry, server: LlamaServer, modelManager: ModelManager,
-    actionHandler: ModelActionHandler, isInCatalog: Bool = false,
+    model: Model, server: LlamaServer, modelManager: ModelManager,
+    actionHandler: ModelActionHandler,
     isExpanded: Bool = false, onExpand: (() -> Void)? = nil
   ) {
     self.model = model
     self.server = server
     self.modelManager = modelManager
     self.actionHandler = actionHandler
-    self.isInCatalog = isInCatalog
     self.isExpanded = isExpanded
     self.onExpand = onExpand
     super.init(frame: .zero)
 
-    // Sideloaded models use an SF Symbol; catalog models use a named asset
-    if model.isSideloaded {
-      iconView.imageView.image = NSImage(
-        systemSymbolName: "cube.fill", accessibilityDescription: "Model")
-    } else {
-      iconView.imageView.image = NSImage(named: model.icon)
-    }
+    iconView.imageView.image = NSImage(
+      systemSymbolName: "cube.fill", accessibilityDescription: "Model")
 
     // Configure action buttons
     Theme.configure(cancelImageView, symbol: "xmark", color: .systemRed)
     // Pause/play icon: actual symbol is set in `refresh()` based on status.
     Theme.configure(pausePlayImageView, symbol: "pause.circle", color: .tertiaryLabelColor)
     Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
-
-    // Installed badge: subtle checkmark in the accessory area.
-    installedBadge.image = NSImage(
-      systemSymbolName: "checkmark", accessibilityDescription: "Installed")
-    installedBadge.contentTintColor = .tertiaryLabelColor
-    installedBadge.toolTip = "Installed"
 
     unloadButton.target = self
     unloadButton.action = #selector(didClickUnload)
@@ -118,7 +98,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     pausePlayImageView.isHidden = true
     unloadButton.isHidden = true
     hoverButtonsStack.isHidden = true
-    installedBadge.isHidden = true
 
     setupLayout()
     setupGestures()
@@ -150,7 +129,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // lives in the subtitle (see `Format.downloadSubtitle`), not here.
     let accessoryStack = NSStackView(views: [
       pausePlayImageView, cancelImageView, hoverButtonsStack, unloadButton,
-      installedBadge,
     ])
     accessoryStack.orientation = .horizontal
     accessoryStack.alignment = .centerY
@@ -178,7 +156,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     Layout.constrainToIconSize(unloadButton)
     Layout.constrainToIconSize(copyIdButton)
     Layout.constrainToIconSize(deleteButton)
-    Layout.constrainToIconSize(installedBadge)
 
     titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
     titleLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
@@ -212,13 +189,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     if !model.isCompatible() && !isInstalled {
       NSSound.beep()
-      return
-    }
-
-    // Catalog drawer rows are informational for anything already in the user's
-    // library (installed or downloading). Interactions happen in the installed
-    // section -- avoids, e.g., a click here cancelling an in-progress download.
-    if isInCatalog && modelManager.status(for: model) != .available {
       return
     }
 
@@ -311,11 +281,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let wasDownloading = !cancelImageView.isHidden
     let isCancelled = wasDownloading && !isDownloading && !isPaused && !isInstalled
 
-    // Progress and cancel affordances are owned by the installed section --
-    // the drawer stays informational. didClickRow already blocks interaction
-    // for non-available rows in the drawer, so the row's subdued default
-    // appearance is enough.
-    let showAsDownloading = !isInCatalog && (isDownloading || isPaused || isCancelled)
+    let showAsDownloading = isDownloading || isPaused || isCancelled
 
     let baseTextColor = showAsDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
     let isCompatible = model.isCompatible()
@@ -356,7 +322,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Pause/play icon swaps based on live vs. paused state. Hidden during the post-cancel
     // flicker window (isCancelled) so the about-to-disappear row doesn't show a resume arrow.
-    let showPausePlay = !isInCatalog && (isDownloading || isPaused)
+    let showPausePlay = isDownloading || isPaused
     pausePlayImageView.isHidden = !showPausePlay
     if showPausePlay {
       let symbol = isDownloading ? "pause.circle" : "play.circle"
@@ -366,10 +332,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
 
     unloadButton.isHidden = !isActive
-    // Only the in-catalog installed case shows the checkmark badge. The
-    // installed section already signals "installed" through its surrounding
-    // context, so showing a badge there would be redundant.
-    installedBadge.isHidden = !(isInCatalog && isInstalled)
 
     iconView.inactiveTintColor =
       isCompatible ? Theme.Colors.modelIconTint : Theme.Colors.textSecondary
@@ -384,10 +346,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   override var highlightEnabled: Bool {
     // Incompatible, not-installed rows can't be acted on -- no highlight.
     if !model.isCompatible() && !modelManager.isInstalled(model) {
-      return false
-    }
-    // Catalog drawer rows for anything in the user's library are informational.
-    if isInCatalog && modelManager.status(for: model) != .available {
       return false
     }
     return true
@@ -408,6 +366,5 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     unloadButton.contentTintColor = .tertiaryLabelColor
     copyIdButton.contentTintColor = .tertiaryLabelColor
     deleteButton.contentTintColor = .tertiaryLabelColor
-    installedBadge.contentTintColor = .tertiaryLabelColor
   }
 }

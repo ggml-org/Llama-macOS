@@ -128,39 +128,20 @@ enum HFCache {
     return total
   }
 
-  /// Scans `<cacheDir>/.llamabarn-partial/` for interrupted downloads.
-  /// Returns `[modelId: bytesOnDisk]` — the sum of all `.partial` file sizes
-  /// inside each per-model subdirectory. Orphan dirs (ids not in `knownIds`)
-  /// are skipped but left on disk.
-  /// Ids present in `installedIds` are skipped AND their partial dirs removed,
-  /// since an installed model shadowing a partial dir indicates a stale leak.
-  static func scanPartials(
-    cacheDir: URL, knownIds: Set<String>, installedIds: Set<String>
-  ) -> [String: Int64] {
+  /// Cleans up `.llamabarn-partial/<id>` subdirs for ids that are already
+  /// installed (e.g. a deeplink download that landed but left its partial dir
+  /// behind). We don't surface remaining partials as paused-download rows on
+  /// startup — there's no in-memory `Model` for them without a deeplink to
+  /// rebuild from. Re-clicking the deeplink rebuilds the entry with the same
+  /// id and `openPartialWriter` resumes from the on-disk bytes.
+  static func cleanInstalledPartials(cacheDir: URL, installedIds: Set<String>) {
     let root = cacheDir.appendingPathComponent(".llamabarn-partial")
     guard let subdirs = try? FileManager.default.contentsOfDirectory(atPath: root.path) else {
-      return [:]
+      return
     }
-
-    var result: [String: Int64] = [:]
-    for modelId in subdirs {
-      // Skip unknown catalog ids — leave their files on disk.
-      guard knownIds.contains(modelId) else { continue }
-
-      let dir = root.appendingPathComponent(modelId)
-
-      // Already installed? Clean up the stale partial dir, don't surface it.
-      if installedIds.contains(modelId) {
-        try? FileManager.default.removeItem(at: dir)
-        continue
-      }
-
-      let total = partialBytes(cacheDir: cacheDir, modelId: modelId)
-      if total > 0 {
-        result[modelId] = total
-      }
+    for modelId in subdirs where installedIds.contains(modelId) {
+      try? FileManager.default.removeItem(at: root.appendingPathComponent(modelId))
     }
-    return result
   }
 
   // MARK: - API Calls
@@ -396,164 +377,19 @@ enum HFCache {
 
   // MARK: - Scanning
 
-  /// Result of scanning the HF cache for catalog models.
-  struct CatalogScanResult {
-    /// Model ID → resolved file paths for each matched catalog entry
-    let resolved: [String: ResolvedPaths]
-    /// Set of "repoDir/filename" pairs that matched catalog entries.
-    /// Used by scanForSideloaded() to skip files that belong to known catalog models.
-    let matchedFiles: Set<String>
-  }
+  // MARK: - Discovery
 
-  /// Scans the HF cache for models matching catalog entries.
-  /// Returns resolved paths and the set of matched files (for sideloaded exclusion).
+  /// Scans the HF cache for GGUF files and builds a `Model` + `ResolvedPaths`
+  /// per discovered file (or shard group).
   ///
-  /// For each catalog entry, we:
-  /// 1. Derive the expected repo dir name from the download URL
-  /// 2. Look for matching files in any snapshot directory (not a specific commit)
-  /// 3. Check all required files exist (main + shards + mmproj)
-  static func scanForModels(
-    cacheDir: URL, catalog: [CatalogEntry]
-  ) -> CatalogScanResult {
-    let fm = FileManager.default
-    var result: [String: ResolvedPaths] = [:]
-    var matchedFiles: Set<String> = []
-
-    // Group catalog entries by repo dir for efficient scanning
-    var entriesByRepo: [String: [CatalogEntry]] = [:]
-    for entry in catalog {
-      guard let repoDir = repoDirName(from: entry.downloadUrl) else { continue }
-      entriesByRepo[repoDir, default: []].append(entry)
-    }
-
-    // Enumerate repo directories in the cache
-    guard let repoDirs = try? fm.contentsOfDirectory(atPath: cacheDir.path) else {
-      return CatalogScanResult(resolved: result, matchedFiles: matchedFiles)
-    }
-
-    for repoDir in repoDirs {
-      guard repoDir.hasPrefix("models--"),
-        let entries = entriesByRepo[repoDir]
-      else { continue }
-
-      let snapshotsDir =
-        cacheDir
-        .appendingPathComponent(repoDir)
-        .appendingPathComponent("snapshots")
-
-      guard let commits = try? fm.contentsOfDirectory(atPath: snapshotsDir.path) else {
-        continue
-      }
-
-      // For each snapshot (commit), collect available files.
-      // We now match on repo-relative paths (e.g. `Q4_K_M/model.gguf`) rather
-      // than basenames, since deeplink installs can store GGUFs in per-quant
-      // subdirs. Falling back to basename matching would collide between
-      // sibling subdirs that both contain `model.gguf`.
-      for commit in commits {
-        let snapshotDir = snapshotsDir.appendingPathComponent(commit)
-
-        // One-level recursive walk, same shape as `scanForSideloaded`.
-        guard let topFiles = try? fm.contentsOfDirectory(atPath: snapshotDir.path) else {
-          continue
-        }
-        var relativePaths: [String] = []
-        for item in topFiles {
-          let itemPath = snapshotDir.appendingPathComponent(item).path
-          var isDir: ObjCBool = false
-          if fm.fileExists(atPath: itemPath, isDirectory: &isDir), isDir.boolValue {
-            if let subFiles = try? fm.contentsOfDirectory(atPath: itemPath) {
-              for subFile in subFiles {
-                relativePaths.append("\(item)/\(subFile)")
-              }
-            }
-          } else {
-            relativePaths.append(item)
-          }
-        }
-        let fileSet = Set(relativePaths)
-
-        // Check each catalog entry against this snapshot's files
-        for entry in entries {
-          // Skip if we already found this model in a different snapshot
-          guard result[entry.id] == nil else { continue }
-
-          // Catalog entries whose URLs carry flat filenames fall back to
-          // `lastPathComponent` — same key shape as before subdir support.
-          let mainFile =
-            repoRelativePath(from: entry.downloadUrl)
-            ?? entry.downloadUrl.lastPathComponent
-          guard fileSet.contains(mainFile) else { continue }
-
-          // Check additional parts (shards)
-          var partsFound = true
-          var partPaths: [String] = []
-          if let additionalParts = entry.additionalParts {
-            for part in additionalParts {
-              let partFile = repoRelativePath(from: part) ?? part.lastPathComponent
-              if fileSet.contains(partFile) {
-                partPaths.append(snapshotDir.appendingPathComponent(partFile).path)
-              } else {
-                partsFound = false
-                break
-              }
-            }
-          }
-          guard partsFound else { continue }
-
-          // Check mmproj file — in HF cache we use the original remote filename
-          // (no mmprojLocalFilename override needed since each repo has its own dir)
-          var mmprojPath: String?
-          if let mmprojUrl = entry.mmprojUrl {
-            let mmprojFile = repoRelativePath(from: mmprojUrl) ?? mmprojUrl.lastPathComponent
-            if fileSet.contains(mmprojFile) {
-              mmprojPath = snapshotDir.appendingPathComponent(mmprojFile).path
-            } else {
-              continue  // mmproj required but not found
-            }
-          }
-
-          result[entry.id] = ResolvedPaths(
-            modelFile: snapshotDir.appendingPathComponent(mainFile).path,
-            additionalParts: partPaths,
-            mmprojFile: mmprojPath,
-            isLegacy: false
-          )
-
-          // Track matched files so scanForSideloaded() can skip them.
-          // Keys are repo-relative paths (matching `scanForSideloaded`'s key shape).
-          matchedFiles.insert("\(repoDir)/\(mainFile)")
-          if let additionalParts = entry.additionalParts {
-            for part in additionalParts {
-              let partFile = repoRelativePath(from: part) ?? part.lastPathComponent
-              matchedFiles.insert("\(repoDir)/\(partFile)")
-            }
-          }
-          if let mmprojUrl = entry.mmprojUrl {
-            let mmprojFile = repoRelativePath(from: mmprojUrl) ?? mmprojUrl.lastPathComponent
-            matchedFiles.insert("\(repoDir)/\(mmprojFile)")
-          }
-        }
-      }
-    }
-
-    return CatalogScanResult(resolved: result, matchedFiles: matchedFiles)
-  }
-
-  // MARK: - Sideloaded Discovery
-
-  /// Scans the HF cache for GGUF files that don't match any catalog entry.
-  /// Returns discovered sideloaded models as CatalogEntry + ResolvedPaths pairs.
-  ///
-  /// For each unmatched GGUF, metadata is parsed from the repo directory name
-  /// and filename using the same approach as llama.cpp's WebUI model selector.
+  /// For each GGUF, metadata is parsed from the repo directory name and
+  /// filename using the same approach as llama.cpp's WebUI model selector.
   /// Split GGUFs (e.g. -00001-of-00003.gguf) are grouped as single entries.
   static func scanForSideloaded(
-    cacheDir: URL,
-    knownFiles: Set<String>
-  ) -> [(entry: CatalogEntry, paths: ResolvedPaths)] {
+    cacheDir: URL
+  ) -> [(entry: Model, paths: ResolvedPaths)] {
     let fm = FileManager.default
-    var results: [(entry: CatalogEntry, paths: ResolvedPaths)] = []
+    var results: [(entry: Model, paths: ResolvedPaths)] = []
 
     guard let repoDirs = try? fm.contentsOfDirectory(atPath: cacheDir.path) else {
       return results
@@ -576,7 +412,8 @@ enum HFCache {
       var seenIds: Set<String> = []
 
       // Check all snapshot commits, not just the first — a repo may have
-      // multiple commits with different files, matching the catalog scan behavior
+      // multiple commits with different files. `seenIds` keeps duplicates out
+      // of the result list.
       for commit in commits {
         let snapshotDir = snapshotsDir.appendingPathComponent(commit)
 
@@ -603,13 +440,10 @@ enum HFCache {
           }
         }
 
-        // Filter to GGUF files not claimed by the catalog scan.
         // Skip mmproj files (vision projection) — they're not runnable models.
         let ggufFiles = allFiles.filter { relativePath in
           let fileName = URL(fileURLWithPath: relativePath).lastPathComponent.lowercased()
-          return fileName.hasSuffix(".gguf")
-            && !fileName.hasPrefix("mmproj")
-            && !knownFiles.contains("\(repoDir)/\(relativePath)")
+          return fileName.hasSuffix(".gguf") && !fileName.hasPrefix("mmproj")
         }
 
         guard !ggufFiles.isEmpty else { continue }
@@ -660,22 +494,18 @@ enum HFCache {
     return results
   }
 
-  /// Builds a sideloaded CatalogEntry + ResolvedPaths from a discovered GGUF file.
+  /// Builds a `Model` + `ResolvedPaths` from a discovered GGUF file.
   ///
-  /// Migration note: quant derivation uses `GGUFQuantLabel.parse` first and
-  /// falls back to `HFRepoParser.parseQuant` — this makes deeplink-originated
-  /// installs and sideloaded-scanned installs agree on `{org}/{repo}:{QUANT}`.
-  /// Side effect on first upgrade: a small set of existing sideloaded models
-  /// get a new id (UD-prefixed quants, imatrix-suffixed files, previously-
-  /// `:unknown` subdir-stored files). Affected users lose saved ctx-tier
-  /// preferences and trigger a one-time MemProfile re-measure. One-time cost.
+  /// Quant derivation uses `GGUFQuantLabel.parse` first and falls back to
+  /// `HFRepoParser.parseQuant` — this makes deeplink-originated installs and
+  /// scan-discovered installs agree on `{org}/{repo}:{QUANT}` so they round-trip.
   private static func buildSideloadedEntry(
     repoDir: String,
     filename: String,
     shardFiles: [String]?,
     snapshotDir: URL,
     fm: FileManager
-  ) -> (entry: CatalogEntry, paths: ResolvedPaths)? {
+  ) -> (entry: Model, paths: ResolvedPaths)? {
     // Parse metadata from repo dir name
     guard let parsed = HFRepoParser.parse(repoDir: repoDir) else { return nil }
 
@@ -723,22 +553,17 @@ enum HFCache {
     // Build the display size label — use params if available, otherwise show quant only
     let sizeLabel = parsed.params ?? quant
 
-    let entry = CatalogEntry(
+    let entry = Model(
       id: modelId,
       family: parsed.name,
-      parameterCount: 0,
       size: sizeLabel,
       ctxWindow: 131_072,  // 128k upper bound — clamped by memory budget
       fileSize: totalFileSize,
-      ctxBytesPer1kTokens: 0,  // Updated async from the cached MemProfile
+      // ctxBytesPer1kTokens stays 0 until the async MemProfile probe runs.
       downloadUrl: URL(string: "file:///")!,
-      serverArgs: [],  // Newer GGUFs embed sampling params; llama-server auto-applies them
-      icon: "sideloaded",
-      quantization: quant,
-      isFullPrecision: false,
-      isSideloaded: true,
       org: parsed.org,
-      tags: parsed.tags
+      tags: parsed.tags,
+      quantization: quant
     )
 
     // Build resolved paths
@@ -757,7 +582,6 @@ enum HFCache {
       modelFile: mainFilePath,
       additionalParts: additionalParts,
       mmprojFile: nil,
-      isLegacy: false,
       hfRepoDirName: repoDir
     )
 

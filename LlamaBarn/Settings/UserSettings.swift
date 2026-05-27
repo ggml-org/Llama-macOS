@@ -104,16 +104,6 @@ enum UserSettings {
     NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
   }
 
-  // MARK: - Legacy Model Directory
-
-  /// The legacy flat directory for models (~/.llamabarn).
-  /// Scanned on startup for backward compat with pre-HF-cache installs.
-  /// NOT auto-created — new installs don't get this folder planted in $HOME.
-  /// The scan path in ModelManager no-ops when the directory is missing.
-  static let legacyModelDir: URL =
-    FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent(".llamabarn", isDirectory: true)
-
   // MARK: - Application Support Directory
 
   /// App's Application Support directory (~/Library/Application Support/LlamaBarn/).

@@ -7,19 +7,19 @@ import Foundation
 final class ModelActionHandler {
   private let modelManager: ModelManager
   private let server: LlamaServer
-  private let onMembershipChange: (CatalogEntry) -> Void
+  private let onMembershipChange: (Model) -> Void
 
   init(
     modelManager: ModelManager,
     server: LlamaServer,
-    onMembershipChange: @escaping (CatalogEntry) -> Void
+    onMembershipChange: @escaping (Model) -> Void
   ) {
     self.modelManager = modelManager
     self.server = server
     self.onMembershipChange = onMembershipChange
   }
 
-  func performPrimaryAction(for model: CatalogEntry) {
+  func performPrimaryAction(for model: Model) {
     if modelManager.isInstalled(model) {
       if server.isActive(model: model) {
         server.unloadModel(model)
@@ -38,7 +38,7 @@ final class ModelActionHandler {
     }
   }
 
-  func delete(model: CatalogEntry) {
+  func delete(model: Model) {
     guard modelManager.isInstalled(model) else { return }
     modelManager.deleteDownloadedModel(model)
     onMembershipChange(model)
@@ -46,12 +46,12 @@ final class ModelActionHandler {
 
   /// Discards an in-flight or paused download and its `.partial` files.
   /// Used by the red X button; works in both `.downloading` and `.paused` states.
-  func cancelDownload(for model: CatalogEntry) {
+  func cancelDownload(for model: Model) {
     modelManager.cancelModelDownload(model)
     onMembershipChange(model)
   }
 
-  private func startDownload(for model: CatalogEntry) {
+  private func startDownload(for model: Model) {
     do {
       try modelManager.downloadModel(model)
       onMembershipChange(model)
