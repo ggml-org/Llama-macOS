@@ -99,6 +99,8 @@ final class ExpandedModelDetailsView: ItemView {
       let failedLabel = Theme.secondaryLabel()
       failedLabel.stringValue = "Could not estimate memory — using 4k context"
       failedLabel.textColor = Theme.Colors.textSecondary
+      failedLabel.maximumNumberOfLines = 1
+      failedLabel.lineBreakMode = .byTruncatingTail
       mainStack.addArrangedSubview(failedLabel)
     } else {
       // Context tier rows - show all supported tiers as selectable options
@@ -122,6 +124,10 @@ final class ExpandedModelDetailsView: ItemView {
 
     contentView.addSubview(indentedRow)
     indentedRow.pinToSuperview(top: 2, leading: 0, trailing: 0, bottom: 2)
+
+    // Pin to the standard menu width so a long label (e.g. the "Could not estimate
+    // memory" fallback) can't widen the whole menu beyond what model rows use.
+    widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
   }
 
   // MARK: - Tier Row
