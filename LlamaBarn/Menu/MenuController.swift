@@ -257,7 +257,10 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   private func addInstalledSection(to menu: NSMenu) {
     let models = modelManager.managedModels
-    guard !models.isEmpty else { return }
+    guard !models.isEmpty else {
+      menu.addItem(NSMenuItem.viewItem(with: EmptyStateView()))
+      return
+    }
 
     // "Installed" header with a link to the running server's /models endpoint
     let host = LlamaServer.resolvedHost
