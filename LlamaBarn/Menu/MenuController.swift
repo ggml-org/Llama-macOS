@@ -155,7 +155,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // Download progress updated - refresh progress indicators
     observe(.LBModelDownloadsDidChange)
 
-    // Model downloaded or deleted - rebuild both installed and catalog sections
+    // Model downloaded or deleted - rebuild the installed-models section
     observe(.LBModelDownloadedListDidChange, rebuildMenu: true)
 
     // User settings changed - rebuild menu

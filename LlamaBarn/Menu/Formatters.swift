@@ -194,18 +194,17 @@ extension Format {
     sizeColor: NSColor = Theme.Colors.textPrimary,
     hasVision: Bool = false,
     quantization: String? = nil,
-    org: String? = nil,
+    org: String,
     tags: [String] = []
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
-    // Sideloaded models: show org prefix in secondary color (e.g. "bartowski /")
-    if let org {
-      result.append(
-        NSAttributedString(
-          string: "\(org) / ",
-          attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
-    }
+    // Org prefix in secondary color (e.g. "bartowski /") to disambiguate repos
+    // that share a base name across orgs.
+    result.append(
+      NSAttributedString(
+        string: "\(org) / ",
+        attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
 
     result.append(
       NSAttributedString(
@@ -214,7 +213,7 @@ extension Format {
       NSAttributedString(
         string: " \(size)", attributes: Theme.primaryAttributes(color: sizeColor)))
 
-    // Sideloaded models: show tags after size in secondary color (e.g. "Instruct")
+    // Tags after size in secondary color (e.g. "Instruct")
     if !tags.isEmpty {
       let tagStr = " " + tags.joined(separator: " ")
       result.append(

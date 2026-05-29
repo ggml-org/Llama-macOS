@@ -1,8 +1,8 @@
 import Foundation
 
 /// Paused download state. Carries the `Model` so deeplink-sideload
-/// placeholders (which aren't in `Catalog`) can still render a paused row
-/// after their active download is torn down.
+/// placeholders can still render a paused row after their active download
+/// is torn down.
 struct PausedDownload {
   let model: Model
   let bytesOnDisk: Int64
