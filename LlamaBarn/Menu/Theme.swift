@@ -112,6 +112,17 @@ extension Theme {
     .font: Fonts.secondary,
     .foregroundColor: Colors.textSecondary,
   ]
+
+  // Paragraph style that disables letter-spacing tightening before truncation.
+  // Without it, labels shrink their glyphs as a fallback before adding the "..."
+  // ellipsis. An attributed string's paragraph style overrides the NSTextField's
+  // own allowsDefaultTighteningForTruncation, so metadata/name builders apply this.
+  // Shared instance — paragraph styles are immutable once configured.
+  static let noTighteningParagraphStyle: NSParagraphStyle = {
+    let style = NSMutableParagraphStyle()
+    style.allowsDefaultTighteningForTruncation = false
+    return style
+  }()
 }
 
 // MARK: - Image View Configuration

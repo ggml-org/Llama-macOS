@@ -116,14 +116,12 @@ extension Format {
       fraction.map { "\(percentText($0)) of \(gigabytes(totalBytes))" }
       ?? gigabytes(totalBytes)
     let text = paused ? "\(head) · Paused" : head
-    let paragraphStyle = NSMutableParagraphStyle()
-    paragraphStyle.allowsDefaultTighteningForTruncation = false
     return NSAttributedString(
       string: text,
       attributes: [
         .font: Theme.Fonts.secondary,
         .foregroundColor: color,
-        .paragraphStyle: paragraphStyle,
+        .paragraphStyle: Theme.noTighteningParagraphStyle,
       ])
   }
 
@@ -138,9 +136,8 @@ extension Format {
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
-    // Paragraph style that prevents letter spacing compression before truncation
-    let paragraphStyle = NSMutableParagraphStyle()
-    paragraphStyle.allowsDefaultTighteningForTruncation = false
+    // Prevents letter spacing compression before truncation
+    let paragraphStyle = Theme.noTighteningParagraphStyle
 
     let attributes: [NSAttributedString.Key: Any] = [
       .font: Theme.Fonts.secondary,
@@ -235,15 +232,10 @@ extension Format {
           "q.square", pointSize: Theme.Fonts.primary.pointSize, color: Theme.Colors.textSecondary))
     }
 
-    // Apply a paragraph style that disables letter-spacing tightening before truncation.
-    // Without this, the label shrinks its glyphs as a fallback before adding the "..." ellipsis.
-    // Attributed string paragraph style overrides the NSTextField's own allowsDefaultTighteningForTruncation,
-    // so it must be set here (mirroring Format.modelMetadata).
-    let paragraphStyle = NSMutableParagraphStyle()
-    paragraphStyle.allowsDefaultTighteningForTruncation = false
+    // Disable letter-spacing tightening before truncation (see Theme.noTighteningParagraphStyle).
     result.addAttribute(
       .paragraphStyle,
-      value: paragraphStyle,
+      value: Theme.noTighteningParagraphStyle,
       range: NSRange(location: 0, length: result.length))
 
     return result
