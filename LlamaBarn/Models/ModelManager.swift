@@ -256,8 +256,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // Stat existing partial (0 if absent). Create empty file if missing so FileHandle(forWritingTo:) works.
     let existing: Int64
     if FileManager.default.fileExists(atPath: partialURL.path) {
-      let attrs = try FileManager.default.attributesOfItem(atPath: partialURL.path)
-      existing = (attrs[.size] as? NSNumber)?.int64Value ?? 0
+      existing = FileManager.default.fileSize(atPath: partialURL.path)
     } else {
       FileManager.default.createFile(atPath: partialURL.path, contents: nil)
       existing = 0
@@ -781,12 +780,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   ) {
     writer.closeHandle()
 
-    let fileSize: Int64 = {
-      if let attrs = try? FileManager.default.attributesOfItem(atPath: writer.partialURL.path) {
-        return (attrs[.size] as? NSNumber)?.int64Value ?? 0
-      }
-      return 0
-    }()
+    let fileSize = FileManager.default.fileSize(atPath: writer.partialURL.path)
 
     // Sanity check: reject obviously broken downloads (error pages, empty files).
     // We don't require an exact size match — expected sizes can drift when HF re-uploads.
@@ -1177,11 +1171,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   private func remainingBytesRequired(for model: Model) -> Int64 {
     let paths = resolvedPaths[model.id]?.allPaths ?? []
     let existingBytes: Int64 = paths.reduce(0) { sum, path in
-      guard FileManager.default.fileExists(atPath: path),
-        let attrs = try? FileManager.default.attributesOfItem(atPath: path),
-        let size = (attrs[.size] as? NSNumber)?.int64Value
-      else { return sum }
-      return sum + size
+      sum + FileManager.default.fileSize(atPath: path)
     }
     return max(model.fileSize - existingBytes, 0)
   }

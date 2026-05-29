@@ -537,8 +537,7 @@ enum HFCache {
     // size (not the target file size) for symlinks.
     let totalFileSize: Int64 = filePaths.reduce(0) { sum, path in
       let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-      let attrs = try? fm.attributesOfItem(atPath: resolved)
-      return sum + ((attrs?[.size] as? NSNumber)?.int64Value ?? 0)
+      return sum + fm.fileSize(atPath: resolved)
     }
 
     // Generate stable ID matching llama-server's `-hf` shorthand format:
