@@ -57,7 +57,7 @@ enum MemProfileRunner {
   /// Takes ~2s per model (two probes). Returns nil on failure.
   /// Supports cancellation — terminates the subprocess if the Task is cancelled.
   static func run(modelPath: String) async -> MemProfile? {
-    let binaryPath = Bundle.main.bundlePath + "/Contents/MacOS/llama-cpp/llama-fit-params"
+    let binaryPath = LlamaBinaries.fitParamsPath
 
     guard FileManager.default.fileExists(atPath: binaryPath) else {
       logger.error("llama-fit-params binary not found at \(binaryPath)")

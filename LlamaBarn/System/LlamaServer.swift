@@ -40,7 +40,6 @@ class LlamaServer {
     return "localhost"
   }
 
-  private let libFolderPath: String
   private var outputPipe: Pipe?
   private var errorPipe: Pipe?
   private var activeProcess: Process?
@@ -73,8 +72,6 @@ class LlamaServer {
   private var settingsObserver: NSObjectProtocol?
 
   init() {
-    libFolderPath = Bundle.main.bundlePath + "/Contents/MacOS/llama-cpp"
-
     // Listen for settings changes to reload server if needed (e.g. sleep timer)
     settingsObserver = NotificationCenter.default.addObserver(
       forName: .LBUserSettingsDidChange, object: nil, queue: .main
@@ -94,7 +91,7 @@ class LlamaServer {
 
   /// Basic validation of required paths
   private func validatePaths() throws {
-    let llamaServerPath = libFolderPath + "/llama-server"
+    let llamaServerPath = LlamaBinaries.serverPath
     guard FileManager.default.fileExists(atPath: llamaServerPath) else {
       logger.error("llama-server binary not found: \(llamaServerPath)")
       throw LlamaServerError.invalidPath(llamaServerPath)
@@ -151,7 +148,7 @@ class LlamaServer {
 
     let presetsPath = UserSettings.appSupportDir.appendingPathComponent("models.ini").path
 
-    let llamaServerPath = libFolderPath + "/llama-server"
+    let llamaServerPath = LlamaBinaries.serverPath
 
     // Empty dir to suppress router mode's automatic model discovery from cache.
     // Without this, llama-server scans the HF cache and lists every GGUF it finds.
