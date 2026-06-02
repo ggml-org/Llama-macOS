@@ -555,7 +555,7 @@ enum HFCache {
     let entry = Model(
       id: modelId,
       family: parsed.name,
-      size: sizeLabel,
+      sizeLabel: sizeLabel,
       ctxWindow: 131_072,  // 128k upper bound — clamped by memory budget
       fileSize: totalFileSize,
       // ctxBytesPer1kTokens stays 0 until the async MemProfile probe runs.

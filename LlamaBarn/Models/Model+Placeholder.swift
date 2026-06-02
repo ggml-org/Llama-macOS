@@ -26,7 +26,7 @@ extension Model {
     return Model(
       id: modelId,
       family: name,
-      size: sizeLabel,
+      sizeLabel: sizeLabel,
       fileSize: fileSize,
       downloadUrl: mainUrl,
       additionalParts: additionalParts.isEmpty ? nil : additionalParts,

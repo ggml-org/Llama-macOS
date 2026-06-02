@@ -12,8 +12,9 @@ struct Model: Identifiable {
   /// Display family name parsed from the repo (e.g. "Qwen3-30B-A3B-Instruct").
   let family: String
   /// Display size label — parsed parameter count (e.g. "30B") or, if the repo
-  /// name doesn't carry one, the quant label as a fallback.
-  let size: String
+  /// name doesn't carry one, the quant label as a fallback. Distinct from the
+  /// numeric `fileSize`: this is the human-facing parameter-size string.
+  let sizeLabel: String
   /// Maximum context length in tokens. 128k upper bound — clamped by the
   /// memory budget once `ctxBytesPer1kTokens` is measured.
   let ctxWindow: Int
@@ -52,7 +53,7 @@ struct Model: Identifiable {
   init(
     id: String,
     family: String,
-    size: String,
+    sizeLabel: String,
     ctxWindow: Int = 131_072,
     fileSize: Int64,
     ctxBytesPer1kTokens: Int = 0,
@@ -67,7 +68,7 @@ struct Model: Identifiable {
   ) {
     self.id = id
     self.family = family
-    self.size = size
+    self.sizeLabel = sizeLabel
     self.ctxWindow = ctxWindow
     self.fileSize = fileSize
     self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
@@ -83,7 +84,7 @@ struct Model: Identifiable {
 
   /// Display name combining family and size — used in hints, alerts, logs.
   var displayName: String {
-    "\(family) \(size)"
+    "\(family) \(sizeLabel)"
   }
 
   /// Brand logo asset name in `Assets.xcassets/ModelLogos`, matched from the
