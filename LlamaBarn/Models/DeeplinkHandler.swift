@@ -19,7 +19,7 @@ final class DeeplinkHandler {
   private let logger = Logger(subsystem: Logging.subsystem, category: "DeeplinkHandler")
 
   func handle(url: URL) {
-    guard let parsed = LlamabarnURL.parse(url) else {
+    guard let parsed = LlamaBarnURL.parse(url) else {
       logger.info("Ignoring unrecognized URL: \(url.absoluteString, privacy: .public)")
       return
     }
