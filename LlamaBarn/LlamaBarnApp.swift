@@ -30,6 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var menuController: MenuController?
   private var settingsWindowController: SettingsWindowController?
   private var updatesObserver: NSObjectProtocol?
+  private var retryInstallObserver: NSObjectProtocol?
 
   // Deeplink (llama://) plumbing.
   // Cold-launch URL events arrive before `applicationDidFinishLaunching`, so we have
@@ -140,6 +141,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       self?.updaterController?.checkForUpdates(nil)
     }
 
+    // Retry a failed CLI install from the menu's setup banner.
+    retryInstallObserver = NotificationCenter.default.addObserver(
+      forName: .LBRetryCLIInstall, object: nil, queue: .main
+    ) { [weak self] _ in
+      self?.ensureCLIThenStartServer()
+    }
+
     #if DEBUG
       // Auto-open menu in debug builds to save a click
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -170,20 +178,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   /// missing-binary error state in the menu.
   private func ensureCLIThenStartServer() {
     Task { @MainActor in
-      let resolution = LlamaBinaries.resolve()
-      logger.info("CLI at launch: \(String(describing: resolution), privacy: .public)")
-
-      if case .missing = resolution {
-        logger.info("No llama binary found; installing the app-owned CLI")
-        do {
-          try await LlamaInstaller.installLatest()
-          logger.info("Installed the app-owned llama CLI")
-        } catch {
-          logger.error("CLI install failed: \(error.localizedDescription, privacy: .public)")
-        }
+      // Installs the app-owned binary if none is found, driving the menu's
+      // setup banner via LlamaInstallManager. Only start the server once a
+      // binary is available; on failure the menu shows the error + retry.
+      if await LlamaInstallManager.shared.ensureInstalled() {
+        LlamaServer.shared.start()
       }
-
-      LlamaServer.shared.start()
     }
   }
 
