@@ -30,13 +30,14 @@ final class CLISetupView: ItemView {
     case .failed(let message):
       let title = Theme.primaryLabel("Couldn’t set up llama")
       let description = wrappingLabel(message)
-      let retry = Theme.secondaryLabel()
-      retry.attributedStringValue = NSAttributedString(
-        string: "→ Retry",
-        attributes: [.foregroundColor: NSColor.linkColor, .font: Theme.Fonts.secondary])
-      retry.isSelectable = false
-      addGesture(to: retry, action: #selector(retryInstall))
-      views = [title, description, retry]
+      views = [title, description, actionLink("→ Retry")]
+
+    case .externalTooOld(let version):
+      let title = Theme.primaryLabel("Update llama.cpp")
+      let description = wrappingLabel(
+        "Your llama.cpp (\(version.tag)) is older than the recommended "
+          + "\(LlamaBinaries.minVersion.tag). Update it with “brew upgrade llama.cpp”.")
+      views = [title, description, actionLink("→ Re-check")]
 
     case .idle:
       // Not rendered when idle; guard anyway so the view is never blank-but-present.
@@ -53,6 +54,17 @@ final class CLISetupView: ItemView {
     stack.pinToSuperview()
   }
 
+  /// A tappable link row (e.g. "→ Retry") that re-runs the CLI readiness check.
+  private func actionLink(_ title: String) -> NSTextField {
+    let link = Theme.secondaryLabel()
+    link.attributedStringValue = NSAttributedString(
+      string: title,
+      attributes: [.foregroundColor: NSColor.linkColor, .font: Theme.Fonts.secondary])
+    link.isSelectable = false
+    addGesture(to: link, action: #selector(recheck))
+    return link
+  }
+
   private func wrappingLabel(_ text: String) -> NSTextField {
     let label = Theme.tertiaryLabel(text)
     label.cell?.wraps = true
@@ -64,7 +76,7 @@ final class CLISetupView: ItemView {
     return label
   }
 
-  @objc private func retryInstall() {
-    NotificationCenter.default.post(name: .LBRetryCLIInstall, object: nil)
+  @objc private func recheck() {
+    NotificationCenter.default.post(name: .LBRecheckCLI, object: nil)
   }
 }

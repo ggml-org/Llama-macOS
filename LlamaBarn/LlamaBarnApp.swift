@@ -30,7 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var menuController: MenuController?
   private var settingsWindowController: SettingsWindowController?
   private var updatesObserver: NSObjectProtocol?
-  private var retryInstallObserver: NSObjectProtocol?
+  private var recheckCLIObserver: NSObjectProtocol?
 
   // Deeplink (llama://) plumbing.
   // Cold-launch URL events arrive before `applicationDidFinishLaunching`, so we have
@@ -141,9 +141,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       self?.updaterController?.checkForUpdates(nil)
     }
 
-    // Retry a failed CLI install from the menu's setup banner.
-    retryInstallObserver = NotificationCenter.default.addObserver(
-      forName: .LBRetryCLIInstall, object: nil, queue: .main
+    // Re-run the CLI readiness check from the menu's setup banner (retry a
+    // failed install, or re-check after a `brew upgrade`).
+    recheckCLIObserver = NotificationCenter.default.addObserver(
+      forName: .LBRecheckCLI, object: nil, queue: .main
     ) { [weak self] _ in
       self?.ensureCLIThenStartServer()
     }
@@ -181,7 +182,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       // Installs the app-owned binary if none is found, driving the menu's
       // setup banner via LlamaInstallManager. Only start the server once a
       // binary is available; on failure the menu shows the error + retry.
-      if await LlamaInstallManager.shared.ensureInstalled() {
+      if await LlamaInstallManager.shared.ensureReady() {
         LlamaServer.shared.start()
       }
     }

@@ -17,6 +17,7 @@ extension Notification.Name {
   // Posted when the app-owned CLI install state changes (idle/installing/failed),
   // so the menu can surface a "setting up…" banner or a retry affordance.
   static let LBCLIInstallStateDidChange = Notification.Name("LBCLIInstallStateDidChange")
-  // Posted by the menu's retry affordance to re-attempt a failed CLI install.
-  static let LBRetryCLIInstall = Notification.Name("LBRetryCLIInstall")
+  // Posted by the menu's setup banner to re-run the CLI readiness check --
+  // retry a failed install, or re-check after the user ran `brew upgrade`.
+  static let LBRecheckCLI = Notification.Name("LBRecheckCLI")
 }
