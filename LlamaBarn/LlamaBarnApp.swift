@@ -124,6 +124,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Initialize the shared model library manager to scan for existing models
     _ = ModelManager.shared
 
+    #if DEBUG
+      // Log the resolved CLI status (presence/ownership/version) for development.
+      // Runs off-main since status() blocks on a `version` subprocess.
+      Task.detached {
+        let status = LlamaBinaries.status()
+        Logger(subsystem: Logging.subsystem, category: "LlamaBinaries")
+          .info("CLI status: \(String(describing: status), privacy: .public)")
+      }
+    #endif
+
     // Create the AppKit-based status bar menu (installed models only for now)
     menuController = MenuController()
 

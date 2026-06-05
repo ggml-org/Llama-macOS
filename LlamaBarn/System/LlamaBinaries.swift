@@ -26,6 +26,18 @@ enum LlamaBinaries {
   /// Covers the Homebrew bin dirs (Apple Silicon and Intel).
   private static let externalDirs = ["/opt/homebrew/bin", "/usr/local/bin"]
 
+  /// Minimum build the app supports. The app drives `llama serve` / `llama
+  /// fit-params` with a specific set of flags; older builds may lack them. Bump
+  /// this when the app starts relying on a newer flag. We require a *minimum*
+  /// rather than an exact build so an external install the app can't update
+  /// (e.g. Homebrew) is flagged only when genuinely too old, not on every point
+  /// release. The version the app *installs* is chosen separately (see
+  /// `LlamaInstaller`).
+  static let minVersion = LlamaVersion(parsing: "b9370")!
+
+  /// Who owns the resolved binary -- determines who can update it.
+  enum Ownership: Equatable { case appOwned, external }
+
   /// Where the `llama` binary is and who owns it.
   enum Resolution: Equatable {
     /// App-managed binary at the curl-install path; the app may update it.
@@ -65,5 +77,71 @@ enum LlamaBinaries {
       logger.error("No llama binary found")
       return nil
     }
+  }
+
+  /// The binary's readiness, combining presence, ownership, and version.
+  enum Status: Equatable {
+    /// Present and at least `minVersion`.
+    case ready(path: String, ownership: Ownership)
+    /// Present but below `minVersion`. App-owned installs can be updated by the
+    /// app; external ones (e.g. Homebrew) must be updated by the user.
+    case outdated(path: String, ownership: Ownership, version: LlamaVersion)
+    /// No binary found anywhere.
+    case missing
+  }
+
+  /// Reads the version reported by the binary at `path`, or nil if it can't be
+  /// run or its output can't be parsed. Runs `<path> version`, which just prints
+  /// the build and exits -- no model load. Blocks on the subprocess, so call off
+  /// the main thread.
+  static func readVersion(at path: String) -> LlamaVersion? {
+    let proc = Process()
+    proc.executableURL = URL(fileURLWithPath: path)
+    proc.arguments = ["version"]
+    let out = Pipe()
+    proc.standardOutput = out
+    proc.standardError = Pipe()  // discard any chatter
+
+    do {
+      try proc.run()
+    } catch {
+      logger.error(
+        "Couldn't run \(path, privacy: .public) version: \(error.localizedDescription, privacy: .public)"
+      )
+      return nil
+    }
+    let data = out.fileHandleForReading.readDataToEndOfFile()
+    proc.waitUntilExit()
+    guard proc.terminationStatus == 0 else { return nil }
+    return LlamaVersion(parsing: String(decoding: data, as: UTF8.self))
+  }
+
+  /// Resolves the binary and judges its readiness against `minVersion`. Blocks
+  /// on a `version` subprocess, so call off the main thread.
+  ///
+  /// If the version can't be read (corrupt binary, unexpected output), we fail
+  /// open and report `.ready` rather than block a probably-fine binary.
+  static func status() -> Status {
+    let path: String
+    let ownership: Ownership
+    switch resolve() {
+    case .missing:
+      return .missing
+    case .appOwned(let p):
+      path = p
+      ownership = .appOwned
+    case .external(let p):
+      path = p
+      ownership = .external
+    }
+
+    guard let version = readVersion(at: path) else {
+      logger.error("Couldn't read llama version at \(path, privacy: .public); assuming usable")
+      return .ready(path: path, ownership: ownership)
+    }
+    if version < minVersion {
+      return .outdated(path: path, ownership: ownership, version: version)
+    }
+    return .ready(path: path, ownership: ownership)
   }
 }
