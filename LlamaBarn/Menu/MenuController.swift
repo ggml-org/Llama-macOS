@@ -140,6 +140,14 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.addItem(NSMenuItem.viewItem(with: view))
     menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
+    // Surface the app-owned CLI install (setting up… / failed + retry) above
+    // everything else; without the engine, nothing below it can run.
+    let installState = LlamaInstallManager.shared.state
+    if installState != .idle {
+      menu.addItem(NSMenuItem.viewItem(with: CLISetupView(state: installState)))
+      menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
+    }
+
     // Show warning if custom cache directory is unavailable (e.g., external drive unplugged)
     if UserSettings.hasCustomHFCacheDirectory
       && !FileManager.default.fileExists(atPath: UserSettings.hfCacheDirectory.path)
@@ -195,6 +203,10 @@ final class MenuController: NSObject, NSMenuDelegate {
   private func setupObservers() {
     // Server started/stopped - update icon and views
     observe(.LBServerStateDidChange)
+
+    // CLI install state changed (setting up… / failed) - rebuild to show/hide
+    // the setup banner.
+    observe(.LBCLIInstallStateDidChange, rebuildMenu: true)
 
     // Server memory usage changed - update running model stats
     observe(.LBServerMemoryDidChange)
