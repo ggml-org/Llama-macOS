@@ -33,7 +33,7 @@ final class HeaderView: ItemView {
   private func setup() {
     widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
 
-    appNameLabel.stringValue = "Llama"
+    appNameLabel.stringValue = "LlamaBarn"
 
     // Restart icon -- shown briefly while server is restarting
     Theme.configure(restartIcon, symbol: "arrow.trianglehead.2.clockwise", pointSize: 11)
@@ -105,7 +105,7 @@ final class HeaderView: ItemView {
     #endif
 
     // Connect to server info
-    appNameLabel.stringValue = "Llama"
+    appNameLabel.stringValue = "LlamaBarn"
 
     // Build server URLs using the resolved host (handles 0.0.0.0 -> local IP)
     let host = LlamaServer.resolvedHost

@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-/// Turns a `llama://install?repo=…` deeplink into a concrete file set:
+/// Turns a `llamabarn://install?repo=…` deeplink into a concrete file set:
 /// a specific GGUF (possibly sharded) and an optional mmproj sidecar, all
 /// expressed as HF resolve URLs we can hand to `ModelManager`.
 ///

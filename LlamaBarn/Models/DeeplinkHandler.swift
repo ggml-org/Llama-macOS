@@ -2,12 +2,12 @@ import AppKit
 import Foundation
 import os.log
 
-/// Consumes `llama://` URLs and turns them into `ModelManager` downloads.
+/// Consumes `llamabarn://` URLs and turns them into `ModelManager` downloads.
 ///
 /// Design notes:
 ///   - Silent start: the download just begins in the background. User clicks
 ///     the menu bar icon to see progress. No auto-popup — browser already
-///     showed a "Open in Llama?" prompt, so no extra confirmation here
+///     showed a "Open in LlamaBarn?" prompt, so no extra confirmation here
 ///     either.
 ///   - No cross-launch persistence: if the app dies mid-download, the
 ///     `.partial` bytes stay on disk. Re-clicking the same deeplink resolves

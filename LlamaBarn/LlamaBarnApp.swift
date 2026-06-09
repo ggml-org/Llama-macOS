@@ -32,7 +32,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var updatesObserver: NSObjectProtocol?
   private var recheckCLIObserver: NSObjectProtocol?
 
-  // Deeplink (llama://) plumbing.
+  // Deeplink (llamabarn://) plumbing.
   // Cold-launch URL events arrive before `applicationDidFinishLaunching`, so we have
   // to register the Apple-event handler in `applicationWillFinishLaunching`. The app's
   // menu/ModelManager/alert infra isn't ready yet at that point, so the handler just
@@ -156,7 +156,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       }
     #endif
 
-    // Drain any llama:// URLs that arrived during cold-launch before the rest
+    // Drain any llamabarn:// URLs that arrived during cold-launch before the rest
     // of the app was ready.
     didBootstrap = true
     let queued = pendingURLs

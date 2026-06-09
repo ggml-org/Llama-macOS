@@ -80,7 +80,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // Show after a short delay to ensure the status item is visible
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
       guard let self else { return }
-      self.showHint("Hello, I'm Llama")
+      self.showHint("Hello, I'm LlamaBarn")
       UserSettings.hasSeenWelcome = true
     }
   }

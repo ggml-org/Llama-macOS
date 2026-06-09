@@ -1,16 +1,16 @@
 import Foundation
 
-/// Parsed representation of a `llama://` URL.
+/// Parsed representation of a `llamabarn://` URL.
 ///
 /// Only one verb today — `install` — but the URL shape (flat, verb-first) leaves
 /// room for future actions (`load`, `open-settings`, ...) without restructuring.
 enum LlamaBarnURL: Equatable {
-  /// `llama://install?repo={org}/{repo}[&quant={label}]`
+  /// `llamabarn://install?repo={org}/{repo}[&quant={label}]`
   case install(repo: String, quant: String?)
 
   /// The URL scheme this build registers, read from `CFBundleURLTypes` in
-  /// `Info.plist`. Production builds register `llama`; dev builds register
-  /// `llama-dev`, so a developer with both installed can route deeplinks
+  /// `Info.plist`. Production builds register `llamabarn`; dev builds register
+  /// `llamabarn-dev`, so a developer with both installed can route deeplinks
   /// deterministically (Launch Services would otherwise pick whichever build
   /// it ranked higher).
   private static let registeredScheme: String = {
@@ -19,7 +19,7 @@ enum LlamaBarnURL: Equatable {
         as? [[String: Any]],
       let schemes = types.first?["CFBundleURLSchemes"] as? [String],
       let first = schemes.first
-    else { return "llama" }
+    else { return "llamabarn" }
     return first.lowercased()
   }()
 

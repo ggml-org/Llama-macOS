@@ -270,7 +270,6 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LlamaBarn/info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Llama;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -285,7 +284,7 @@
 				REGISTER_APP_GROUPS = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				URL_SCHEME = "llama-dev";
+				URL_SCHEME = "llamabarn-dev";
 			};
 			name = Debug;
 		};
@@ -303,7 +302,6 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LlamaBarn/info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Llama;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -318,7 +316,7 @@
 				REGISTER_APP_GROUPS = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				URL_SCHEME = llama;
+				URL_SCHEME = llamabarn;
 			};
 			name = Release;
 		};

@@ -4,7 +4,7 @@ import Foundation
 /// [huggingface.js/packages/tasks/src/gguf.ts](https://github.com/huggingface/huggingface.js/blob/main/packages/tasks/src/gguf.ts).
 ///
 /// We mirror HF's behavior byte-for-byte because the label round-trips between
-/// their JavaScript (which emits `llama://install?quant=…` on quant-sheet
+/// their JavaScript (which emits `llamabarn://install?quant=…` on quant-sheet
 /// click) and our Swift (which matches the param against each sibling's
 /// parsed label in `HFRepoResolver`). Any divergence means a deeplink that
 /// HF sends us would fail to match the very file HF intended.
