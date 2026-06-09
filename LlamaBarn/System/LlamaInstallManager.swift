@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-/// Observable owner of the app-owned CLI install. Holds the install `state` so
+/// Observable owner of the app-managed CLI install. Holds the install `state` so
 /// the menu can surface a "setting up…" banner and a retry affordance, and
 /// drives `LlamaInstaller` off the UI.
 ///
@@ -17,14 +17,14 @@ final class LlamaInstallManager {
   enum State: Equatable {
     /// Ready -- a usable binary is present (or we haven't needed to act).
     case idle
-    /// Downloading/installing the app-owned binary.
+    /// Downloading/installing the app-managed binary.
     case installing
     /// The install failed; `message` is user-facing. Retry via `install()`.
     case failed(message: String)
-    /// An external (e.g. Homebrew) binary is present but below `floorVersion`.
+    /// An unmanaged (e.g. Homebrew) binary is present but below `floorVersion`.
     /// The app can't update it, so it nudges the user to do so. Non-blocking:
     /// the server still runs, since the old binary often works.
-    case externalTooOld(version: LlamaVersion)
+    case unmanagedTooOld(version: LlamaVersion)
   }
 
   private(set) var state: State = .idle {
@@ -40,8 +40,8 @@ final class LlamaInstallManager {
   private(set) var currentVersion: LlamaVersion?
 
   /// Ensures a usable `llama` binary is available, applying the version policy:
-  /// install when missing, reconcile an app-owned binary to the pinned target
-  /// when it differs, or nudge when an external binary is below the floor.
+  /// install when missing, reconcile the managed binary to the pinned target
+  /// when it differs, or nudge when an unmanaged binary is below the floor.
   /// Returns true if the server should start afterward (always, except a failed
   /// install).
   @discardableResult
@@ -50,8 +50,8 @@ final class LlamaInstallManager {
     case .missing:
       return await install()
 
-    case .present(.appOwned, let version):
-      // The app owns this one -- keep it at the pinned target. A nil version
+    case .present(.managed, let version):
+      // The app manages this one -- keep it at the pinned target. A nil version
       // (unreadable) fails open as ready, to avoid a reinstall loop.
       if let version, version != LlamaBinaries.targetVersion {
         return await install()
@@ -60,12 +60,12 @@ final class LlamaInstallManager {
       state = .idle
       return true
 
-    case .present(.external, let version):
-      // Can't touch an external install; nudge if below the floor but keep
+    case .present(.unmanaged, let version):
+      // Can't touch an unmanaged install; nudge if below the floor but keep
       // running (warn, not block).
       currentVersion = version
       if let version, version < LlamaBinaries.floorVersion {
-        state = .externalTooOld(version: version)
+        state = .unmanagedTooOld(version: version)
       } else {
         state = .idle
       }
@@ -73,14 +73,14 @@ final class LlamaInstallManager {
     }
   }
 
-  /// Installs (or reinstalls) the app-owned binary at the pinned target,
+  /// Installs (or reinstalls) the app-managed binary at the pinned target,
   /// driving `state`. Also the retry entry point. Returns true on success.
   @discardableResult
   func install() async -> Bool {
     state = .installing
     do {
       try await LlamaInstaller.install(version: LlamaBinaries.targetVersion.tag)
-      logger.info("Installed the app-owned llama CLI")
+      logger.info("Installed the app-managed llama CLI")
       // Refresh before flipping to .idle so the rebuild triggered by the state
       // change already reflects the freshly-installed version.
       await refreshVersion()

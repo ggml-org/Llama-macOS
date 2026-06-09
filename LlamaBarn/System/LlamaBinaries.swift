@@ -1,12 +1,13 @@
 import Foundation
 import os.log
 
-/// Resolves the `llama` executable the app drives, and classifies who owns it.
+/// Resolves the `llama` executable the app drives, and classifies whether the
+/// app may update it.
 ///
 /// The app follows a shared-path model:
-/// - it owns the curl-install path (`~/.llama-app/llama`, what `install.sh`
+/// - it manages the curl-install path (`~/.llama-app/llama`, what `install.sh`
 ///   produces): it may install a binary there and keep it updated
-/// - any other install (e.g. Homebrew) is treated as external: the app uses it
+/// - any other install (e.g. Homebrew) is left unmanaged: the app uses it
 ///   but never modifies it
 ///
 /// `llama` is the unified llama.cpp executable -- the server is `llama serve`
@@ -16,64 +17,64 @@ enum LlamaBinaries {
 
   private static let logger = Logger(subsystem: Logging.subsystem, category: "LlamaBinaries")
 
-  /// The curl-install path the app owns (matches `install.sh`'s layout).
+  /// The curl-install path the app manages (matches `install.sh`'s layout).
   /// The real binary lives in `~/.llama-app`; `install.sh` also drops a
   /// `~/.local/bin/llama` symlink onto PATH, but the app points at the real file.
-  static let appOwnedPath: String =
+  static let managedPath: String =
     (NSHomeDirectory() as NSString).appendingPathComponent(".llama-app/llama")
 
-  /// External locations to probe when the app hasn't installed its own binary.
+  /// Unmanaged locations to probe when the app hasn't installed its own binary.
   /// Covers the Homebrew bin dirs (Apple Silicon and Intel).
-  private static let externalDirs = ["/opt/homebrew/bin", "/usr/local/bin"]
+  private static let unmanagedDirs = ["/opt/homebrew/bin", "/usr/local/bin"]
 
   /// The build the app installs and keeps its own binary at -- the pinned
   /// target, not whatever is newest. Bump per app release after smoke-testing
   /// `serve` + `fit-params`; the app's auto-updater then rolls it out.
   static let targetVersion = LlamaVersion(parsing: "b9553")!
 
-  /// The minimum build the app accepts from an external install (e.g. Homebrew)
+  /// The minimum build the app accepts from an unmanaged install (e.g. Homebrew)
   /// before nudging the user to update -- the app can't update those itself.
   /// Must be <= targetVersion; should track the oldest build whose `serve` /
   /// `fit-params` flags the app relies on (currently a conservative placeholder).
   static let floorVersion = LlamaVersion(parsing: "b9370")!
 
-  /// Who owns the resolved binary -- determines who can update it.
-  enum Ownership: Equatable { case appOwned, external }
+  /// Whether the app may update the resolved binary.
+  enum Management: Equatable { case managed, unmanaged }
 
-  /// Where the `llama` binary is and who owns it.
+  /// Where the `llama` binary is and whether the app may update it.
   enum Resolution: Equatable {
     /// App-managed binary at the curl-install path; the app may update it.
-    case appOwned(path: String)
+    case managed(path: String)
     /// A pre-existing install (e.g. Homebrew); use it but never modify it.
-    case external(path: String)
+    case unmanaged(path: String)
     /// No `llama` binary found anywhere; the install flow needs to run.
     case missing
   }
 
-  /// Resolves the active `llama` binary. The app-owned path wins, then the
-  /// external locations in order, else `.missing`.
+  /// Resolves the active `llama` binary. The managed path wins, then the
+  /// unmanaged locations in order, else `.missing`.
   static func resolve() -> Resolution {
     let fm = FileManager.default
 
-    if fm.isExecutableFile(atPath: appOwnedPath) {
-      return .appOwned(path: appOwnedPath)
+    if fm.isExecutableFile(atPath: managedPath) {
+      return .managed(path: managedPath)
     }
 
     #if DEBUG
-      // Dev affordance: pretend external installs (e.g. Homebrew) aren't present,
+      // Dev affordance: pretend unmanaged installs (e.g. Homebrew) aren't present,
       // so the missing -> install path can be exercised on a machine that already
       // has llama.cpp. Toggle with:
-      //   defaults write app.llamabarn.LlamaBarn.dev forceAppOwnedLlama -bool YES
-      if UserDefaults.standard.bool(forKey: "forceAppOwnedLlama") {
-        logger.debug("forceAppOwnedLlama set; ignoring external installs")
+      //   defaults write app.llamabarn.LlamaBarn.dev ignoreUnmanagedLlama -bool YES
+      if UserDefaults.standard.bool(forKey: "ignoreUnmanagedLlama") {
+        logger.debug("ignoreUnmanagedLlama set; ignoring unmanaged installs")
         return .missing
       }
     #endif
 
-    for dir in externalDirs {
+    for dir in unmanagedDirs {
       let path = dir + "/llama"
       if fm.isExecutableFile(atPath: path) {
-        return .external(path: path)
+        return .unmanaged(path: path)
       }
     }
 
@@ -83,7 +84,7 @@ enum LlamaBinaries {
   /// The path to the `llama` binary to invoke, or `nil` if none is installed.
   static var llamaPath: String? {
     switch resolve() {
-    case .appOwned(let path), .external(let path):
+    case .managed(let path), .unmanaged(let path):
       logger.debug("Using llama binary at \(path, privacy: .public)")
       return path
     case .missing:
@@ -92,12 +93,12 @@ enum LlamaBinaries {
     }
   }
 
-  /// What's installed: ownership plus the reported version (nil if it couldn't
+  /// What's installed: management plus the reported version (nil if it couldn't
   /// be read), or nothing at all. These are facts -- the target/floor policy
   /// that turns them into install/update/nudge decisions lives in
   /// `LlamaInstallManager`.
   enum Installed: Equatable {
-    case present(ownership: Ownership, version: LlamaVersion?)
+    case present(management: Management, version: LlamaVersion?)
     case missing
   }
 
@@ -133,10 +134,10 @@ enum LlamaBinaries {
     switch resolve() {
     case .missing:
       return .missing
-    case .appOwned(let path):
-      return .present(ownership: .appOwned, version: readVersion(at: path))
-    case .external(let path):
-      return .present(ownership: .external, version: readVersion(at: path))
+    case .managed(let path):
+      return .present(management: .managed, version: readVersion(at: path))
+    case .unmanaged(let path):
+      return .present(management: .unmanaged, version: readVersion(at: path))
     }
   }
 }

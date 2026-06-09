@@ -2,7 +2,7 @@ import Darwin
 import Foundation
 import os.log
 
-/// Installs and updates the app-owned `llama` CLI by fetching prebuilt binaries
+/// Installs and updates the app-managed `llama` CLI by fetching prebuilt binaries
 /// from the same Hugging Face bucket the official `install.sh` uses, laid out the same way:
 /// the real binary at `~/.llama-app/llama` plus a `~/.local/bin/llama` symlink
 /// so `llama` works from a terminal too.
@@ -11,7 +11,7 @@ import os.log
 /// fetch the bucket's small standalone `unzstd` helper (cached alongside the
 /// binary) and pipe the download through it.
 ///
-/// This only ever writes the app-owned path. A Homebrew (or other external)
+/// This only ever writes the managed path. A Homebrew (or other unmanaged)
 /// install is never touched -- see `LlamaBinaries`.
 enum LlamaInstaller {
 
@@ -26,12 +26,12 @@ enum LlamaInstaller {
   private static let arch = "aarch64"
   private static let os = "macos"
 
-  /// The real binary path (also what `LlamaBinaries` resolves as `.appOwned`).
-  private static var llamaPath: String { LlamaBinaries.appOwnedPath }
+  /// The real binary path (also what `LlamaBinaries` resolves as `.managed`).
+  private static var llamaPath: String { LlamaBinaries.managedPath }
 
-  /// Install dir the app owns. Holds the binary and the cached `unzstd` helper.
+  /// Install dir the app manages. Holds the binary and the cached `unzstd` helper.
   private static var installDir: String {
-    (LlamaBinaries.appOwnedPath as NSString).deletingLastPathComponent
+    (LlamaBinaries.managedPath as NSString).deletingLastPathComponent
   }
   private static var unzstdPath: String { installDir + "/unzstd" }
 
@@ -63,7 +63,7 @@ enum LlamaInstaller {
 
   // MARK: - Public API
 
-  /// Installs (or replaces) the app-owned `llama` binary at `version`.
+  /// Installs (or replaces) the app-managed `llama` binary at `version`.
   static func install(version: String) async throws {
     logger.info("Installing llama \(version, privacy: .public)")
 

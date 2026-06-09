@@ -32,7 +32,7 @@ final class CLISetupView: ItemView {
       let description = wrappingLabel(message)
       views = [title, description, actionLink("→ Retry")]
 
-    case .externalTooOld(let version):
+    case .unmanagedTooOld(let version):
       let title = Theme.primaryLabel("Update llama.cpp")
       let description = wrappingLabel(
         "Your llama.cpp (\(version.tag)) is older than the recommended "
