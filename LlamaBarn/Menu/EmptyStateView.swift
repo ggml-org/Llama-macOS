@@ -3,8 +3,8 @@ import AppKit
 /// Shown in place of the installed section when no models are present.
 /// Guides the user to install their first model from Hugging Face.
 final class EmptyStateView: ItemView {
-  /// Temporary model browse page; swap for the curated catalog URL later.
-  private static let browseUrl = URL(string: "https://model-catalog.pages.dev/")!
+  /// Web catalog where users can browse and install models.
+  private static let browseUrl = URL(string: "https://llama.app/")!
 
   override var highlightEnabled: Bool { false }
 
