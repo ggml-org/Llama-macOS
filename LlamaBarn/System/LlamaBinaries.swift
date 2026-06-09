@@ -34,9 +34,13 @@ enum LlamaBinaries {
 
   /// The minimum build the app accepts from an unmanaged install (e.g. Homebrew)
   /// before nudging the user to update -- the app can't update those itself.
-  /// Must be <= targetVersion; should track the oldest build whose `serve` /
-  /// `fit-params` flags the app relies on (currently a conservative placeholder).
-  static let floorVersion = LlamaVersion(parsing: "b9370")!
+  /// Must be <= targetVersion. Set to the build that introduced the unified
+  /// `llama` binary (llama.cpp PR #23296 -- the first with `llama serve` /
+  /// `llama fit-params`): below it those subcommands don't exist, so the app
+  /// can't run at all. Every `serve`/`fit-params` flag the app passes predates
+  /// this build, so the unified binary is the binding constraint -- only raise
+  /// this if the app starts relying on a newer flag.
+  static let floorVersion = LlamaVersion(parsing: "b9253")!
 
   /// Whether the app may update the resolved binary.
   enum Management: Equatable { case managed, unmanaged }
