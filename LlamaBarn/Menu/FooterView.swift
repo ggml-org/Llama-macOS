@@ -93,9 +93,15 @@ final class FooterView: ItemView {
     #if DEBUG
       return "dev"
     #else
-      return AppInfo.shortVersion == "0.0.0"
-        ? AppInfo.buildNumber
-        : AppInfo.shortVersion
+      let version = AppInfo.shortVersion
+      if version == "0.0.0" { return AppInfo.buildNumber }
+      // Snapshot builds carry a "-snapshot.<build>" suffix (e.g.
+      // "0.31.0-snapshot.260609.1726"). Collapse it to a short "-pre" marker so
+      // the footer fits while still signalling this isn't a public release.
+      if let snapshot = version.range(of: "-snapshot") {
+        return String(version[..<snapshot.lowerBound]) + "-pre"
+      }
+      return version
     #endif
   }
 }
