@@ -16,11 +16,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1501F0AF2E26D4A400040CD6 /* llama-cpp */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "llama-cpp";
-			sourceTree = "<group>";
-		};
 		1568919E2E2685F700F71BD4 /* LlamaBarn */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = LlamaBarn;
@@ -44,7 +39,6 @@
 		156891932E2685F700F71BD4 = {
 			isa = PBXGroup;
 			children = (
-				1501F0AF2E26D4A400040CD6 /* llama-cpp */,
 				1568919E2E2685F700F71BD4 /* LlamaBarn */,
 				1568919D2E2685F700F71BD4 /* Products */,
 			);
@@ -74,7 +68,6 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1501F0AF2E26D4A400040CD6 /* llama-cpp */,
 				1568919E2E2685F700F71BD4 /* LlamaBarn */,
 			);
 			name = LlamaBarn;
