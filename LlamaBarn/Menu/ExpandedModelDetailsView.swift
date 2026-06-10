@@ -2,34 +2,27 @@ import AppKit
 import Foundation
 
 /// Container view for expanded model details.
-/// Shows selectable context tiers with memory usage.
-/// Selecting a tier updates user preferences and reloads the server if running.
+/// Shows a compact segmented control of context tiers with the memory usage
+/// for the selected tier. Selecting a tier updates user preferences and reloads
+/// the server if running.
 final class ExpandedModelDetailsView: ItemView {
   private let model: Model
-  private let actionHandler: ModelActionHandler
   private unowned let server: LlamaServer
 
   // Header label
   private let headerLabel = Theme.secondaryLabel()
 
-  // Info label (replaces button when expanded)
-  private var infoLabel: NSTextField?
-  private var infoButton: NSButton?
-  private var infoExpanded: Bool
-  private let onInfoToggle: ((Bool) -> Void)?
+  // Tiers backing the segmented control, in the order they appear (index = segment).
+  private var tiers: [ContextTier] = []
+  // Memory line showing the selected tier's usage (e.g. "Requires 1.6 GB of memory").
+  private var memLabel: NSTextField?
 
   init(
     model: Model,
-    actionHandler: ModelActionHandler,
-    server: LlamaServer,
-    isInfoExpanded: Bool = false,
-    onInfoToggle: ((Bool) -> Void)? = nil
+    server: LlamaServer
   ) {
     self.model = model
-    self.actionHandler = actionHandler
     self.server = server
-    self.infoExpanded = isInfoExpanded
-    self.onInfoToggle = onInfoToggle
     super.init(frame: .zero)
     setupLayout()
   }
@@ -44,51 +37,14 @@ final class ExpandedModelDetailsView: ItemView {
     let mainStack = NSStackView()
     mainStack.orientation = .vertical
     mainStack.alignment = .leading
-    mainStack.spacing = 2
-
-    // Header row with info button
-    let headerRow = NSStackView()
-    headerRow.orientation = .horizontal
-    headerRow.alignment = .centerY
-    headerRow.spacing = 4
-    headerRow.detachesHiddenViews = true  // Hidden views don't take up space
+    mainStack.spacing = 4
 
     headerLabel.stringValue = "Context length"
     headerLabel.textColor = Theme.Colors.modelIconTint
-    headerRow.addArrangedSubview(headerLabel)
-
-    // Info button toggles explanation text
-    let btn = NSButton()
-    btn.bezelStyle = .inline
-    btn.isBordered = false
-    btn.image = NSImage(systemSymbolName: "info.circle", accessibilityDescription: "Info")
-    btn.imagePosition = .imageOnly
-    btn.contentTintColor = Theme.Colors.textSecondary
-    btn.target = self
-    btn.action = #selector(didClickInfo(_:))
-    btn.isHidden = infoExpanded  // Hide if already expanded
-    self.infoButton = btn
-    headerRow.addArrangedSubview(btn)
-
-    // Info label (hidden by default, shows inline with header)
-    let info = Theme.secondaryLabel()
-    info.stringValue =
-      "Context length — how far back the model can see. Larger values use more memory."
-    info.textColor = Theme.Colors.modelIconTint
-    info.lineBreakMode = .byWordWrapping
-    info.isHidden = !infoExpanded  // Show if already expanded
-    // Constrain width to prevent unbounded height calculation
-    info.preferredMaxLayoutWidth = Layout.contentWidth - Layout.expandedIndent
-    self.infoLabel = info
-    headerRow.addArrangedSubview(info)
-
-    // Apply initial state
-    headerLabel.isHidden = infoExpanded
-
-    mainStack.addArrangedSubview(headerRow)
+    mainStack.addArrangedSubview(headerLabel)
 
     // For sideloaded models awaiting their MemProfile, show a placeholder message
-    // instead of tier rows (we don't have accurate memory estimates yet).
+    // instead of the picker (we don't have accurate memory estimates yet).
     // For failed estimation (-1), show a failure message with the 4k fallback.
     if model.ctxBytesPer1kTokens == 0 {
       let estimatingLabel = Theme.secondaryLabel()
@@ -103,13 +59,29 @@ final class ExpandedModelDetailsView: ItemView {
       failedLabel.lineBreakMode = .byTruncatingTail
       mainStack.addArrangedSubview(failedLabel)
     } else {
-      // Context tier rows - show all supported tiers as selectable options
-      let effectiveTier = model.effectiveCtxTier
-      for tier in model.supportedContextTiers {
-        let isSelected = tier == effectiveTier
-        let row = buildTierRow(for: tier, isSelected: isSelected)
-        mainStack.addArrangedSubview(row)
+      // Compact segmented control of supported tiers, plus a memory line that
+      // reflects the selected tier.
+      tiers = model.supportedContextTiers
+      // Fall back to the first supported tier if no effective tier is resolved.
+      let effectiveTier = model.effectiveCtxTier ?? tiers.first ?? .k4
+
+      let segmented = NSSegmentedControl(
+        labels: tiers.map { $0.shortLabel },
+        trackingMode: .selectOne,
+        target: self,
+        action: #selector(didSelectSegment(_:)))
+      segmented.segmentStyle = .rounded
+      segmented.controlSize = .small
+      segmented.font = Theme.Fonts.secondary
+      if let idx = tiers.firstIndex(of: effectiveTier) {
+        segmented.selectedSegment = idx
       }
+      mainStack.addArrangedSubview(segmented)
+
+      let mem = Theme.secondaryLabel()
+      self.memLabel = mem
+      updateMemLabel(for: effectiveTier)
+      mainStack.addArrangedSubview(mem)
     }
 
     // Add indent wrapper to align with model text
@@ -130,73 +102,41 @@ final class ExpandedModelDetailsView: ItemView {
     widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
   }
 
-  // MARK: - Tier Row
+  // MARK: - Memory Line
 
-  /// Builds a selectable row for a context tier.
-  private func buildTierRow(for tier: ContextTier, isSelected: Bool) -> NSView {
-    // Use a custom view subclass to store the tier value
-    let row = TierRowView(tier: tier)
-    row.orientation = .horizontal
-    row.alignment = .centerY
-    row.spacing = 0
-    // Fixed row height prevents menu resizing when expanding different models
-    row.heightAnchor.constraint(equalToConstant: 16).isActive = true
+  /// Updates the memory line to describe the usage for the given tier as a
+  /// sentence (e.g. "Requires 1.6 GB of memory"). The size is omitted -- it's
+  /// already shown on the selected segment -- with the figure emphasized.
+  private func updateMemLabel(for tier: ContextTier) {
+    guard let memLabel else { return }
 
-    let tierLabel = Theme.secondaryLabel()
     let labelColor = Theme.Colors.modelIconTint
     let valueColor = Theme.Colors.textPrimary
-
-    // Build attributed string
-    let result = NSMutableAttributedString()
     let labelAttrs = Theme.secondaryAttributes(color: labelColor)
     let valueAttrs = Theme.secondaryAttributes(color: valueColor)
-
-    // Selection indicator (small filled circle inside ring for selected, empty circle for others)
-    let statusIcon = NSImageView()
-    if isSelected {
-      Theme.configure(
-        statusIcon, symbol: "smallcircle.filled.circle", color: Theme.Colors.textPrimary,
-        pointSize: 10)
-    } else {
-      Theme.configure(
-        statusIcon, symbol: "circle", color: Theme.Colors.textSecondary, pointSize: 10)
-    }
-    statusIcon.widthAnchor.constraint(equalToConstant: 12).isActive = true
-    row.addArrangedSubview(statusIcon)
-
-    // Spacing after icon
-    let iconSpacer = NSView()
-    iconSpacer.translatesAutoresizingMaskIntoConstraints = false
-    iconSpacer.widthAnchor.constraint(equalToConstant: 4).isActive = true
-    row.addArrangedSubview(iconSpacer)
-
-    // Tier label and memory usage
-    result.append(NSAttributedString(string: tier.label, attributes: valueAttrs))
-    result.append(NSAttributedString(string: " on ", attributes: labelAttrs))
 
     let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
     let ramGb = Double(ramMb) / 1024.0
     let ramStr = String(format: "%.1f GB", ramGb)
 
+    let result = NSMutableAttributedString()
+    result.append(NSAttributedString(string: "Requires ", attributes: labelAttrs))
     result.append(NSAttributedString(string: ramStr, attributes: valueAttrs))
-    result.append(NSAttributedString(string: " mem", attributes: labelAttrs))
-
-    tierLabel.attributedStringValue = result
-    row.addArrangedSubview(tierLabel)
-
-    // Make the row clickable to select this tier
-    let clickRecognizer = NSClickGestureRecognizer(
-      target: self, action: #selector(didClickTierRow(_:)))
-    row.addGestureRecognizer(clickRecognizer)
-
-    return row
+    result.append(NSAttributedString(string: " of memory", attributes: labelAttrs))
+    memLabel.attributedStringValue = result
   }
 
-  @objc private func didClickTierRow(_ sender: NSClickGestureRecognizer) {
-    guard let row = sender.view as? TierRowView else { return }
-    let tier = row.tier
+  // MARK: - Actions
 
-    // Skip if already selected
+  @objc private func didSelectSegment(_ sender: NSSegmentedControl) {
+    let idx = sender.selectedSegment
+    guard idx >= 0, idx < tiers.count else { return }
+    let tier = tiers[idx]
+
+    // Reflect the new selection in the memory line right away.
+    updateMemLabel(for: tier)
+
+    // Skip the rest if this is already the active tier.
     guard tier != model.effectiveCtxTier else { return }
 
     // Save the new preference
@@ -211,27 +151,4 @@ final class ExpandedModelDetailsView: ItemView {
     }
   }
 
-  @objc private func didClickInfo(_ sender: NSButton) {
-    infoExpanded.toggle()
-    headerLabel.isHidden = infoExpanded
-    infoLabel?.isHidden = !infoExpanded
-    infoButton?.isHidden = infoExpanded
-    onInfoToggle?(infoExpanded)
-  }
-
-}
-
-// MARK: - TierRowView
-
-/// Custom stack view that stores a context tier value.
-/// Used to pass tier info through gesture recognizer callbacks.
-private final class TierRowView: NSStackView {
-  let tier: ContextTier
-
-  init(tier: ContextTier) {
-    self.tier = tier
-    super.init(frame: .zero)
-  }
-
-  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 }
