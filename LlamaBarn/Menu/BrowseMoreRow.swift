@@ -17,7 +17,7 @@ final class BrowseMoreRow: ItemView {
 
     let link = Theme.secondaryLabel()
     link.attributedStringValue = NSAttributedString(
-      string: "→ Browse more",
+      string: "Browse more →",
       attributes: [.foregroundColor: NSColor.linkColor, .font: Theme.Fonts.secondary])
     link.isSelectable = false
 

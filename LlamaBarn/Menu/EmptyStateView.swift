@@ -31,7 +31,7 @@ final class EmptyStateView: ItemView {
 
     let link = Theme.secondaryLabel()
     link.attributedStringValue = NSAttributedString(
-      string: "→ Browse models",
+      string: "Browse models →",
       attributes: [.foregroundColor: NSColor.linkColor, .font: Theme.Fonts.secondary])
     link.isSelectable = false
     addGesture(to: link, action: #selector(openBrowse))
