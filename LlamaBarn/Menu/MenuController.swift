@@ -14,6 +14,10 @@ final class MenuController: NSObject, NSMenuDelegate {
   private var expandedModelIds: Set<String> = []
   private var infoExpandedModelIds: Set<String> = []  // Models with info text expanded
 
+  /// Web catalog the Discover "Browse more" link points at — more models live
+  /// here. Matches the empty-state browse link.
+  private static let browseCatalogUrl = URL(string: "https://llama.app/")!
+
   /// Featured catalog suggestions for the Discover section. Fetched from the
   /// remote catalog on launch (and on menu-open if still empty); empty when the
   /// fetch hasn't landed or failed, in which case the section simply doesn't show.
@@ -413,7 +417,10 @@ final class MenuController: NSObject, NSMenuDelegate {
       menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
     }
 
-    let header = SectionHeaderView(title: "Discover")
+    // Self-describing header: a curated subset recommended for this Mac
+    // ("recommended" signals it's not the full compatible set, and the per-Mac
+    // framing explains why a family can appear at two sizes).
+    let header = SectionHeaderView(title: "Recommended for your Mac")
     menu.addItem(NSMenuItem.viewItem(with: header))
 
     for suggestion in suggestions {
@@ -422,6 +429,10 @@ final class MenuController: NSObject, NSMenuDelegate {
       }
       menu.addItem(NSMenuItem.viewItem(with: view))
     }
+
+    // Trailing link to the web catalog — the picks above are a starting point;
+    // more models live on the web.
+    menu.addItem(NSMenuItem.viewItem(with: BrowseMoreRow(url: Self.browseCatalogUrl)))
   }
 
   /// Starts a download for a catalog suggestion via the shared deeplink installer.

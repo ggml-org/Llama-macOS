@@ -1,8 +1,8 @@
 import AppKit
 
-/// Header row above a menu section (e.g. "Installed", "Discover"). Shows the
-/// section title, optionally followed by a link (e.g. the running server's
-/// /models endpoint above the Installed section).
+/// Header row above a menu section (e.g. "Installed", "Recommended for your
+/// Mac"). Shows the section title, optionally followed by a link (e.g. the
+/// running server's /models endpoint above the Installed section).
 final class SectionHeaderView: ItemView {
   private var linkUrl: URL?
   private let linkLabel = Theme.secondaryLabel()
