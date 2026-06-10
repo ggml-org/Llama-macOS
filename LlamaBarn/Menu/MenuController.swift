@@ -163,12 +163,17 @@ final class MenuController: NSObject, NSMenuDelegate {
     let managed = modelManager.managedModels
     let suggestions = visibleDiscoverSuggestions(managed: managed)
 
-    addInstalledSection(to: menu, models: managed)
-    addDiscoverSection(to: menu, suggestions: suggestions, separated: !managed.isEmpty)
-
-    // Nothing installed and no suggestions to offer — fall back to the empty state.
     if managed.isEmpty && suggestions.isEmpty {
+      // Nothing installed and nothing to suggest (e.g. offline / catalog fetch
+      // failed) — show the full empty state with browse guidance, since it's the
+      // only direction we can offer here.
       menu.addItem(NSMenuItem.viewItem(with: EmptyStateView()))
+    } else {
+      // Otherwise always render the Installed section — with rows, or a terse
+      // placeholder when empty — so it anchors the menu instead of vanishing and
+      // leaving Recommended as a floating first section.
+      addInstalledSection(to: menu, models: managed)
+      addDiscoverSection(to: menu, suggestions: suggestions)
     }
 
     addFooter(to: menu)
@@ -336,8 +341,15 @@ final class MenuController: NSObject, NSMenuDelegate {
   // MARK: - Installed Section
 
   private func addInstalledSection(to menu: NSMenu, models: [Model]) {
-    // Empty-state handling lives in rebuildMenu, which also weighs Discover.
-    guard !models.isEmpty else { return }
+    // Empty: render the header (no /models link — the server isn't running and
+    // there's nothing to list) plus a terse placeholder, so the section still
+    // anchors the menu. The decision to render at all lives in rebuildMenu.
+    guard !models.isEmpty else {
+      menu.addItem(NSMenuItem.viewItem(with: SectionHeaderView(title: "Installed")))
+      menu.addItem(
+        NSMenuItem.viewItem(with: TextItemView(text: "No models yet", style: .description)))
+      return
+    }
 
     // "Installed" header with a link to the running server's /models endpoint
     let host = LlamaServer.resolvedHost
@@ -394,16 +406,12 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   /// Adds the "Discover" section: a short list of featured models — up to two
   /// device-appropriate picks per family — that install with a single click.
-  /// Hidden when there's nothing to suggest. `separated` draws a divider above it
-  /// when an Installed section precedes it.
-  private func addDiscoverSection(
-    to menu: NSMenu, suggestions: [Catalog.Suggestion], separated: Bool
-  ) {
+  /// Hidden when there's nothing to suggest. An Installed section always precedes
+  /// it, so it draws a divider above itself.
+  private func addDiscoverSection(to menu: NSMenu, suggestions: [Catalog.Suggestion]) {
     guard !suggestions.isEmpty else { return }
 
-    if separated {
-      menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
-    }
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     // Self-describing header: a curated subset recommended for this Mac
     // ("recommended" signals it's not the full compatible set, and the per-Mac
