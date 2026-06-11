@@ -78,7 +78,7 @@ struct SettingsView: View {
               _ = LaunchAtLogin.setEnabled(newValue)
             }
 
-          Text("Sits idle in the menu bar, using minimal memory until you start a model.")
+          Text("Sits idle in the menu bar, using minimal memory.")
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
         }
