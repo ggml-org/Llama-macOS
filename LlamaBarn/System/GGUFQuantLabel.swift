@@ -7,7 +7,9 @@ import Foundation
 /// their JavaScript (which emits `llamabarn://install?quant=…` on quant-sheet
 /// click) and our Swift (which matches the param against each sibling's
 /// parsed label in `HFRepoResolver`). Any divergence means a deeplink that
-/// HF sends us would fail to match the very file HF intended.
+/// HF sends us would fail to match the very file HF intended. The only
+/// divergence is additive (bare `MXFP4`, see below) — a superset can't break
+/// labels HF emits, it only accepts more.
 enum GGUFQuantLabel {
 
   /// Canonical label alternatives, matching `GGMLFileQuantizationType`'s declaration
@@ -25,7 +27,10 @@ enum GGUFQuantLabel {
     "BF16",
     "Q4_0_4_4", "Q4_0_4_8", "Q4_0_8_8",
     "TQ1_0", "TQ2_0",
-    "MXFP4_MOE", "NVFP4", "Q1_0",
+    // MXFP4 (bare) is our extension: HF's enum only has MXFP4_MOE, but
+    // gpt-oss GGUFs are named `*-mxfp4.gguf` and HF's UI emits `quant=mxfp4`
+    // for them. Listed after MXFP4_MOE to preserve leftmost-match order.
+    "MXFP4_MOE", "MXFP4", "NVFP4", "Q1_0",
     "Q2_K_XL", "Q3_K_XL", "Q4_K_XL", "Q5_K_XL", "Q6_K_XL", "Q8_K_XL",
   ]
 
