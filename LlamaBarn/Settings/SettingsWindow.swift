@@ -79,7 +79,7 @@ struct SettingsView: View {
             }
 
           Text("Sits idle in the menu bar, using minimal memory until you start a model.")
-            .font(.callout)
+            .font(.system(size: 11))
             .foregroundStyle(.secondary)
         }
       }
@@ -98,7 +98,7 @@ struct SettingsView: View {
           }
 
           Text("Automatically unloads the model from memory when not in use.")
-            .font(.callout)
+            .font(.system(size: 11))
             .foregroundStyle(.secondary)
         }
       }
@@ -123,7 +123,7 @@ struct SettingsView: View {
           }
 
           Text("Authenticate model downloads; optional.")
-            .font(.callout)
+            .font(.system(size: 11))
             .foregroundStyle(.secondary)
         }
       }
@@ -139,7 +139,7 @@ struct SettingsView: View {
           Text("Cache directory")
 
           Text("Where downloaded models are stored.")
-            .font(.callout)
+            .font(.system(size: 11))
             .foregroundStyle(.secondary)
 
           HStack(spacing: 6) {
