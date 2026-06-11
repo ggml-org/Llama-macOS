@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Container view for expanded model details.
-/// Shows a compact segmented control of context tiers with the memory usage
+/// Shows a compact row of context tier pills with the memory usage
 /// for the selected tier. Selecting a tier updates user preferences and reloads
 /// the server if running.
 final class ExpandedModelDetailsView: ItemView {
@@ -12,8 +12,15 @@ final class ExpandedModelDetailsView: ItemView {
   // Header label
   private let headerLabel = Theme.secondaryLabel()
 
-  // Tiers backing the segmented control, in the order they appear (index = segment).
+  // Tiers backing the picker, in the order they appear (index = segment).
   private var tiers: [ContextTier] = []
+  // One pill per tier, same order as `tiers`. Each is a label wrapped in a
+  // padded container whose layer draws the selection background.
+  private var segments: [(container: NSView, label: NSTextField)] = []
+  // Index of the currently selected tier in `tiers`.
+  private var selectedIdx = 0
+  // The pill row container -- outlined to give the picker a defined shape.
+  private var picker: NSStackView?
   // Memory line showing the selected tier's usage (e.g. "Requires 1.6 GB of memory").
   private var memLabel: NSTextField?
 
@@ -59,24 +66,31 @@ final class ExpandedModelDetailsView: ItemView {
       failedLabel.lineBreakMode = .byTruncatingTail
       mainStack.addArrangedSubview(failedLabel)
     } else {
-      // Compact segmented control of supported tiers, plus a memory line that
-      // reflects the selected tier.
+      // Compact row of tier pills, plus a memory line that reflects the
+      // selected tier. Custom-drawn instead of NSSegmentedControl: lighter
+      // visually, and immune to the inactive-window graying AppKit applies to
+      // standard controls when the app isn't frontmost (menu bar apps usually
+      // aren't, so the segmented control's thumb rendered gray instead of
+      // accent-colored).
       tiers = model.supportedContextTiers
       // Fall back to the first supported tier if no effective tier is resolved.
       let effectiveTier = model.effectiveCtxTier ?? tiers.first ?? .k4
+      selectedIdx = tiers.firstIndex(of: effectiveTier) ?? 0
 
-      let segmented = NSSegmentedControl(
-        labels: tiers.map { $0.shortLabel },
-        trackingMode: .selectOne,
-        target: self,
-        action: #selector(didSelectSegment(_:)))
-      segmented.segmentStyle = .rounded
-      segmented.controlSize = .small
-      segmented.font = Theme.Fonts.secondary
-      if let idx = tiers.firstIndex(of: effectiveTier) {
-        segmented.selectedSegment = idx
+      let picker = NSStackView()
+      picker.orientation = .horizontal
+      picker.spacing = 2
+      // Subtle outline around the whole row to give the picker a defined shape.
+      picker.wantsLayer = true
+      picker.layer?.borderWidth = 1
+      picker.layer?.cornerRadius = 6
+      picker.edgeInsets = NSEdgeInsets(top: 2, left: 2, bottom: 2, right: 2)
+      self.picker = picker
+      for (idx, tier) in tiers.enumerated() {
+        picker.addArrangedSubview(makeSegment(label: tier.shortLabel, idx: idx))
       }
-      mainStack.addArrangedSubview(segmented)
+      restyleSegments()
+      mainStack.addArrangedSubview(picker)
 
       let mem = Theme.secondaryLabel()
       self.memLabel = mem
@@ -100,6 +114,50 @@ final class ExpandedModelDetailsView: ItemView {
     // Pin to the standard menu width so a long label (e.g. the "Could not estimate
     // memory" fallback) can't widen the whole menu beyond what model rows use.
     widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
+  }
+
+  // MARK: - Tier Picker
+
+  /// Creates one clickable pill for the picker: a label with a little padding
+  /// in a rounded-corner container that draws the selection background.
+  private func makeSegment(label text: String, idx: Int) -> NSView {
+    let label = Theme.secondaryLabel(text)
+    let container = NSView()
+    container.wantsLayer = true
+    container.layer?.cornerRadius = 4
+    container.translatesAutoresizingMaskIntoConstraints = false
+    label.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(label)
+    NSLayoutConstraint.activate([
+      label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 6),
+      label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -6),
+      label.topAnchor.constraint(equalTo: container.topAnchor, constant: 2),
+      label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -2),
+    ])
+
+    let click = NSClickGestureRecognizer(target: self, action: #selector(didClickSegment(_:)))
+    container.addGestureRecognizer(click)
+    segments.append((container, label))
+    return container
+  }
+
+  /// Applies selected/unselected styling to every pill: the selected tier gets
+  /// a subtle background and primary text, the rest plain secondary text.
+  private func restyleSegments() {
+    picker?.layer?.setBorderColor(Theme.Colors.separator, in: self)
+    for (idx, segment) in segments.enumerated() {
+      let selected = idx == selectedIdx
+      segment.label.textColor = selected ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
+      segment.container.layer?.setBackgroundColor(
+        selected ? Theme.Colors.subtleBackground : .clear, in: self)
+    }
+  }
+
+  // Layer colors are resolved CGColors, so re-resolve them when the system
+  // appearance flips between light and dark.
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    restyleSegments()
   }
 
   // MARK: - Memory Line
@@ -128,12 +186,15 @@ final class ExpandedModelDetailsView: ItemView {
 
   // MARK: - Actions
 
-  @objc private func didSelectSegment(_ sender: NSSegmentedControl) {
-    let idx = sender.selectedSegment
-    guard idx >= 0, idx < tiers.count else { return }
+  @objc private func didClickSegment(_ sender: NSClickGestureRecognizer) {
+    guard let container = sender.view,
+      let idx = segments.firstIndex(where: { $0.container == container })
+    else { return }
     let tier = tiers[idx]
 
-    // Reflect the new selection in the memory line right away.
+    // Reflect the new selection in the picker and memory line right away.
+    selectedIdx = idx
+    restyleSegments()
     updateMemLabel(for: tier)
 
     // Skip the rest if this is already the active tier.
