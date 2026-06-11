@@ -82,9 +82,9 @@ enum LlamaInstaller {
 
   // MARK: - Steps
 
-  /// Maps this Mac's CPU to a Metal bucket config (`m1`…`m5`), mirroring
+  /// Maps this Mac's CPU to a Metal bucket config (`m1`…`m5`, `a18`), mirroring
   /// `install.sh`, which buckets every M-series variant (Pro/Max/Ultra) by
-  /// generation number.
+  /// generation number and also accepts the A18 (non-M MacBook).
   private static func metalConfig() throws -> String {
     var size = 0
     sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0)
@@ -93,12 +93,11 @@ enum LlamaInstaller {
     sysctlbyname("machdep.cpu.brand_string", &buf, &size, nil, 0)
     let brand = String(cString: buf)
 
-    guard let range = brand.range(of: "Apple M[1-5]", options: .regularExpression),
-      let digit = brand[range].last
+    guard let range = brand.range(of: "Apple (M[1-5]|A18)", options: .regularExpression)
     else {
       throw InstallError.unsupportedHardware(brand)
     }
-    return "m\(digit)"
+    return brand[range].dropFirst("Apple ".count).lowercased()
   }
 
   /// Ensures the `unzstd` helper is present, fetching it once and caching it
