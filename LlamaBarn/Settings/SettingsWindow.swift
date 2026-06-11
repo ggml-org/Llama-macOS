@@ -236,9 +236,10 @@ struct SettingsView: View {
 
 /// Compact pill-style segmented picker -- the SwiftUI counterpart of the
 /// menu's context tier picker (ExpandedModelDetailsView): a row of clickable
-/// pills where the selected one gets a subtle background and primary text.
-/// No outline or background; hairline dividers separate the pills and cap
-/// the row at the start and end so it still reads as one control.
+/// pills on a solid neutral background (no outline), echoing the native
+/// switch and button styling in the settings window. The selected pill gets
+/// a thumb-like solid fill and primary text; hairline dividers separate
+/// unselected neighbors.
 struct PillPicker<Option: Hashable>: View {
   let options: [(value: Option, label: String)]
   @Binding var selection: Option
@@ -249,7 +250,6 @@ struct PillPicker<Option: Hashable>: View {
 
   var body: some View {
     HStack(spacing: 1) {
-      divider(hidden: selectedIdx == 0)
       ForEach(Array(options.enumerated()), id: \.offset) { idx, option in
         if idx > 0 {
           divider(hidden: idx == selectedIdx || idx - 1 == selectedIdx)
@@ -271,16 +271,20 @@ struct PillPicker<Option: Hashable>: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(
-              selected ? Color(nsColor: Theme.Colors.subtleBackground) : .clear,
+              // Thumb-like solid fill -- the subtle gray used in the menu
+              // picker wouldn't read against the row's own background
+              selected ? Color(nsColor: .controlBackgroundColor) : .clear,
               in: RoundedRectangle(cornerRadius: 4)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
       }
-      divider(hidden: selectedIdx == options.count - 1)
     }
+    // Equal breathing room between the pills and the row edge on all sides
+    .padding(.horizontal, 2)
     .padding(.vertical, 2)
+    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
   }
 
   /// Hairline divider; hidden ones keep their layout slot (clear color) so
