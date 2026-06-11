@@ -88,13 +88,10 @@ struct SettingsView: View {
       Section {
         VStack(alignment: .leading, spacing: 4) {
           LabeledContent("Unload when idle") {
-            Picker("", selection: $sleepIdleTime) {
-              ForEach(UserSettings.SleepIdleTime.allCases, id: \.self) { time in
-                Text(time.displayName).tag(time)
-              }
-            }
-            .labelsHidden()
-            .fixedSize()
+            PillPicker(
+              options: UserSettings.SleepIdleTime.allCases.map { ($0, $0.displayName) },
+              selection: $sleepIdleTime
+            )
             .onChange(of: sleepIdleTime) { _, newValue in
               UserSettings.sleepIdleTime = newValue
             }
@@ -234,6 +231,70 @@ struct SettingsView: View {
       return "~" + path.dropFirst(home.count)
     }
     return path
+  }
+}
+
+/// Compact pill-style segmented picker -- the SwiftUI counterpart of the
+/// menu's context tier picker (ExpandedModelDetailsView): an outlined row of
+/// clickable pills where the selected one gets a subtle background and primary
+/// text, with hairline dividers between unselected neighbors.
+struct PillPicker<Option: Hashable>: View {
+  let options: [(value: Option, label: String)]
+  @Binding var selection: Option
+
+  private var selectedIdx: Int {
+    options.firstIndex { $0.value == selection } ?? 0
+  }
+
+  var body: some View {
+    // 1px spacing matches the gap the menu picker keeps around its dividers
+    HStack(spacing: 1) {
+      ForEach(Array(options.enumerated()), id: \.offset) { idx, option in
+        if idx > 0 {
+          // Hairline divider, hidden (kept for stable layout) when adjacent
+          // to the selected pill -- its background already delimits the gap
+          Rectangle()
+            .fill(
+              idx == selectedIdx || idx - 1 == selectedIdx
+                ? Color.clear : Color(nsColor: Theme.Colors.separator)
+            )
+            .frame(width: 1, height: 8)
+        }
+
+        let selected = idx == selectedIdx
+        // A plain Button (not onTapGesture) -- gestures on Form rows are
+        // unreliable on macOS, buttons always receive clicks
+        Button {
+          selection = option.value
+        } label: {
+          Text(option.label)
+            .font(.callout)
+            .foregroundStyle(
+              selected
+                ? Color(nsColor: Theme.Colors.textPrimary)
+                : Color(nsColor: Theme.Colors.textSecondary)
+            )
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(
+              selected ? Color(nsColor: Theme.Colors.subtleBackground) : .clear,
+              in: RoundedRectangle(cornerRadius: 4)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+      }
+    }
+    // Equal breathing room between the pills and the outline on all sides
+    .padding(.horizontal, 2)
+    .padding(.vertical, 2)
+    .overlay(
+      // Subtle outline around the whole row to give the picker a defined shape
+      RoundedRectangle(cornerRadius: 6)
+        .strokeBorder(Color(nsColor: Theme.Colors.separator), lineWidth: 1)
+        // Keep the outline from intercepting clicks meant for the pills
+        .allowsHitTesting(false)
+    )
   }
 }
 

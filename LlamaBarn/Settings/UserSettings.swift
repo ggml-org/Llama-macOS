@@ -3,23 +3,26 @@ import Foundation
 /// Centralized access to simple persisted preferences.
 enum UserSettings {
   enum SleepIdleTime: Int, CaseIterable {
-    case disabled = -1
+    // Case order = display order in the settings pill picker: intervals
+    // ascending, with "Off" (never unload) last as the biggest "interval"
     #if DEBUG
       case thirtySec = 30
     #endif
     case fiveMin = 300
     case fifteenMin = 900
     case oneHour = 3600
+    case disabled = -1
 
     var displayName: String {
       switch self {
-      case .disabled: return "Off"
+      // Short labels keep the settings pill picker compact
       #if DEBUG
-        case .thirtySec: return "30 sec (debug)"
+        case .thirtySec: return "30s"
       #endif
-      case .fiveMin: return "5 min"
-      case .fifteenMin: return "15 min"
-      case .oneHour: return "1 hour"
+      case .fiveMin: return "5m"
+      case .fifteenMin: return "15m"
+      case .oneHour: return "1h"
+      case .disabled: return "Off"
       }
     }
   }
