@@ -126,7 +126,8 @@ extension Format {
   }
 
   /// Formats model metadata text.
-  /// Format: "3.1 GB  ∣  128k" (file size + effective context tier)
+  /// Format: "3.1 GB  ∣  128k  ∣  4.2 GB mem" (file size + effective context
+  /// tier + projected memory usage at that tier)
   /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
   /// For sideloaded models awaiting their MemProfile: "3.1 GB  ∣  estimating..."
   static func modelMetadata(
@@ -176,6 +177,13 @@ extension Format {
         } else {
           result.append(NSAttributedString(string: tier.label, attributes: attributes))
         }
+
+        // Projected memory usage at the selected tier (e.g. "3.3 GB mem") --
+        // distinguishes runtime footprint from the on-disk size at the front.
+        let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
+        result.append(NSAttributedString(string: "  ∣  ", attributes: secondaryAttributes))
+        result.append(NSAttributedString(string: memory(mb: ramMb), attributes: attributes))
+        result.append(NSAttributedString(string: " mem", attributes: secondaryAttributes))
       }
     }
 

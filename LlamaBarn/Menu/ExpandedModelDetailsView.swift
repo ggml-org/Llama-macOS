@@ -2,15 +2,11 @@ import AppKit
 import Foundation
 
 /// Container view for expanded model details.
-/// Shows a compact row of context tier pills with the memory usage
-/// for the selected tier. Selecting a tier updates user preferences and reloads
-/// the server if running.
+/// Shows a compact row of context tier pills. Selecting a tier updates user
+/// preferences and reloads the server if running.
 final class ExpandedModelDetailsView: ItemView {
   private let model: Model
   private unowned let server: LlamaServer
-
-  // Header label
-  private let headerLabel = Theme.secondaryLabel()
 
   // Tiers backing the picker, in the order they appear (index = segment).
   private var tiers: [ContextTier] = []
@@ -21,8 +17,6 @@ final class ExpandedModelDetailsView: ItemView {
   private var selectedIdx = 0
   // The pill row container -- outlined to give the picker a defined shape.
   private var picker: NSStackView?
-  // Memory line showing the selected tier's usage (e.g. "Requires 1.6 GB of memory").
-  private var memLabel: NSTextField?
 
   init(
     model: Model,
@@ -46,10 +40,6 @@ final class ExpandedModelDetailsView: ItemView {
     mainStack.alignment = .leading
     mainStack.spacing = 4
 
-    headerLabel.stringValue = "Context length"
-    headerLabel.textColor = Theme.Colors.modelIconTint
-    mainStack.addArrangedSubview(headerLabel)
-
     // For sideloaded models awaiting their MemProfile, show a placeholder message
     // instead of the picker (we don't have accurate memory estimates yet).
     // For failed estimation (-1), show a failure message with the 4k fallback.
@@ -66,11 +56,14 @@ final class ExpandedModelDetailsView: ItemView {
       failedLabel.lineBreakMode = .byTruncatingTail
       mainStack.addArrangedSubview(failedLabel)
     } else {
-      // Compact row of tier pills, plus a memory line that reflects the
-      // selected tier. Custom-drawn instead of NSSegmentedControl: lighter
-      // visually, and immune to the inactive-window graying AppKit applies to
-      // standard controls when the app isn't frontmost (menu bar apps usually
-      // aren't, so the segmented control's thumb rendered gray instead of
+      // A "Context length" header with the tier pills below. The memory usage
+      // for the selected tier lives on the model row's metadata line ("3.3 GB
+      // mem"), which refreshes via LBUserSettingsDidChange when a tier is
+      // picked -- so the expanded details stay two compact lines. Pills are
+      // custom-drawn instead of NSSegmentedControl: lighter visually, and
+      // immune to the inactive-window graying AppKit applies to standard
+      // controls when the app isn't frontmost (menu bar apps usually aren't,
+      // so the segmented control's thumb rendered gray instead of
       // accent-colored).
       tiers = model.supportedContextTiers
       // Fall back to the first supported tier if no effective tier is resolved.
@@ -90,16 +83,15 @@ final class ExpandedModelDetailsView: ItemView {
       picker.setHuggingPriority(.required, for: .horizontal)
       picker.setContentHuggingPriority(.required, for: .horizontal)
       self.picker = picker
-      for (idx, tier) in tiers.enumerated() {
-        picker.addArrangedSubview(makeSegment(label: tier.shortLabel, idx: idx))
+      for tier in tiers {
+        picker.addArrangedSubview(makeSegment(label: tier.shortLabel))
       }
       restyleSegments()
-      mainStack.addArrangedSubview(picker)
 
-      let mem = Theme.secondaryLabel()
-      self.memLabel = mem
-      updateMemLabel(for: effectiveTier)
-      mainStack.addArrangedSubview(mem)
+      let header = Theme.secondaryLabel("Context length")
+      header.textColor = Theme.Colors.modelIconTint
+      mainStack.addArrangedSubview(header)
+      mainStack.addArrangedSubview(picker)
     }
 
     // Add indent wrapper to align with model text
@@ -124,7 +116,7 @@ final class ExpandedModelDetailsView: ItemView {
 
   /// Creates one clickable pill for the picker: a label with a little padding
   /// in a rounded-corner container that draws the selection background.
-  private func makeSegment(label text: String, idx: Int) -> NSView {
+  private func makeSegment(label text: String) -> NSView {
     let label = Theme.secondaryLabel(text)
     let container = NSView()
     container.wantsLayer = true
@@ -164,30 +156,6 @@ final class ExpandedModelDetailsView: ItemView {
     restyleSegments()
   }
 
-  // MARK: - Memory Line
-
-  /// Updates the memory line to describe the usage for the given tier as a
-  /// sentence (e.g. "Requires 1.6 GB of memory"). The size is omitted -- it's
-  /// already shown on the selected segment -- with the figure emphasized.
-  private func updateMemLabel(for tier: ContextTier) {
-    guard let memLabel else { return }
-
-    let labelColor = Theme.Colors.modelIconTint
-    let valueColor = Theme.Colors.textPrimary
-    let labelAttrs = Theme.secondaryAttributes(color: labelColor)
-    let valueAttrs = Theme.secondaryAttributes(color: valueColor)
-
-    let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
-    let ramGb = Double(ramMb) / 1024.0
-    let ramStr = String(format: "%.1f GB", ramGb)
-
-    let result = NSMutableAttributedString()
-    result.append(NSAttributedString(string: "Requires ", attributes: labelAttrs))
-    result.append(NSAttributedString(string: ramStr, attributes: valueAttrs))
-    result.append(NSAttributedString(string: " of memory", attributes: labelAttrs))
-    memLabel.attributedStringValue = result
-  }
-
   // MARK: - Actions
 
   @objc private func didClickSegment(_ sender: NSClickGestureRecognizer) {
@@ -196,10 +164,10 @@ final class ExpandedModelDetailsView: ItemView {
     else { return }
     let tier = tiers[idx]
 
-    // Reflect the new selection in the picker and memory line right away.
+    // Reflect the new selection in the picker right away. (The model row's
+    // "N GB mem" metadata refreshes via the settings-change notification.)
     selectedIdx = idx
     restyleSegments()
-    updateMemLabel(for: tier)
 
     // Skip the rest if this is already the active tier.
     guard tier != model.effectiveCtxTier else { return }
