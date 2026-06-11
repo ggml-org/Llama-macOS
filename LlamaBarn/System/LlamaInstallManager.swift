@@ -39,10 +39,10 @@ final class LlamaInstallManager {
   /// binary is present.
   private(set) var currentVersion: LlamaVersion?
 
-  /// Whether the resolved binary is an unmanaged install (e.g. Homebrew) the app
-  /// won't touch -- surfaced in the footer (an "· ext" marker) so a stale version (and a no-op
+  /// Where the resolved binary comes from. Unmanaged installs are surfaced in
+  /// the footer (a "· brew" / "· ext" marker) so a stale version (and a no-op
   /// "Check for Updates") is explained rather than mysterious.
-  private(set) var currentIsUnmanaged = false
+  private(set) var currentOrigin: LlamaBinaries.Origin = .managed
 
   /// Ensures a usable `llama` binary is available, applying the version policy:
   /// install when missing, reconcile the managed binary to the pinned target
@@ -55,22 +55,22 @@ final class LlamaInstallManager {
     case .missing:
       return await install()
 
-    case .present(.managed, let version):
+    case .present(.managed, let version, _):
       // The app manages this one -- keep it at the pinned target. A nil version
       // (unreadable) fails open as ready, to avoid a reinstall loop.
       if let version, version != LlamaBinaries.targetVersion {
         return await install()
       }
       currentVersion = version
-      currentIsUnmanaged = false
+      currentOrigin = .managed
       state = .idle
       return true
 
-    case .present(.unmanaged, let version):
+    case .present(.unmanaged, let version, let path):
       // Can't touch an unmanaged install; nudge if below the floor but keep
       // running (warn, not block).
       currentVersion = version
-      currentIsUnmanaged = true
+      currentOrigin = LlamaBinaries.isHomebrew(at: path) ? .brew : .external
       if let version, version < LlamaBinaries.floorVersion {
         state = .unmanagedTooOld(version: version)
       } else {
@@ -92,7 +92,7 @@ final class LlamaInstallManager {
       // change already reflects the freshly-installed version. The freshly
       // installed binary is app-managed.
       await refreshVersion()
-      currentIsUnmanaged = false
+      currentOrigin = .managed
       state = .idle
       return true
     } catch {

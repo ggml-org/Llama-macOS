@@ -6,20 +6,19 @@ final class FooterView: ItemView {
   private let onQuit: () -> Void
   /// Build of the `llama` binary actually in use, or nil if not yet known.
   private let llamaVersion: String?
-  /// Whether that binary is an unmanaged install (e.g. Homebrew) the app won't
-  /// update -- flagged with an "(external)" marker so a stale version isn't
-  /// mistaken for a bug.
-  private let llamaIsUnmanaged: Bool
+  /// Where that binary comes from -- unmanaged installs get a marker ("· brew"
+  /// or "· ext") so a stale version isn't mistaken for a bug.
+  private let llamaOrigin: LlamaBinaries.Origin
 
   init(
     llamaVersion: String?,
-    llamaIsUnmanaged: Bool,
+    llamaOrigin: LlamaBinaries.Origin,
     onCheckForUpdates: @escaping () -> Void,
     onOpenSettings: @escaping () -> Void,
     onQuit: @escaping () -> Void
   ) {
     self.llamaVersion = llamaVersion
-    self.llamaIsUnmanaged = llamaIsUnmanaged
+    self.llamaOrigin = llamaOrigin
     self.onCheckForUpdates = onCheckForUpdates
     self.onOpenSettings = onOpenSettings
     self.onQuit = onQuit
@@ -52,9 +51,15 @@ final class FooterView: ItemView {
     versionLabel.addGestureRecognizer(versionClick)
 
     // Llama Version Label -- the build of the binary actually being driven.
-    // Unmanaged (e.g. Homebrew) installs get an "· ext" marker, since the
-    // app won't update them and their version can legitimately trail the pin.
-    let marker = llamaIsUnmanaged ? " · ext" : ""
+    // Unmanaged installs get a marker ("· brew" for Homebrew, "· ext" for
+    // anything else), since the app won't update them and their version can
+    // legitimately trail the pin.
+    let marker: String
+    switch llamaOrigin {
+    case .managed: marker = ""
+    case .brew: marker = " · brew"
+    case .external: marker = " · ext"
+    }
     let llamaText = llamaVersion.map { " · llama.cpp \($0)\(marker)" } ?? " · llama.cpp"
     let llamaLabel = Theme.tertiaryLabel(llamaText)
     llamaLabel.translatesAutoresizingMaskIntoConstraints = false

@@ -327,7 +327,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     let footerView = FooterView(
       llamaVersion: LlamaInstallManager.shared.currentVersion?.tag,
-      llamaIsUnmanaged: LlamaInstallManager.shared.currentIsUnmanaged,
+      llamaOrigin: LlamaInstallManager.shared.currentOrigin,
       onCheckForUpdates: { [weak self] in self?.checkForUpdates() },
       onOpenSettings: { [weak self] in self?.openSettings() },
       onQuit: { [weak self] in self?.quitApp() }
