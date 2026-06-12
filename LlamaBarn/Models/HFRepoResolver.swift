@@ -126,9 +126,9 @@ enum HFRepoResolver {
       approxBytes += sizeByPath[path] ?? 0
     }
 
-    let org = String(repo.split(separator: "/")[0])
-    let name = String(repo.split(separator: "/")[1])
-    let modelId = "\(org)/\(name):\(pick.quant)"
+    // `repo` is already validated as `{org}/{name}` upstream, so the sideloaded
+    // id is just `{repo}:{QUANT}`.
+    let modelId = "\(repo):\(pick.quant)"
 
     let mainUrl = resolveUrl(repo: repo, path: pick.rfilename)
     let extraUrls = shards.dropFirst().map { resolveUrl(repo: repo, path: $0) }
