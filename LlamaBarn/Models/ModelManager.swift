@@ -331,10 +331,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
 
     // Move file deletion to background queue to avoid blocking main thread
-    let logger = self.logger
     let modelId = model.id
     let cacheDir = UserSettings.hfCacheDirectory
-    Task.detached {
+    Task.detached { [weak self] in
       do {
         // Clean up any lingering partial files for this model.
         HFCache.removePartials(cacheDir: cacheDir, modelId: modelId)
@@ -348,19 +347,19 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         }
       } catch {
         // If deletion failed, restore the model in the list
+        guard let self else { return }
         await MainActor.run {
-          Self.restoreDeletedModel(model, logger: logger, error: error)
+          self.restoreDeletedModel(model, error: error)
         }
       }
     }
   }
 
-  private static func restoreDeletedModel(_ model: Model, logger: Logger, error: Error) {
-    let manager = ModelManager.shared
-    manager.downloadedModels.append(model)
-    manager.downloadedModels.sort(by: Model.displayOrder(_:_:))
+  private func restoreDeletedModel(_ model: Model, error: Error) {
+    downloadedModels.append(model)
+    downloadedModels.sort(by: Model.displayOrder(_:_:))
     // Re-scan to rebuild resolvedPaths
-    manager.refreshDownloadedModels()
+    refreshDownloadedModels()
     logger.error("Failed to delete model: \(error.localizedDescription)")
   }
 
@@ -428,7 +427,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let hfCacheDir = UserSettings.hfCacheDirectory
 
     // Move directory reading to background queue to avoid blocking main thread
-    Task.detached {
+    Task.detached { [weak self] in
       let discovered = HFCache.scanForSideloaded(cacheDir: hfCacheDir)
 
       // Apply cached mem-profile when available; queue the rest for async probing.
@@ -455,38 +454,38 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       let finalResolved = resolvedPaths
       let pendingProfile = needsProfile
 
+      guard let self else { return }
       await MainActor.run {
-        Self.updateDownloadedModels(
+        self.updateDownloadedModels(
           allDownloaded, resolved: finalResolved, pending: pendingProfile)
       }
     }
   }
 
-  private static func updateDownloadedModels(
+  private func updateDownloadedModels(
     _ models: [Model],
     resolved: [String: ResolvedPaths],
     pending: [(id: String, path: String)] = []
   ) {
-    let manager = ModelManager.shared
-    manager.downloadedModels = models.sorted(by: Model.displayOrder(_:_:))
-    manager.resolvedPaths = resolved
+    downloadedModels = models.sorted(by: Model.displayOrder(_:_:))
+    resolvedPaths = resolved
     // Paused-download entries are entirely in-memory (placeholders the
     // deeplink/manual-pause paths stash). A refresh shouldn't touch them
     // unless the row is now installed or actively downloading.
-    let excluded = Set(manager.downloadedModels.map(\.id))
-      .union(manager.activeDownloads.keys)
-    manager.pausedDownloads = manager.pausedDownloads.filter { !excluded.contains($0.key) }
+    let excluded = Set(downloadedModels.map(\.id))
+      .union(activeDownloads.keys)
+    pausedDownloads = pausedDownloads.filter { !excluded.contains($0.key) }
 
     // Only reload server if models.ini actually changed
-    if manager.updateModelsFile() {
+    if updateModelsFile() {
       LlamaServer.shared.reload()
     }
 
-    NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: manager)
+    NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
 
     // Kick off async mem-profile probing for models without cached results
     if !pending.isEmpty {
-      manager.enrichWithMemProfiles(pending)
+      enrichWithMemProfiles(pending)
     }
   }
 
