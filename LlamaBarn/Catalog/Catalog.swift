@@ -143,13 +143,9 @@ enum Catalog {
 
     // A build fits when its estimated weight memory is within budget. Unknown
     // sizes are treated as fitting (don't hide), matching the resolver's posture.
-    func fits(_ bytes: Int64) -> Bool {
-      guard bytes > 0 else { return true }
-      let weightMb = Double(bytes) / 1_048_576.0 * 1.05
-      return weightMb <= budgetMb
+    let fitting = candidates.filter {
+      Model.estimatedWeightFits(bytes: $0.bytes, budgetMb: budgetMb)
     }
-
-    let fitting = candidates.filter { fits($0.bytes) }
     guard let best = fitting.max(by: { $0.bytes < $1.bytes }) else { return [] }
 
     // Smaller pick: smallest fitting build that clears the param floor.
@@ -233,20 +229,6 @@ extension Catalog.Suggestion {
   /// generic system symbol. Keyed on brand (not family) since the catalog gives
   /// us the brand directly, e.g. "OpenAI" → the GPT mark.
   var brandLogoAsset: String? {
-    let key = brand.lowercased()
-    let brands: [(keyword: String, asset: String)] = [
-      ("qwen", "qwen"),
-      ("gemma", "gemma"),
-      ("openai", "gpt"),
-      ("gpt", "gpt"),
-      ("mistral", "mistral"),
-      ("ministral", "mistral"),
-      ("devstral", "mistral"),
-      ("glm", "z"),
-      ("nemotron", "nvidia"),
-      ("nvidia", "nvidia"),
-    ]
-    guard let asset = brands.first(where: { key.contains($0.keyword) })?.asset else { return nil }
-    return "ModelLogos/\(asset)"
+    ModelLogos.asset(matching: brand)
   }
 }
