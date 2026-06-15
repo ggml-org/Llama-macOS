@@ -20,8 +20,8 @@ enum RenameMigration {
   /// Set in the *new* domain once migration completes; gates re-runs.
   private static let completedKey = "renameMigrationCompleted"
 
-  /// Bundle-id prefix of the pre-rename identity.
-  private static let oldProductName = "app.llamabarn.LlamaBarn"
+  /// Bundle id of the pre-rename identity (the `.dev` suffix is appended for dev builds).
+  private static let oldBundleIdBase = "app.llamabarn.LlamaBarn"
 
   static func runIfNeeded() {
     let defaults = UserDefaults.standard
@@ -50,7 +50,7 @@ enum RenameMigration {
   /// from their own old domain.
   /// e.g. `app.llama.Llama.dev` → `app.llamabarn.LlamaBarn.dev`.
   private static func oldDomain(forCurrent current: String) -> String {
-    current.hasSuffix(".dev") ? "\(oldProductName).dev" : oldProductName
+    current.hasSuffix(".dev") ? "\(oldBundleIdBase).dev" : oldBundleIdBase
   }
 
   // MARK: - UserDefaults
@@ -60,8 +60,8 @@ enum RenameMigration {
   /// whole domain (rather than an allowlist) so it also carries keys we don't own
   /// -- Sparkle's update-group/last-check state, window frames -- and any settings
   /// added in future releases, with no per-key maintenance.
-  private static func migrateUserDefaults(from oldDomain: String, into defaults: UserDefaults) {
-    guard let old = defaults.persistentDomain(forName: oldDomain), !old.isEmpty else { return }
+  private static func migrateUserDefaults(from domain: String, into defaults: UserDefaults) {
+    guard let old = defaults.persistentDomain(forName: domain), !old.isEmpty else { return }
 
     var migrated = 0
     for (key, value) in old where defaults.object(forKey: key) == nil {
@@ -69,7 +69,7 @@ enum RenameMigration {
       migrated += 1
     }
     logger.info(
-      "Migrated \(migrated) UserDefaults keys from \(oldDomain, privacy: .public)")
+      "Migrated \(migrated) UserDefaults keys from \(domain, privacy: .public)")
   }
 
   // MARK: - On-disk staging dir
