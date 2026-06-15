@@ -5,7 +5,7 @@
 	<key>NSAppleScriptEnabled</key>
 	<true/>
 	<key>OSAScriptingDefinition</key>
-	<string>LlamaBarn.sdef</string>
+	<string>Llama.sdef</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

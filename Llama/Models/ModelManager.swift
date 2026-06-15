@@ -157,7 +157,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   }
 
   /// Starts URLSession data tasks for the given files.
-  /// Each file streams into a `.partial` file under `<hf-cache>/.llamabarn-partial/<modelId>/`;
+  /// Each file streams into a `.partial` file under `<hf-cache>/.llama-partial/<modelId>/`;
   /// if a partial already exists on disk, we resume via a `Range` header.
   private func startDownloadTasks(model: Model, files: [URL]) {
     let modelId = model.id

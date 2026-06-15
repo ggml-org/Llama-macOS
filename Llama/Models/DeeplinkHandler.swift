@@ -7,7 +7,7 @@ import os.log
 /// Design notes:
 ///   - Silent start: the download just begins in the background. User clicks
 ///     the menu bar icon to see progress. No auto-popup — browser already
-///     showed a "Open in LlamaBarn?" prompt, so no extra confirmation here
+///     showed a "Open in Llama?" prompt, so no extra confirmation here
 ///     either.
 ///   - No cross-launch persistence: if the app dies mid-download, the
 ///     `.partial` bytes stay on disk. Re-clicking the same deeplink resolves
@@ -19,7 +19,7 @@ final class DeeplinkHandler {
   private let logger = Logger(subsystem: Logging.subsystem, category: "DeeplinkHandler")
 
   func handle(url: URL) {
-    guard let parsed = LlamaBarnURL.parse(url) else {
+    guard let parsed = LlamaURL.parse(url) else {
       logger.info("Ignoring unrecognized URL: \(url.absoluteString, privacy: .public)")
       return
     }

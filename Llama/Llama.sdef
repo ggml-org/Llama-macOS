@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
-<dictionary title="LlamaBarn Terminology">
-    <suite name="LlamaBarn Suite" code="LBrn" description="LlamaBarn specific classes and commands.">
+<dictionary title="Llama Terminology">
+    <suite name="Llama Suite" code="LBrn" description="Llama specific classes and commands.">
         <command name="show settings" code="LBrnSett" description="Open the settings window.">
-            <cocoa class="LlamaBarn.ShowSettingsCommand"/>
+            <cocoa class="Llama.ShowSettingsCommand"/>
         </command>
     </suite>
 </dictionary>

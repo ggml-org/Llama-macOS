@@ -141,7 +141,7 @@ class LlamaServer {
 
     // Empty dir to suppress router mode's automatic model discovery from cache.
     // Without this, llama-server scans the HF cache and lists every GGUF it finds.
-    let emptyCachePath = NSTemporaryDirectory() + "llamabarn-empty-cache"
+    let emptyCachePath = NSTemporaryDirectory() + "llama-empty-cache"
     try? FileManager.default.createDirectory(
       atPath: emptyCachePath, withIntermediateDirectories: true)
 
@@ -311,7 +311,7 @@ class LlamaServer {
   }
 
   /// Switch the active model in the UI. In Router Mode, this doesn't restart the server,
-  /// but updates what LlamaBarn considers the "current" model.
+  /// but updates what Llama considers the "current" model.
   func loadModel(_ model: Model) {
     if !isRunning && !isLoading {
       start()

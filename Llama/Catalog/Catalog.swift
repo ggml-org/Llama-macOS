@@ -3,7 +3,7 @@ import os.log
 
 /// The remote model catalog.
 ///
-/// LlamaBarn no longer ships a hard-coded catalog; curation lives on the web at
+/// Llama no longer ships a hard-coded catalog; curation lives on the web at
 /// `llama.app`, which also publishes a JSON endpoint the app can
 /// consume. We use it for a lightweight in-app "Discover" section — a handful of
 /// featured families, up to two device-appropriate picks each — so a fresh

@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Only one verb today — `install` — but the URL shape (flat, verb-first) leaves
 /// room for future actions (`load`, `open-settings`, ...) without restructuring.
-enum LlamaBarnURL: Equatable {
+enum LlamaURL: Equatable {
   /// `llama://install?repo={org}/{repo}[&quant={label}]`
   case install(repo: String, quant: String?)
 
@@ -25,12 +25,12 @@ enum LlamaBarnURL: Equatable {
     return Set(schemes.map { $0.lowercased() })
   }()
 
-  /// Parses a URL into a `LlamaBarnURL`. Returns nil for anything that isn't a
+  /// Parses a URL into a `LlamaURL`. Returns nil for anything that isn't a
   /// recognized verb under our registered scheme or that fails shallow
   /// validation (shape of `repo`). Deeper validation (quant label
   /// canonicalization, repo existence) happens downstream in `HFRepoResolver`
   /// / `GGUFQuantLabel`.
-  static func parse(_ url: URL) -> LlamaBarnURL? {
+  static func parse(_ url: URL) -> LlamaURL? {
     guard let scheme = url.scheme?.lowercased(), registeredSchemes.contains(scheme)
     else { return nil }
 
@@ -48,7 +48,7 @@ enum LlamaBarnURL: Equatable {
     }
   }
 
-  private static func parseInstall(query: [URLQueryItem]) -> LlamaBarnURL? {
+  private static func parseInstall(query: [URLQueryItem]) -> LlamaURL? {
     var repo: String?
     var quant: String?
     for item in query {

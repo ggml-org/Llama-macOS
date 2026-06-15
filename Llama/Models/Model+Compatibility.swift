@@ -12,7 +12,7 @@ extension Model {
 
   /// Memory overhead reserved for macOS and other apps (in MB).
   /// This margin is also passed to llama-server via --fit-target so both
-  /// LlamaBarn's predictions and llama-server's runtime checks use the same value.
+  /// Llama's predictions and llama-server's runtime checks use the same value.
   static let memOverheadMb: Double = 2048
 
   /// Calculates available memory budget in MB based on system memory.

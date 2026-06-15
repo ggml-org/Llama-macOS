@@ -556,7 +556,7 @@ enum HFCache {
 
     // Generate stable ID matching llama-server's `-hf` shorthand format:
     // "{org}/{repo}:{QUANT}" -- e.g. "ggml-org/gemma-3-1b-it-qat-GGUF:Q4_0".
-    // This lets power users switch b/w llama-server and LlamaBarn w/o changing
+    // This lets power users switch b/w llama-server and Llama w/o changing
     // model IDs in their code.
     let modelId = "\(parsed.org)/\(parsed.repo):\(quant)"
 

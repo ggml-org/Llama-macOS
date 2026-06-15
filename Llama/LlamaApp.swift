@@ -5,7 +5,7 @@ import SwiftUI
 import os.log
 
 @main
-struct LlamaBarnApp: App {
+struct LlamaApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
   var body: some Scene {
@@ -107,7 +107,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       }
     #endif
 
-    logger.info("LlamaBarn starting up")
+    logger.info("Llama starting up")
 
     // Configure app as menu bar only (removes from Dock)
     NSApp.setActivationPolicy(.accessory)
@@ -170,7 +170,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       DeeplinkHandler.shared.handle(url: url)
     }
 
-    logger.info("LlamaBarn startup complete")
+    logger.info("Llama startup complete")
   }
 
   /// Ensures a usable `llama` binary is present -- installing one if none is
@@ -194,7 +194,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    logger.info("LlamaBarn shutting down")
+    logger.info("Llama shutting down")
 
     // Gracefully stop the llama-server process when app quits
     LlamaServer.shared.stop()

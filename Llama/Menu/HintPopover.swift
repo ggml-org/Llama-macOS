@@ -3,7 +3,7 @@ import AppKit
 /// A small speech-bubble-style popover anchored to the status bar icon.
 ///
 /// Used for lightweight, dismissible feedback -- e.g. the first-launch
-/// "Hello, I'm LlamaBarn" greeting, and deeplink install acknowledgements
+/// "Hello, I'm Llama" greeting, and deeplink install acknowledgements
 /// like "Downloading <model>…". The popover auto-dismisses when the menu
 /// opens (user clicked the icon) or when the user clicks outside it.
 final class HintPopover: NSViewController, NSPopoverDelegate {

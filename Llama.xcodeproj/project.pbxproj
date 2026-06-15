@@ -12,13 +12,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		1568919C2E2685F700F71BD4 /* LlamaBarn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LlamaBarn.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1568919C2E2685F700F71BD4 /* Llama.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Llama.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		1568919E2E2685F700F71BD4 /* LlamaBarn */ = {
+		1568919E2E2685F700F71BD4 /* Llama */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = LlamaBarn;
+			path = Llama;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -39,7 +39,7 @@
 		156891932E2685F700F71BD4 = {
 			isa = PBXGroup;
 			children = (
-				1568919E2E2685F700F71BD4 /* LlamaBarn */,
+				1568919E2E2685F700F71BD4 /* Llama */,
 				1568919D2E2685F700F71BD4 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -47,7 +47,7 @@
 		1568919D2E2685F700F71BD4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				1568919C2E2685F700F71BD4 /* LlamaBarn.app */,
+				1568919C2E2685F700F71BD4 /* Llama.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,9 +55,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1568919B2E2685F700F71BD4 /* LlamaBarn */ = {
+		1568919B2E2685F700F71BD4 /* Llama */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 156891A82E2685F900F71BD4 /* Build configuration list for PBXNativeTarget "LlamaBarn" */;
+			buildConfigurationList = 156891A82E2685F900F71BD4 /* Build configuration list for PBXNativeTarget "Llama" */;
 			buildPhases = (
 				156891982E2685F700F71BD4 /* Sources */,
 				156891992E2685F700F71BD4 /* Frameworks */,
@@ -68,15 +68,15 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				1568919E2E2685F700F71BD4 /* LlamaBarn */,
+				1568919E2E2685F700F71BD4 /* Llama */,
 			);
-			name = LlamaBarn;
+			name = Llama;
 			packageProductDependencies = (
 				156891D22E268C5F00F71BD4 /* Sparkle */,
 				154EE9702EA64E200083FDEE /* Sentry */,
 			);
-			productName = LlamaBarn;
-			productReference = 1568919C2E2685F700F71BD4 /* LlamaBarn.app */;
+			productName = Llama;
+			productReference = 1568919C2E2685F700F71BD4 /* Llama.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -94,7 +94,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 156891972E2685F700F71BD4 /* Build configuration list for PBXProject "LlamaBarn" */;
+			buildConfigurationList = 156891972E2685F700F71BD4 /* Build configuration list for PBXProject "Llama" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -112,7 +112,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1568919B2E2685F700F71BD4 /* LlamaBarn */,
+				1568919B2E2685F700F71BD4 /* Llama */,
 			);
 		};
 /* End PBXProject section */
@@ -269,7 +269,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = LlamaBarn/info.plist;
+				INFOPLIST_FILE = Llama/info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_CFBundleDisplayName = Llama;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -303,7 +303,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = LlamaBarn/info.plist;
+				INFOPLIST_FILE = Llama/info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_CFBundleDisplayName = Llama;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -327,7 +327,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		156891972E2685F700F71BD4 /* Build configuration list for PBXProject "LlamaBarn" */ = {
+		156891972E2685F700F71BD4 /* Build configuration list for PBXProject "Llama" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				156891A62E2685F900F71BD4 /* Debug */,
@@ -336,7 +336,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		156891A82E2685F900F71BD4 /* Build configuration list for PBXNativeTarget "LlamaBarn" */ = {
+		156891A82E2685F900F71BD4 /* Build configuration list for PBXNativeTarget "Llama" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				156891A92E2685F900F71BD4 /* Debug */,

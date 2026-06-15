@@ -13,7 +13,7 @@ import Foundation
 final class WriterTable: @unchecked Sendable {
   private var writers: [Int: PartialWriter] = [:]
   private let queue = DispatchQueue(
-    label: "app.llamabarn.ModelManager.writers", qos: .userInitiated)
+    label: "app.llama.ModelManager.writers", qos: .userInitiated)
 
   /// Runs `body` with exclusive access to the writer table. The sole entry
   /// point — every read or mutation of a writer goes through here.

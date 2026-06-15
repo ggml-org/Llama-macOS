@@ -55,7 +55,7 @@ extension ModelManager {
 
       // Keep Sentry error-grouping stable across releases.
       let nsErr = NSError(
-        domain: "LlamaBarn.ModelManager", code: status,
+        domain: "Llama.ModelManager", code: status,
         userInfo: [
           NSLocalizedDescriptionKey: "Download failed with HTTP \(status)",
           "modelId": modelId,
@@ -150,7 +150,7 @@ extension ModelManager {
         return
       }
 
-      // Capture remaining errors to Sentry; the SDK config in LlamaBarnApp filters common noise.
+      // Capture remaining errors to Sentry; the SDK config in LlamaApp filters common noise.
       SentrySDK.capture(error: error)
 
       // No writer means a terminal handler already ran for this task; nothing to report.
