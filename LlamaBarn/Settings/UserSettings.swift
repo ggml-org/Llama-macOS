@@ -109,12 +109,13 @@ enum UserSettings {
 
   // MARK: - Application Support Directory
 
-  /// App's Application Support directory (~/Library/Application Support/LlamaBarn/).
+  /// App's Application Support directory (~/Library/Application Support/Llama/).
   /// Holds models.ini and serves as llama-server's working directory.
-  /// Auto-created on first access.
+  /// Auto-created on first access. (The pre-rename `LlamaBarn/` dir is left
+  /// orphaned; models.ini is regenerated from the cache scan, so nothing's lost.)
   static let appSupportDir: URL = {
     let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("LlamaBarn", isDirectory: true)
+      .appendingPathComponent("Llama", isDirectory: true)
     if !FileManager.default.fileExists(atPath: dir.path) {
       try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
