@@ -16,7 +16,7 @@ Llama is a macOS menu bar app for running local LLMs.
 brew install --cask llamabarn
 ```
 
-Or download from [Releases](https://github.com/ggml-org/LlamaBarn/releases).
+Or download from [Releases](https://github.com/ggml-org/Llama/releases).
 
 ## How it works
 
@@ -39,10 +39,10 @@ Llama runs a local server at `http://localhost:2276/v1`.
 
 Llama works with any OpenAI-compatible client.
 
-- **Chat UIs** — Chatbox, Open WebUI, BoltAI ([instructions](https://github.com/ggml-org/LlamaBarn/discussions/40))
-- **Editors** — VS Code, Zed, Xcode ([instructions](https://github.com/ggml-org/LlamaBarn/discussions/43))
+- **Chat UIs** — Chatbox, Open WebUI, BoltAI ([instructions](https://github.com/ggml-org/Llama/discussions/40))
+- **Editors** — VS Code, Zed, Xcode ([instructions](https://github.com/ggml-org/Llama/discussions/43))
 - **Editor extensions** — Cline, Continue
-- **CLI tools** — OpenCode ([instructions](https://github.com/ggml-org/LlamaBarn/discussions/44)), Claude Code ([instructions](https://github.com/ggml-org/LlamaBarn/discussions/45))
+- **CLI tools** — OpenCode ([instructions](https://github.com/ggml-org/Llama/discussions/44)), Claude Code ([instructions](https://github.com/ggml-org/Llama/discussions/45))
 - **Custom scripts** — curl, AI SDK, etc.
 
 You can also use the built-in WebUI at http://localhost:2276 while Llama is running.
