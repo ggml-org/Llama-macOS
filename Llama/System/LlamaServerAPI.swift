@@ -12,12 +12,7 @@ enum ModelLoadState: String, Equatable {
 /// HTTP client for communicating with llama-server's REST API.
 /// Encapsulates request building and response parsing for server endpoints.
 struct LlamaServerAPI {
-  let port: Int
   private let logger = Logger(subsystem: Logging.subsystem, category: "LlamaServerAPI")
-
-  init(port: Int = LlamaServer.defaultPort) {
-    self.port = port
-  }
 
   // MARK: - Public API
 
@@ -50,7 +45,9 @@ struct LlamaServerAPI {
 
   // MARK: - Private Helpers
 
-  private var baseUrl: String { "http://localhost:\(port)" }
+  // Always the current effective port -- read live so a runtime port change
+  // is picked up without recreating the client.
+  private var baseUrl: String { "http://localhost:\(LlamaServer.port)" }
 
   /// Sends a GET request and returns the response data.
   private func get(endpoint: String, timeout: TimeInterval = 2.0) async -> Data? {

@@ -25,8 +25,35 @@ class LlamaServer {
   /// Singleton instance for app-wide server management
   static let shared = LlamaServer()
 
-  /// Default port for llama-server
-  nonisolated static let defaultPort = 2276
+  /// Default port the server listens on -- matches llama.cpp's own default,
+  /// so URLs the app prints line up with a plain `llama serve`.
+  nonisolated static let defaultPort = 8080
+
+  /// The effective port: the user's override if set, else the default.
+  nonisolated static var port: Int { UserSettings.serverPort ?? defaultPort }
+
+  /// Whether `port` is free to bind on localhost right now. Used to validate a
+  /// user-chosen port before saving it, so a conflict is caught at the point of
+  /// the action rather than as an opaque server failure later. (Best-effort:
+  /// the port could still get taken between this check and the server binding.)
+  nonisolated static func isPortAvailable(_ port: Int) -> Bool {
+    let fd = socket(AF_INET, SOCK_STREAM, 0)
+    guard fd >= 0 else { return true }  // can't probe -- don't block the user
+    defer { close(fd) }
+
+    var addr = sockaddr_in()
+    addr.sin_family = sa_family_t(AF_INET)
+    addr.sin_port = in_port_t(port).bigEndian
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+
+    // No SO_REUSEADDR: we want bind to fail if something already holds the port.
+    let result = withUnsafePointer(to: &addr) {
+      $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+        bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+      }
+    }
+    return result == 0
+  }
 
   /// Returns the host string for server URLs.
   /// If network bind address is set, uses that (resolving 0.0.0.0 to the actual local IP).
@@ -125,7 +152,7 @@ class LlamaServer {
 
   /// Launches llama-server in Router Mode
   func start() {
-    let port = Self.defaultPort
+    let port = Self.port
     stop()
 
     // Resolve the llama binary up front; a missing install surfaces as an error.

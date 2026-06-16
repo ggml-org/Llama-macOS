@@ -30,6 +30,7 @@ enum UserSettings {
   private enum Keys {
     static let hasSeenWelcome = "hasSeenWelcome"
     static let exposeToNetwork = "exposeToNetwork"
+    static let serverPort = "serverPort"
     static let sleepIdleTime = "sleepIdleTime"
     static let selectedCtxTiers = "selectedCtxTiers"
     static let hfCacheDirectory = "hfCacheDirectory"
@@ -66,6 +67,33 @@ enum UserSettings {
     }
     // Not set or false → localhost only
     return nil
+  }
+
+  /// Valid range for a user-set server port. The lower bound is 1024 because
+  /// ports below that are privileged and llama serve (running as the user)
+  /// can't bind them -- restricting here avoids a confusing bind failure.
+  static let serverPortRange = 1024...65535
+
+  /// The user-set port the server listens on, or `nil` to use the default
+  /// (`LlamaServer.defaultPort`). Out-of-range stored values read as `nil`.
+  static var serverPort: Int? {
+    get {
+      let value = defaults.integer(forKey: Keys.serverPort)
+      return serverPortRange.contains(value) ? value : nil
+    }
+    set {
+      // Normalize: keep only an in-range value, otherwise fall back to default.
+      let normalized = newValue.flatMap { serverPortRange.contains($0) ? $0 : nil }
+      // Avoid a redundant change notification (which would needlessly restart
+      // the server) when the effective value isn't actually changing.
+      guard normalized != serverPort else { return }
+      if let normalized {
+        defaults.set(normalized, forKey: Keys.serverPort)
+      } else {
+        defaults.removeObject(forKey: Keys.serverPort)
+      }
+      NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+    }
   }
 
   /// How long to wait before unloading the model from memory when idle.

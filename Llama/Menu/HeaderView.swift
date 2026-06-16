@@ -109,7 +109,7 @@ final class HeaderView: ItemView {
 
     // Build server URLs using the resolved host (handles 0.0.0.0 -> local IP)
     let host = LlamaServer.resolvedHost
-    let linkText = "\(host):\(LlamaServer.defaultPort)"
+    let linkText = "\(host):\(LlamaServer.port)"
     let apiUrlString = "http://\(linkText)/v1"
     let webUiUrlString = "http://\(linkText)/"
 

@@ -67,6 +67,9 @@ struct SettingsView: View {
   @State private var hfCacheDir = UserSettings.hfCacheDirectory
   @State private var hfToken = UserSettings.hfToken ?? ""
   @State private var showingHFTokenSheet = false
+  // Effective server port; re-read after the edit sheet saves so the row updates.
+  @State private var serverPort = LlamaServer.port
+  @State private var showingServerPortSheet = false
 
   var body: some View {
     Form {
@@ -100,6 +103,34 @@ struct SettingsView: View {
           Text("Auto-unloads model when not in use.")
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
+        }
+      }
+
+      // Server port section
+      Section {
+        VStack(alignment: .leading, spacing: 4) {
+          HStack {
+            Text("Server port")
+            Spacer()
+            Button {
+              showingServerPortSheet = true
+            } label: {
+              Text(String(serverPort))
+            }
+            .font(.callout)
+            .controlSize(.small)
+          }
+
+          Text("The port the server listens on. Default \(String(LlamaServer.defaultPort)).")
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+        }
+      }
+      .sheet(isPresented: $showingServerPortSheet) {
+        ServerPortSheet(currentPort: serverPort) { newPort in
+          // nil resets to the default; the setter restarts the server once.
+          UserSettings.serverPort = newPort
+          serverPort = LlamaServer.port
         }
       }
 
@@ -366,6 +397,98 @@ struct HFTokenSheet: View {
     .onAppear {
       tokenText = currentToken
     }
+  }
+}
+
+/// Sheet for editing the server port. `onSave` receives the new port, or nil
+/// to reset to the default (when the field is cleared or set to the default).
+struct ServerPortSheet: View {
+  let currentPort: Int
+  let onSave: (Int?) -> Void
+
+  @Environment(\.dismiss) private var dismiss
+  @State private var portText: String = ""
+  // Set only after a failed Save attempt, so the error isn't flashed while
+  // the user is still editing; cleared as soon as the field changes again.
+  @State private var error: String?
+
+  private var trimmed: String {
+    portText.trimmingCharacters(in: .whitespaces)
+  }
+
+  /// Parsed port, or nil if the field isn't a valid in-range number.
+  private var parsedPort: Int? {
+    guard let port = Int(trimmed), UserSettings.serverPortRange.contains(port) else {
+      return nil
+    }
+    return port
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      Text("Server Port")
+        .font(.headline)
+
+      TextField(String(LlamaServer.defaultPort), text: $portText)
+        .textFieldStyle(.roundedBorder)
+        // Enter saves, matching the Save button.
+        .onSubmit { save() }
+        // Editing clears a stale error so it never lingers mid-type.
+        .onChange(of: portText) { _, _ in error = nil }
+
+      HStack {
+        // Validation hint -- shown only after a failed Save, not while typing.
+        if let error {
+          Text(error)
+            .font(.caption)
+            .foregroundStyle(.red)
+        }
+
+        Spacer()
+
+        Button("Cancel") {
+          dismiss()
+        }
+        .keyboardShortcut(.cancelAction)
+
+        Button("Save") {
+          save()
+        }
+        .keyboardShortcut(.defaultAction)
+      }
+    }
+    .padding(20)
+    .frame(width: 320)
+    .onAppear {
+      portText = String(currentPort)
+    }
+  }
+
+  /// Saves the edited port. Empty or the default resets the override (nil).
+  /// Otherwise the value must be in range and the port free to bind -- on
+  /// failure the sheet stays open with an explanation.
+  private func save() {
+    if trimmed.isEmpty || parsedPort == LlamaServer.defaultPort {
+      onSave(nil)
+      dismiss()
+      return
+    }
+
+    guard let port = parsedPort else {
+      let range = UserSettings.serverPortRange
+      error = "Port must be between \(String(range.lowerBound)) and \(String(range.upperBound))."
+      return
+    }
+
+    // Re-selecting the current port is a no-op; skip the availability check,
+    // which would otherwise fail because our own server already holds it.
+    if port != currentPort && !LlamaServer.isPortAvailable(port) {
+      error = "Port \(String(port)) is already in use. Pick another."
+      return
+    }
+
+    onSave(port)
+    dismiss()
   }
 }
 
