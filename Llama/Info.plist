@@ -19,7 +19,7 @@
 		</dict>
 	</array>
 	<key>SUFeedURL</key>
-	<string>https://releases.llamabarn.app/appcast.xml</string>
+	<string>https://releases.erusev.com/llama/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>01xoznnymetv09HCBgDEoSpaz6WG5WY6EBB+VpbHRaU=</string>
 	<key>SUEnableAutomaticChecks</key>
