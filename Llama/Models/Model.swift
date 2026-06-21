@@ -18,7 +18,7 @@ struct Model: Identifiable {
   /// Maximum context length in tokens. 128k upper bound — clamped by the
   /// memory budget once `ctxBytesPer1kTokens` is measured.
   let ctxWindow: Int
-  /// Total bytes on disk for the model (main + shards + mmproj).
+  /// Total bytes on disk for the model (main + shards + mmproj + mtp sidecars).
   let fileSize: Int64
   /// Estimated KV-cache footprint for a 1k-token context, in bytes.
   /// 0 = MemProfile probe is pending; -1 = probe failed; >0 = measured.

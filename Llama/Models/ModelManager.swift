@@ -388,6 +388,15 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         content += "mmproj = \(mmprojPath)\n"
       }
 
+      // A `mtp*.gguf` sidecar is a multi-token-prediction drafter — wire it up
+      // for speculative decoding so the model runs with its drafter (the server
+      // is launched with `--spec-default`). `spec-draft-n-max` is left at the
+      // binary's default. Keys map to the matching `--spec-*` server flags.
+      if let mtpPath = paths.mtpFile {
+        content += "spec-draft-model = \(mtpPath)\n"
+        content += "spec-type = draft-mtp\n"
+      }
+
       if useLargeBatch {
         content += "ubatch-size = 2048\n"
       }

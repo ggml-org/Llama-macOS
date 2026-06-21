@@ -504,7 +504,9 @@ enum HFCache {
 
     return allFiles.filter { relativePath in
       let fileName = URL(fileURLWithPath: relativePath).lastPathComponent.lowercased()
-      return fileName.hasSuffix(".gguf") && !fileName.hasPrefix("mmproj")
+      return fileName.hasSuffix(".gguf")
+        && !fileName.hasPrefix("mmproj")
+        && !fileName.hasPrefix("mtp")
     }
   }
 
@@ -527,6 +529,29 @@ enum HFCache {
     // A lone sidecar is unambiguous; skip when multiple candidates exist.
     guard candidates.count == 1, let mmproj = candidates.first else { return nil }
     return modelDir.appendingPathComponent(mmproj).path
+  }
+
+  /// Finds the MTP / speculative-decoding draft sidecar (`mtp*.gguf`) living
+  /// alongside the model file. Like mmproj, `collectGgufFiles` filters these out
+  /// of the runnable-model set, so the scan would otherwise lose them and the
+  /// model would run without its drafter. When present, `models.ini` gets the
+  /// `spec-draft-model`/`spec-type` lines that enable multi-token prediction.
+  /// Returns the absolute path of a lone sidecar in the model's directory, or
+  /// nil if there are none/ambiguous.
+  private static func findMtpFile(modelFilePath: String, fm: FileManager) -> String? {
+    let modelDir = URL(fileURLWithPath: modelFilePath).deletingLastPathComponent()
+    guard let files = try? fm.contentsOfDirectory(atPath: modelDir.path) else {
+      return nil
+    }
+
+    let candidates = files.filter {
+      let name = $0.lowercased()
+      return name.hasPrefix("mtp") && name.hasSuffix(".gguf")
+    }
+
+    // A lone sidecar is unambiguous; skip when multiple candidates exist.
+    guard candidates.count == 1, let mtp = candidates.first else { return nil }
+    return modelDir.appendingPathComponent(mtp).path
   }
 
   /// Builds a `Model` + `ResolvedPaths` from a discovered GGUF file.
@@ -567,14 +592,15 @@ enum HFCache {
       filePaths = [snapshotDir.appendingPathComponent(filename).path]
     }
 
-    // Vision projection sidecar (if any) sits alongside the main file.
+    // Vision projection + MTP draft sidecars (if any) sit alongside the main file.
     let mmprojFile = findMmprojFile(modelFilePath: filePaths[0], fm: fm)
+    let mtpFile = findMtpFile(modelFilePath: filePaths[0], fm: fm)
 
     // Resolve symlinks before reading attributes — HF cache stores symlinks in
     // snapshot dirs pointing to blobs, and attributesOfItem returns the symlink
     // size (not the target file size) for symlinks. Size aggregates main +
-    // shards + mmproj to match `Model.fileSize`.
-    let sizedPaths = filePaths + (mmprojFile.map { [$0] } ?? [])
+    // shards + mmproj + mtp to match `Model.fileSize`.
+    let sizedPaths = filePaths + (mmprojFile.map { [$0] } ?? []) + (mtpFile.map { [$0] } ?? [])
     let totalFileSize: Int64 = sizedPaths.reduce(0) { sum, path in
       let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
       return sum + fm.fileSize(atPath: resolved)
@@ -618,6 +644,7 @@ enum HFCache {
       modelFile: mainFilePath,
       additionalParts: additionalParts,
       mmprojFile: mmprojFile,
+      mtpFile: mtpFile,
       hfRepoDirName: repoDir
     )
 

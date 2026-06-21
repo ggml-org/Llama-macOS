@@ -9,6 +9,9 @@ struct ResolvedPaths {
   let additionalParts: [String]
   /// Absolute path to the mmproj file (vision models), nil if not applicable
   let mmprojFile: String?
+  /// Absolute path to the MTP / speculative-decoding draft sidecar
+  /// (`mtp*.gguf`), nil if not applicable
+  let mtpFile: String?
   /// HF cache repo directory name (e.g. "models--bartowski--Llama-3.2-1B-Instruct-GGUF").
   /// Used by deletion to clean up the per-repo directory tree.
   let hfRepoDirName: String
@@ -17,11 +20,13 @@ struct ResolvedPaths {
     modelFile: String,
     additionalParts: [String],
     mmprojFile: String?,
+    mtpFile: String? = nil,
     hfRepoDirName: String
   ) {
     self.modelFile = modelFile
     self.additionalParts = additionalParts
     self.mmprojFile = mmprojFile
+    self.mtpFile = mtpFile
     self.hfRepoDirName = hfRepoDirName
   }
 
@@ -31,6 +36,9 @@ struct ResolvedPaths {
     paths.append(contentsOf: additionalParts)
     if let mmproj = mmprojFile {
       paths.append(mmproj)
+    }
+    if let mtp = mtpFile {
+      paths.append(mtp)
     }
     return paths
   }
