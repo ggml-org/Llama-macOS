@@ -508,6 +508,27 @@ enum HFCache {
     }
   }
 
+  /// Finds the vision projection sidecar (`mmproj*.gguf`) living alongside the
+  /// model file. `collectGgufFiles` filters these out of the runnable-model set,
+  /// so the scan would otherwise lose them and `models.ini` would omit the
+  /// `mmproj =` line vision models need. Returns the absolute path of a lone
+  /// sidecar in the model's directory, or nil if there are none/ambiguous.
+  private static func findMmprojFile(modelFilePath: String, fm: FileManager) -> String? {
+    let modelDir = URL(fileURLWithPath: modelFilePath).deletingLastPathComponent()
+    guard let files = try? fm.contentsOfDirectory(atPath: modelDir.path) else {
+      return nil
+    }
+
+    let candidates = files.filter {
+      let name = $0.lowercased()
+      return name.hasPrefix("mmproj") && name.hasSuffix(".gguf")
+    }
+
+    // A lone sidecar is unambiguous; skip when multiple candidates exist.
+    guard candidates.count == 1, let mmproj = candidates.first else { return nil }
+    return modelDir.appendingPathComponent(mmproj).path
+  }
+
   /// Builds a `Model` + `ResolvedPaths` from a discovered GGUF file.
   ///
   /// Quant derivation uses `GGUFQuantLabel.parse` first and falls back to
@@ -546,10 +567,15 @@ enum HFCache {
       filePaths = [snapshotDir.appendingPathComponent(filename).path]
     }
 
+    // Vision projection sidecar (if any) sits alongside the main file.
+    let mmprojFile = findMmprojFile(modelFilePath: filePaths[0], fm: fm)
+
     // Resolve symlinks before reading attributes — HF cache stores symlinks in
     // snapshot dirs pointing to blobs, and attributesOfItem returns the symlink
-    // size (not the target file size) for symlinks.
-    let totalFileSize: Int64 = filePaths.reduce(0) { sum, path in
+    // size (not the target file size) for symlinks. Size aggregates main +
+    // shards + mmproj to match `Model.fileSize`.
+    let sizedPaths = filePaths + (mmprojFile.map { [$0] } ?? [])
+    let totalFileSize: Int64 = sizedPaths.reduce(0) { sum, path in
       let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
       return sum + fm.fileSize(atPath: resolved)
     }
@@ -591,7 +617,7 @@ enum HFCache {
     let paths = ResolvedPaths(
       modelFile: mainFilePath,
       additionalParts: additionalParts,
-      mmprojFile: nil,
+      mmprojFile: mmprojFile,
       hfRepoDirName: repoDir
     )
 
