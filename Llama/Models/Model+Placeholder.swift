@@ -14,6 +14,7 @@ extension Model {
     mainUrl: URL,
     additionalParts: [URL],
     mmprojUrl: URL?,
+    mtpUrl: URL?,
     fileSize: Int64
   ) -> Model {
     let repoDir = "models--" + repo.replacingOccurrences(of: "/", with: "--")
@@ -31,6 +32,7 @@ extension Model {
       downloadUrl: mainUrl,
       additionalParts: additionalParts.isEmpty ? nil : additionalParts,
       mmprojUrl: mmprojUrl,
+      mtpUrl: mtpUrl,
       org: org,
       tags: parsed?.tags ?? [],
       quantization: quant

@@ -41,6 +41,11 @@ struct Model: Identifiable {
   /// Vision projection sidecar URL (mmproj.gguf). Pre-download placeholders
   /// from the deeplink path carry this when the resolver attaches one.
   let mmprojUrl: URL?
+  /// MTP draft-head sidecar URL (`mtp-….gguf`). Some repos ship a separate
+  /// multi-token-prediction head alongside the main weights; when present we
+  /// download it and hand it to llama-server as the speculative draft model.
+  /// Pre-download placeholders carry this when the resolver attaches one.
+  let mtpUrl: URL?
   /// HF org parsed from the repo dir (e.g. "bartowski"). Shown in the row to
   /// disambiguate repos that share a base name across orgs.
   let org: String
@@ -62,6 +67,7 @@ struct Model: Identifiable {
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
     mmprojUrl: URL? = nil,
+    mtpUrl: URL? = nil,
     org: String,
     tags: [String] = [],
     quantization: String
@@ -77,6 +83,7 @@ struct Model: Identifiable {
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts
     self.mmprojUrl = mmprojUrl
+    self.mtpUrl = mtpUrl
     self.org = org
     self.tags = tags
     self.quantization = quantization
@@ -119,6 +126,9 @@ struct Model: Identifiable {
     }
     if let mmproj = mmprojUrl {
       urls.append(mmproj)
+    }
+    if let mtp = mtpUrl {
+      urls.append(mtp)
     }
     return urls
   }

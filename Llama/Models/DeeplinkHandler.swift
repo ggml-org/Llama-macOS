@@ -86,6 +86,7 @@ final class DeeplinkHandler {
       mainUrl: resolved.mainUrl,
       additionalParts: resolved.additionalParts,
       mmprojUrl: resolved.mmprojUrl,
+      mtpUrl: resolved.mtpUrl,
       fileSize: resolved.approximateBytes)
 
     do {

@@ -504,7 +504,11 @@ enum HFCache {
 
     return allFiles.filter { relativePath in
       let fileName = URL(fileURLWithPath: relativePath).lastPathComponent.lowercased()
-      return fileName.hasSuffix(".gguf") && !fileName.hasPrefix("mmproj")
+      // Skip mmproj (vision projection) and mtp- (speculative draft head)
+      // sidecars -- neither is a runnable model on its own.
+      return fileName.hasSuffix(".gguf")
+        && !fileName.hasPrefix("mmproj")
+        && !fileName.hasPrefix("mtp-")
     }
   }
 
@@ -588,11 +592,17 @@ enum HFCache {
       additionalParts = []
     }
 
+    // A sidecar MTP head (`mtp-….gguf`) shipped beside the main weights, if any,
+    // quant-matched to the main. Present takes precedence over an embedded head.
+    let mtpSidecar = findMTPSidecar(
+      snapshotDir: snapshotDir, mainRelPath: filename, mainQuant: quant, fm: fm)
+
     let paths = ResolvedPaths(
       modelFile: mainFilePath,
       additionalParts: additionalParts,
       mmprojFile: nil,
-      usesMTP: fileHasMTPHead(fileBaseName),
+      usesMTP: mtpSidecar == nil && fileHasMTPHead(fileBaseName),
+      mtpSidecarFile: mtpSidecar,
       hfRepoDirName: repoDir
     )
 
@@ -609,6 +619,45 @@ enum HFCache {
     fileBaseName.range(
       of: #"(^|[-_.])mtp([-_.]|$)"#,
       options: [.regularExpression, .caseInsensitive]) != nil
+  }
+
+  /// Finds a sidecar MTP draft head (`mtp-….gguf`) shipped beside the main file,
+  /// returning its absolute path. Repos pair one head per quant, so we prefer
+  /// the head whose quant matches the main (mirroring llama.cpp's `find_best_mtp`)
+  /// and fall back to the smallest head otherwise -- heads are tiny, so size is
+  /// the safe tie-breaker. Looks only in the main file's own directory, where
+  /// the snapshot places its siblings.
+  private static func findMTPSidecar(
+    snapshotDir: URL, mainRelPath: String, mainQuant: String, fm: FileManager
+  ) -> String? {
+    // The head sits in the same (sub)dir as the main file within the snapshot.
+    let mainDir = (mainRelPath as NSString).deletingLastPathComponent
+    let searchDir =
+      mainDir.isEmpty ? snapshotDir : snapshotDir.appendingPathComponent(mainDir)
+
+    guard let entries = try? fm.contentsOfDirectory(atPath: searchDir.path) else {
+      return nil
+    }
+    let heads = entries.filter {
+      let name = $0.lowercased()
+      return name.hasPrefix("mtp-") && name.hasSuffix(".gguf")
+    }
+    guard !heads.isEmpty else { return nil }
+
+    // Prefer the quant-matched head; else the smallest by resolved blob size.
+    let chosen =
+      heads.first(where: {
+        GGUFQuantLabel.parse($0).map { GGUFQuantLabel.matches($0, mainQuant) } ?? false
+      })
+      ?? heads.min { a, b in
+        let aSize = fm.fileSize(
+          atPath: searchDir.appendingPathComponent(a).resolvingSymlinksInPath().path)
+        let bSize = fm.fileSize(
+          atPath: searchDir.appendingPathComponent(b).resolvingSymlinksInPath().path)
+        return aSize < bSize
+      }
+
+    return chosen.map { searchDir.appendingPathComponent($0).path }
   }
 }
 

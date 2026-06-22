@@ -388,11 +388,15 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         content += "mmproj = \(mmprojPath)\n"
       }
 
-      // Models that embed an MTP head get speculative decoding via that head --
-      // a free speedup the MoE builds that ship one (Qwen3.6 etc.) otherwise
-      // leave on the table. `draft-mtp` reuses the main weights' MTP context,
-      // so there's no separate draft model to load.
-      if paths.usesMTP {
+      // Wire up MTP speculative decoding -- a free speedup on the MoE builds
+      // (Qwen3.6 etc.) that ship a multi-token-prediction head. Two shapes:
+      // a separate `mtp-….gguf` sidecar (passed as the draft model), or a head
+      // embedded in the main weights (reused via its own MTP context, no draft
+      // file). Sidecar wins when both look present.
+      if let mtpSidecar = paths.mtpSidecarFile {
+        content += "spec-type = draft-mtp\n"
+        content += "spec-draft-model = \(mtpSidecar)\n"
+      } else if paths.usesMTP {
         content += "spec-type = draft-mtp\n"
       }
 
@@ -700,6 +704,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
     if let mmprojUrl = model.mmprojUrl, !hfFileExists(model: model, url: mmprojUrl) {
       files.append(mmprojUrl)
+    }
+    if let mtpUrl = model.mtpUrl, !hfFileExists(model: model, url: mtpUrl) {
+      files.append(mtpUrl)
     }
 
     return files

@@ -32,6 +32,8 @@ enum HFRepoResolver {
     let additionalParts: [URL]
     /// Optional mmproj sidecar.
     let mmprojUrl: URL?
+    /// Optional MTP draft-head sidecar (`mtp-….gguf`), quant-matched to the main.
+    let mtpUrl: URL?
     /// Size in bytes if the HF API disclosed it (aggregated across main+shards+mmproj).
     /// 0 when the API didn't return per-file sizes. We start the download either way;
     /// `fetchHFDownloadPlan` does HEAD requests that produce real byte counts.
@@ -112,13 +114,15 @@ enum HFRepoResolver {
       siblings: siblings, budgetMb: budgetMb
     )
 
-    // Expand shards + attach mmproj.
+    // Expand shards + attach mmproj + attach the quant-matched MTP head.
     let shards = try expandShards(main: pick.rfilename, siblings: siblings, repo: repo)
     let mmproj = pickMmproj(repo: repo, siblings: siblings)
+    let mtp = pickMtp(repo: repo, siblings: siblings, mainQuant: pick.quant)
 
-    // Aggregate size (main + shards + mmproj), dropping unknown entries.
+    // Aggregate size (main + shards + mmproj + mtp), dropping unknown entries.
     var allPicked: [String] = shards  // includes the main shard at index 0
     if let m = mmproj { allPicked.append(m.rfilename) }
+    if let m = mtp { allPicked.append(m.rfilename) }
     let sizeByPath: [String: Int64] = Dictionary(
       uniqueKeysWithValues: siblings.map { ($0.rfilename, $0.size ?? 0) })
     let approxBytes = allPicked.reduce(Int64(0)) { $0 + (sizeByPath[$1] ?? 0) }
@@ -130,6 +134,7 @@ enum HFRepoResolver {
     let mainUrl = resolveUrl(repo: repo, path: pick.rfilename)
     let extraUrls = shards.dropFirst().map { resolveUrl(repo: repo, path: $0) }
     let mmprojUrl = mmproj.map { resolveUrl(repo: repo, path: $0.rfilename) }
+    let mtpUrl = mtp.map { resolveUrl(repo: repo, path: $0.rfilename) }
 
     return Resolved(
       modelId: modelId,
@@ -138,6 +143,7 @@ enum HFRepoResolver {
       mainUrl: mainUrl,
       additionalParts: Array(extraUrls),
       mmprojUrl: mmprojUrl,
+      mtpUrl: mtpUrl,
       approximateBytes: approxBytes
     )
   }
@@ -211,7 +217,9 @@ enum HFRepoResolver {
     repo: String, requestedQuant: String?,
     siblings: [Sibling], budgetMb: Double
   ) throws -> Pick {
-    let allGgufs = siblings.filter { isGgufCandidate($0.rfilename) }
+    // Sidecars (`mtp-…`) carry a quant label too, so exclude them up front or a
+    // `quant=Q8_0` request could match the MTP head instead of the main weights.
+    let allGgufs = siblings.filter { isGgufCandidate($0.rfilename) && !isMtpSidecar($0.rfilename) }
     guard !allGgufs.isEmpty else { throw ResolveError.noGgufFiles(repo) }
 
     // 1. Explicit quant: match any sibling whose parsed label == requested.
@@ -388,10 +396,37 @@ enum HFRepoResolver {
     return nil
   }
 
+  /// Picks the MTP draft-head sidecar (`mtp-….gguf`) for the chosen main quant.
+  /// Repos commonly ship one head per quant (e.g. `mtp-…-Q4_0`, `mtp-…-Q8_0`),
+  /// so we prefer the head whose quant matches the main (what llama.cpp's
+  /// `find_best_mtp` does), falling back to the smallest head when there's no
+  /// exact match -- the head is tiny, so size is the safe tie-breaker.
+  private static func pickMtp(repo: String, siblings: [Sibling], mainQuant: String) -> Sibling? {
+    let candidates = siblings.filter { isMtpSidecar($0.rfilename) }
+    guard !candidates.isEmpty else { return nil }
+
+    if let exact = candidates.first(where: {
+      GGUFQuantLabel.parse($0.rfilename).map { GGUFQuantLabel.matches($0, mainQuant) } ?? false
+    }) {
+      return exact
+    }
+
+    // No quant-matched head -- take the smallest available (heads are small;
+    // any quant works as a draft, so minimize the download).
+    return candidates.min { ($0.size ?? .max) < ($1.size ?? .max) }
+  }
+
   // MARK: - Helpers
 
   private static func isGgufCandidate(_ path: String) -> Bool {
     path.lowercased().hasSuffix(".gguf")
+  }
+
+  /// True for an MTP draft-head sidecar -- a `.gguf` whose filename starts with
+  /// `mtp-`. Matches the convention llama.cpp keys on (`find_best_mtp`).
+  private static func isMtpSidecar(_ path: String) -> Bool {
+    let name = (path as NSString).lastPathComponent.lowercased()
+    return name.hasPrefix("mtp-") && name.hasSuffix(".gguf")
   }
 
   private static func resolveUrl(repo: String, path: String) -> URL {
