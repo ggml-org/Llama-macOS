@@ -19,7 +19,13 @@ enum LlamaServerError: Error, LocalizedError, Equatable {
   }
 }
 
-/// Manages the llama-server binary process lifecycle and health monitoring
+/// Manages the llama-server binary process lifecycle and health monitoring.
+///
+/// The server runs *continuously*: it's started once at app launch (see
+/// `ensureCLIThenStartServer` in `LlamaApp`) and stays up in router mode to host
+/// the webui and serve requests even with no model loaded -- models load/unload
+/// in-place, the process doesn't. So callers can assume it's running; don't add
+/// "start it if it's down" logic to open the webui or reach an endpoint.
 @MainActor
 class LlamaServer {
   /// Singleton instance for app-wide server management
