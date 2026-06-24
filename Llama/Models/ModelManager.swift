@@ -415,6 +415,18 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// Scans the HF cache for installed models. Every model is treated as a
   /// sideloaded discovery — metadata comes from the repo dir + filename.
   func refreshDownloadedModels() {
+    #if DEBUG
+      // DEBUG fixture: replace the real cache scan with a large, realistic list
+      // so the long-list UI can be worked on without downloading any weights.
+      // Skips mem-profiling, models.ini, and the server reload entirely.
+      if SimulatedModels.isEnabled {
+        downloadedModels = SimulatedModels.all.sorted(by: Model.displayOrder(_:_:))
+        resolvedPaths = [:]
+        NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
+        return
+      }
+    #endif
+
     let hfCacheDir = UserSettings.hfCacheDirectory
 
     // Move directory reading to background queue to avoid blocking main thread
