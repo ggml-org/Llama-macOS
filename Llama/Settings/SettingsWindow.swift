@@ -62,6 +62,33 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
   }
 }
 
+/// A single settings row: a title and its description stacked in a left
+/// column, with a trailing control (toggle, picker, button) in a right column.
+/// The control is vertically centered against the text block, so the gap
+/// between title and description stays uniform regardless of the control's
+/// height -- unlike a layout where the title shares a row with the control.
+private struct SettingRow<Control: View>: View {
+  let title: String
+  let description: String
+  @ViewBuilder let control: () -> Control
+
+  var body: some View {
+    HStack {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+
+        Text(description)
+          .font(.system(size: 11))
+          .foregroundStyle(.secondary)
+      }
+
+      Spacer()
+
+      control()
+    }
+  }
+}
+
 /// SwiftUI view for settings content.
 struct SettingsView: View {
   @State private var launchAtLogin = LaunchAtLogin.isEnabled
@@ -77,55 +104,47 @@ struct SettingsView: View {
     Form {
       // Launch at login section
       Section {
-        VStack(alignment: .leading, spacing: 4) {
-          Toggle("Launch at login", isOn: $launchAtLogin)
+        SettingRow(
+          title: "Launch at login",
+          description: "Sits idle in the menu bar, using minimal memory."
+        ) {
+          Toggle("", isOn: $launchAtLogin)
+            .labelsHidden()
             .onChange(of: launchAtLogin) { _, newValue in
               _ = LaunchAtLogin.setEnabled(newValue)
             }
-
-          Text("Sits idle in the menu bar, using minimal memory.")
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
         }
       }
 
       // Sleep idle time section
       Section {
-        VStack(alignment: .leading, spacing: 4) {
-          LabeledContent("Unload when idle") {
-            PillPicker(
-              options: UserSettings.SleepIdleTime.allCases.map { ($0, $0.displayName) },
-              selection: $sleepIdleTime
-            )
-            .onChange(of: sleepIdleTime) { _, newValue in
-              UserSettings.sleepIdleTime = newValue
-            }
+        SettingRow(
+          title: "Unload when idle",
+          description: "Auto-unloads model when not in use."
+        ) {
+          PillPicker(
+            options: UserSettings.SleepIdleTime.allCases.map { ($0, $0.displayName) },
+            selection: $sleepIdleTime
+          )
+          .onChange(of: sleepIdleTime) { _, newValue in
+            UserSettings.sleepIdleTime = newValue
           }
-
-          Text("Auto-unloads model when not in use.")
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
         }
       }
 
       // Server port section
       Section {
-        VStack(alignment: .leading, spacing: 4) {
-          HStack {
-            Text("Server port")
-            Spacer()
-            Button {
-              showingServerPortSheet = true
-            } label: {
-              Text(String(serverPort))
-            }
-            .font(.callout)
-            .controlSize(.small)
+        SettingRow(
+          title: "Server port",
+          description: "The port the server listens on. Default \(String(LlamaServer.defaultPort))."
+        ) {
+          Button {
+            showingServerPortSheet = true
+          } label: {
+            Text(String(serverPort))
           }
-
-          Text("The port the server listens on. Default \(String(LlamaServer.defaultPort)).")
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
+          .font(.callout)
+          .controlSize(.small)
         }
       }
       .sheet(isPresented: $showingServerPortSheet) {
@@ -138,26 +157,21 @@ struct SettingsView: View {
 
       // Optional HF access token section
       Section {
-        VStack(alignment: .leading, spacing: 4) {
-          HStack {
-            Text("Hugging Face Token")
-            Spacer()
-            Button {
-              showingHFTokenSheet = true
-            } label: {
-              if hfToken.isEmpty {
-                Text("Set")
-              } else {
-                Text(truncatedToken(hfToken))
-              }
+        SettingRow(
+          title: "Hugging Face Token",
+          description: "Authenticate model downloads; optional."
+        ) {
+          Button {
+            showingHFTokenSheet = true
+          } label: {
+            if hfToken.isEmpty {
+              Text("Set")
+            } else {
+              Text(truncatedToken(hfToken))
             }
-            .font(.callout)
-            .controlSize(.small)
           }
-
-          Text("Authenticate model downloads; optional.")
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
+          .font(.callout)
+          .controlSize(.small)
         }
       }
       .sheet(isPresented: $showingHFTokenSheet) {
@@ -168,7 +182,7 @@ struct SettingsView: View {
       }
       // HF cache directory section
       Section {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
           Text("Cache directory")
 
           Text("Where downloaded models are stored.")
