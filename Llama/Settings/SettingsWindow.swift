@@ -241,6 +241,52 @@ struct SettingsView: View {
           .font(.callout)
         }
       }
+
+      // Server command section -- exposes the actual `llama serve` invocation
+      // behind the GUI. It's read-only, but reflects the settings above: change
+      // the port, idle timeout, or model directory and the command updates.
+      Section {
+        VStack(alignment: .leading, spacing: 8) {
+          HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text("Server command")
+
+              Text("The command used to start the server.")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Copy the full command to the clipboard as a single pasteable line.
+            Button {
+              NSPasteboard.general.clearContents()
+              NSPasteboard.general.setString(serverCommandForCopy, forType: .string)
+            } label: {
+              Image(systemName: "doc.on.doc")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Copy the command")
+          }
+
+          // The command itself: monospaced, wrapping, and selectable so a user
+          // can read or grab any part of it. Lightly syntax-highlighted to make
+          // the structure (env vars, flags, values) easier to scan.
+          Text(highlightedCommand)
+            .font(.system(size: 11, design: .monospaced))
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(8)
+            .background(Color(nsColor: .textBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(
+              RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+            )
+        }
+      }
     }
     .formStyle(.grouped)
     .frame(width: 600)
@@ -248,6 +294,72 @@ struct SettingsView: View {
     // `.fixedSize()` would also fix the width to ideal, which forces
     // `maxWidth`-capped controls to their full cap instead of hugging.)
     .fixedSize(horizontal: false, vertical: true)
+  }
+
+  /// The shell command that starts the server, built from the current
+  /// settings. Reads the `@State` mirrors of the relevant settings (port, idle
+  /// timeout, model directory) so SwiftUI recomputes this whenever one of them
+  /// changes -- the actual spec is sourced from `LlamaServer` so it stays in
+  /// lockstep with what `start()` runs.
+  private var serverCommand: String {
+    _ = (serverPort, sleepIdleTime, hfCacheDir)  // establish SwiftUI dependencies
+    return LlamaServer.buildLaunchSpec()?.displayCommand ?? "llama not installed"
+  }
+
+  /// The single-line form copied to the clipboard -- paste-ready in a terminal.
+  private var serverCommandForCopy: String {
+    LlamaServer.buildLaunchSpec()?.shellCommand ?? ""
+  }
+
+  /// `serverCommand` with light syntax highlighting applied per token, so the
+  /// command's structure is easy to scan. Purely cosmetic -- the underlying
+  /// text is identical to `serverCommand`. Coloring rules, by token shape:
+  /// env-var names (`KEY=`) read as keys, `--flags` as flags, the trailing
+  /// line-continuation `\` is dimmed, and everything else stays default.
+  private var highlightedCommand: AttributedString {
+    var result = AttributedString()
+
+    let lines = serverCommand.components(separatedBy: "\n")
+    for (lineIdx, line) in lines.enumerated() {
+      if lineIdx > 0 { result.append(AttributedString("\n")) }
+
+      // Split into whitespace-delimited tokens, but keep the leading indent.
+      let indent = line.prefix { $0 == " " }
+      result.append(AttributedString(String(indent)))
+
+      let tokens = line.dropFirst(indent.count).split(
+        separator: " ", omittingEmptySubsequences: false)
+      for (tokenIdx, token) in tokens.enumerated() {
+        if tokenIdx > 0 { result.append(AttributedString(" ")) }
+        result.append(highlight(String(token)))
+      }
+    }
+
+    return result
+  }
+
+  /// Colors a single token according to its shape (see `highlightedCommand`).
+  private func highlight(_ token: String) -> AttributedString {
+    var attr = AttributedString(token)
+
+    if token == "\\" {
+      // Trailing line-continuation backslash -- dim, it's just glue.
+      attr.foregroundColor = .secondary
+    } else if token.hasPrefix("--") {
+      // A flag.
+      attr.foregroundColor = .accentColor
+    } else if let eq = token.firstIndex(of: "="),
+      token[..<eq].allSatisfy({ $0.isUppercase || $0 == "_" }), !token.isEmpty
+    {
+      // An env-var assignment `KEY=value`: tint just the key.
+      var colored = AttributedString(token)
+      let keyEnd = colored.index(
+        colored.startIndex, offsetByCharacters: token.distance(from: token.startIndex, to: eq))
+      colored[colored.startIndex..<keyEnd].foregroundColor = .purple
+      return colored
+    }
+
+    return attr
   }
 
   /// Opens a folder picker and updates the HF cache directory
