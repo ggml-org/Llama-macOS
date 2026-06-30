@@ -371,23 +371,26 @@ extension ModelManager {
   private func restartTask(model: Model, url: URL) {
     guard let plan = activeDownloads[model.id]?.plan else { return }
     let cacheDir = UserSettings.hfCacheDirectory
-    do {
-      let writer = try openPartialWriter(
-        model: model, cacheDir: cacheDir, url: url, plan: plan)
-      let task = makeDataTask(for: url, modelId: model.id, writer: writer)
-      writerTable.sync { $0[task.taskIdentifier] = writer }
-      _ = updateActiveDownload(modelId: model.id) { agg in
-        agg.addTask(task)
+    // Re-open the writer off the main actor — like the initial start, this
+    // re-hashes the on-disk prefix and must not block the UI. The `Task`
+    // inherits the main actor, so we resume on it after the `await`.
+    Task {
+      let writer: PartialWriter
+      do {
+        writer = try await openPartialWriter(
+          model: model, cacheDir: cacheDir, url: url, plan: plan)
+      } catch {
+        logger.error(
+          "Retry failed to open partial for \(url.lastPathComponent): \(error.localizedDescription)"
+        )
+        handleDownloadFailure(
+          model: model,
+          reason: "Couldn't reopen staging file for retry: \(error.localizedDescription)"
+        )
+        return
       }
-      task.resume()
-    } catch {
-      logger.error(
-        "Retry failed to open partial for \(url.lastPathComponent): \(error.localizedDescription)"
-      )
-      handleDownloadFailure(
-        model: model,
-        reason: "Couldn't reopen staging file for retry: \(error.localizedDescription)"
-      )
+      // Register and start the task (no-op if cancelled during the re-hash).
+      startWriterTask(writer, modelId: model.id)
     }
   }
 

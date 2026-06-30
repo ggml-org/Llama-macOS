@@ -188,36 +188,54 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // Reuse the placeholder entry `downloadModel` registered — it already carries
     // the plan and the resumed-bytes-seeded progress, so the row never flashes
     // back to 0% while the tasks spin up.
-    guard var aggregate = activeDownloads[modelId], let plan = aggregate.plan else {
+    guard let plan = activeDownloads[modelId]?.plan else {
       logger.error("Missing HF download plan when starting tasks for \(model.displayName)")
       tearDownActiveDownload(modelId: modelId, outcome: .pause)
       return
     }
     let cacheDir = UserSettings.hfCacheDirectory
 
-    for fileUrl in files {
+    // Open every `.partial` writer off the main actor (each re-hashes its on-disk
+    // prefix — potentially many GB on a resume), then hop back here to register
+    // the tasks and start them. The `Task` inherits the main actor, so the body
+    // resumes on it after each `await`.
+    Task {
+      var writers: [PartialWriter] = []
       do {
-        let writer = try openPartialWriter(
-          model: model, cacheDir: cacheDir, url: fileUrl, plan: plan)
-        let task = makeDataTask(for: fileUrl, modelId: modelId, writer: writer)
-        writerTable.sync { $0[task.taskIdentifier] = writer }
-        aggregate.addTask(task)
-        task.resume()
+        for fileUrl in files {
+          writers.append(
+            try await openPartialWriter(model: model, cacheDir: cacheDir, url: fileUrl, plan: plan))
+        }
       } catch {
-        // Abort the whole model download — we can't proceed with a missing partial.
-        // Registering the aggregate first lets failDownload cancel any tasks
-        // already started for this model.
-        activeDownloads[modelId] = aggregate
+        // Couldn't open/rehash one of the partials — abort the whole model
+        // download and close any handles we did open so we don't leak them.
+        for writer in writers { writer.closeHandle() }
         failDownload(
           model: model,
           reason: "Couldn't open staging file: \(error.localizedDescription)")
         return
       }
-    }
 
-    activeDownloads[modelId] = aggregate
-    refreshProgress(modelId: modelId)
-    postDownloadsDidChange()
+      // Register and start each task. `startWriterTask` skips (and closes) any
+      // writer whose download was cancelled/paused while we were hashing.
+      for writer in writers { startWriterTask(writer, modelId: modelId) }
+      refreshProgress(modelId: modelId)
+      postDownloadsDidChange()
+    }
+  }
+
+  /// Registers an opened writer's data task with the transfer machinery and starts it.
+  /// No-op (closing the writer's handle) if the download was cancelled while the writer
+  /// was being opened off the main actor. Main-actor only.
+  func startWriterTask(_ writer: PartialWriter, modelId: String) {
+    guard activeDownloads[modelId] != nil else {
+      writer.closeHandle()
+      return
+    }
+    let task = makeDataTask(for: writer.url, modelId: modelId, writer: writer)
+    writerTable.sync { $0[task.taskIdentifier] = writer }
+    _ = updateActiveDownload(modelId: modelId) { $0.addTask(task) }
+    task.resume()
   }
 
   /// Builds a URLSessionDataTask for a remote file. Adds a `Range: bytes=N-` header when
@@ -237,11 +255,12 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   }
 
   /// Opens (or creates) the `.partial` file for a remote URL and rebuilds the running SHA256
-  /// hash over any already-present prefix. The re-hash cost is bounded by existing file size,
-  /// which is small relative to the remaining download.
-  func openPartialWriter(
+  /// hash over any already-present prefix. `nonisolated async` so the re-hash runs off the
+  /// main actor: on a resumed download the existing prefix can be many GB, and hashing it
+  /// synchronously on the main actor freezes the UI (spinning-wait cursor) until it finishes.
+  nonisolated func openPartialWriter(
     model: Model, cacheDir: URL, url: URL, plan: HFDownloadPlan
-  ) throws -> PartialWriter {
+  ) async throws -> PartialWriter {
     let modelId = model.id
     // `filename` is repo-relative (e.g. `Q4_K_M/model.gguf`), not just a basename,
     // so `writeBlobAndLink` places the snapshot symlink at the correct nested
@@ -422,6 +441,12 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         content += "spec-draft-model = \(mtpSidecar)\n"
       } else if paths.usesMTP {
         content += "spec-type = draft-mtp\n"
+      }
+      // Cap drafted tokens per step at 3 for MTP -- the value Georgi Gerganov
+      // recommended; MTP heads only predict a few tokens ahead reliably, so
+      // drafting deeper just wastes compute on tokens the target rejects.
+      if paths.mtpSidecarFile != nil || paths.usesMTP {
+        content += "spec-draft-n-max = 3\n"
       }
 
       if useLargeBatch {
