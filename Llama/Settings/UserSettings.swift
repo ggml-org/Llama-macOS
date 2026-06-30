@@ -32,6 +32,7 @@ enum UserSettings {
     static let hasSetDefaultLaunchAtLogin = "hasSetDefaultLaunchAtLogin"
     static let exposeToNetwork = "exposeToNetwork"
     static let serverPort = "serverPort"
+    static let customServerArgs = "customServerArgs"
     static let sleepIdleTime = "sleepIdleTime"
     static let selectedCtxTiers = "selectedCtxTiers"
     static let hfCacheDirectory = "hfCacheDirectory"
@@ -107,6 +108,117 @@ enum UserSettings {
       }
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
     }
+  }
+
+  /// Additional arguments appended to `llama serve`, or `nil` for none.
+  /// Whitespace-only stored values read as unset.
+  static var customServerArguments: String? {
+    get {
+      guard let value = defaults.string(forKey: Keys.customServerArgs) else { return nil }
+      let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+      return trimmed.isEmpty ? nil : trimmed
+    }
+    set {
+      // Normalize: keep only a non-empty string, otherwise fall back to no extra flags.
+      var normalized = newValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+      if normalized?.isEmpty == true { normalized = nil }
+      // Avoid a redundant change notification (which would needlessly restart
+      // the server) when the effective value isn't actually changing.
+      guard normalized != customServerArguments else { return }
+      if let normalized {
+        defaults.set(normalized, forKey: Keys.customServerArgs)
+      } else {
+        defaults.removeObject(forKey: Keys.customServerArgs)
+      }
+      NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+    }
+  }
+
+  /// Whether additional server arguments are configured
+  static var hasCustomServerArguments: Bool {
+    customServerArguments != nil
+  }
+
+  /// Flags the app owns because health checks and UI URLs read
+  /// `LlamaServer.port` / `resolvedHost`.
+  private static let appOwnedServerArgumentFlags: Set<String> = ["--port", "--host"]
+
+  /// Tokenizes the user-entered server arguments into argv elements. Quotes are
+  /// stripped while keeping values with spaces together, so advanced flags can
+  /// be passed through without exposing a full shell parser.
+  static var customServerArgumentTokens: [String] {
+    guard let arguments = customServerArguments else { return [] }
+    return filterAppOwnedServerArguments(tokenizeServerArguments(arguments))
+  }
+
+  private static func tokenizeServerArguments(_ input: String) -> [String] {
+    var tokens: [String] = []
+    var current = ""
+    var activeQuote: Character?
+    var hasToken = false
+
+    for char in input {
+      if let quote = activeQuote {
+        if char == quote {
+          activeQuote = nil
+        } else {
+          current.append(char)
+        }
+        hasToken = true
+        continue
+      }
+
+      if char == "\"" || char == "'" {
+        activeQuote = char
+        hasToken = true
+      } else if char.isWhitespace {
+        if hasToken {
+          tokens.append(current)
+          current.removeAll()
+          hasToken = false
+        }
+      } else {
+        current.append(char)
+        hasToken = true
+      }
+    }
+
+    if hasToken {
+      tokens.append(current)
+    }
+
+    return tokens
+  }
+
+  private static func filterAppOwnedServerArguments(_ tokens: [String]) -> [String] {
+    var filtered: [String] = []
+    var index = tokens.startIndex
+
+    while index < tokens.endIndex {
+      let token = tokens[index]
+
+      if appOwnedServerArgumentFlags.contains(token) {
+        let next = tokens.index(after: index)
+        if next < tokens.endIndex, !tokens[next].hasPrefix("-") {
+          index = tokens.index(after: next)
+        } else {
+          index = next
+        }
+        continue
+      }
+
+      if let equalsIndex = token.firstIndex(of: "="),
+        appOwnedServerArgumentFlags.contains(String(token[..<equalsIndex]))
+      {
+        index = tokens.index(after: index)
+        continue
+      }
+
+      filtered.append(token)
+      index = tokens.index(after: index)
+    }
+
+    return filtered
   }
 
   /// How long to wait before unloading the model from memory when idle.

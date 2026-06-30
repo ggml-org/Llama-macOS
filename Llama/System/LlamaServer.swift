@@ -305,6 +305,10 @@ class LlamaServer {
       ])
     }
 
+    // User-supplied extra flags come last so they can override the built-ins
+    // above, and so the rendered "Server command" preview shows them too.
+    arguments.append(contentsOf: UserSettings.customServerArgumentTokens)
+
     return LaunchSpec(executablePath: llamaPath, arguments: arguments, env: env)
   }
 

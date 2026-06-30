@@ -116,6 +116,8 @@ struct SettingsView: View {
   // Effective server port; re-read after the edit sheet saves so the row updates.
   @State private var serverPort = LlamaServer.port
   @State private var showingServerPortSheet = false
+  @State private var customServerArgs = UserSettings.customServerArguments ?? ""
+  @State private var showingServerArgsSheet = false
 
   var body: some View {
     Form {
@@ -180,6 +182,44 @@ struct SettingsView: View {
           // nil resets to the default; the setter restarts the server once.
           UserSettings.serverPort = newPort
           serverPort = LlamaServer.port
+        }
+      }
+
+      // Additional server arguments section
+      Section {
+        SettingRow(
+          title: "Additional arguments",
+          description: "Extra flags appended to the server command."
+        ) {
+          HStack(spacing: 6) {
+            // Only offer a reset when custom arguments are set.
+            if UserSettings.hasCustomServerArguments {
+              RestoreDefaultButton {
+                UserSettings.customServerArguments = nil
+                customServerArgs = UserSettings.customServerArguments ?? ""
+              }
+            }
+
+            Button {
+              showingServerArgsSheet = true
+            } label: {
+              if customServerArgs.isEmpty {
+                Text("Set")
+              } else {
+                Text(customServerArgs)
+                  .lineLimit(1)
+                  .truncationMode(.middle)
+              }
+            }
+            .controlSize(.small)
+          }
+          .font(.callout)
+        }
+      }
+      .sheet(isPresented: $showingServerArgsSheet) {
+        CustomServerArgumentsSheet(currentValue: customServerArgs) { newValue in
+          UserSettings.customServerArguments = newValue.isEmpty ? nil : newValue
+          customServerArgs = UserSettings.customServerArguments ?? ""
         }
       }
 
@@ -302,7 +342,7 @@ struct SettingsView: View {
   /// changes -- the actual spec is sourced from `LlamaServer` so it stays in
   /// lockstep with what `start()` runs.
   private var serverCommand: String {
-    _ = (serverPort, sleepIdleTime, hfCacheDir)  // establish SwiftUI dependencies
+    _ = (serverPort, sleepIdleTime, hfCacheDir, customServerArgs)  // establish SwiftUI dependencies
     return LlamaServer.buildLaunchSpec()?.displayCommand ?? "llama not installed"
   }
 
@@ -540,6 +580,66 @@ struct HFTokenSheet: View {
     .frame(width: 400)
     .onAppear {
       tokenText = currentToken
+    }
+  }
+}
+
+/// Sheet for editing additional server arguments.
+struct CustomServerArgumentsSheet: View {
+  let currentValue: String
+  let onSave: (String) -> Void
+
+  @Environment(\.dismiss) private var dismiss
+  @State private var argsText: String = ""
+
+  private var trimmed: String {
+    argsText.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Additional arguments")
+          .font(.headline)
+
+        Text(
+          "Passed verbatim to llama serve, after the built-in flags. Example: --threads 8 --temp 0.7"
+        )
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      }
+
+      TextEditor(text: $argsText)
+        .font(.system(size: 11, design: .monospaced))
+        .frame(height: 50)
+        .scrollContentBackground(.hidden)
+        .padding(.vertical, 4)
+        .background(Color(nsColor: .textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+          RoundedRectangle(cornerRadius: 6)
+            .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+        )
+
+      HStack {
+        Spacer()
+
+        Button("Cancel") {
+          dismiss()
+        }
+        .keyboardShortcut(.cancelAction)
+
+        Button("Save") {
+          onSave(trimmed)
+          dismiss()
+        }
+        .keyboardShortcut(.defaultAction)
+      }
+    }
+    .padding(20)
+    .frame(width: 400)
+    .onAppear {
+      argsText = currentValue
     }
   }
 }
