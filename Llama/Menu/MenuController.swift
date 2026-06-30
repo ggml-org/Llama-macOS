@@ -352,8 +352,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // anchors the menu. The decision to render at all lives in rebuildMenu.
     guard !models.isEmpty else {
       menu.addItem(NSMenuItem.viewItem(with: SectionHeaderView(title: "Installed")))
-      menu.addItem(
-        NSMenuItem.viewItem(with: TextItemView(text: "No models yet", style: .description)))
+      menu.addItem(NSMenuItem.viewItem(with: EmptyInstalledRow()))
       return
     }
 
