@@ -13,6 +13,16 @@ enum Format {
     return formatDecimal(gb, unit: " GB")
   }
 
+  /// Human-readable transfer rate, e.g. "4.2 MB/s". Uses the same decimal-unit
+  /// convention as `gigabytes` (1 MB = 1,000,000 bytes) so the rate and the
+  /// total size in the same subtitle agree.
+  static func transferRate(_ bytesPerSec: Int) -> String {
+    let formatter = ByteCountFormatter()
+    formatter.countStyle = .decimal
+    formatter.allowsNonnumericFormatting = false
+    return "\(formatter.string(fromByteCount: Int64(bytesPerSec)))/s"
+  }
+
   // MARK: - Token Formatting (binary: 1k = 1024)
 
   /// Formats token counts using binary units (1k = 1024).
@@ -110,12 +120,20 @@ extension Format {
   /// ctx tier is only meaningful for fully-downloaded models. When `fraction` is
   /// nil (paused with unknown total), falls back to just the size.
   static func downloadSubtitle(
-    fraction: Double?, totalBytes: Int64, paused: Bool, color: NSColor
+    fraction: Double?, totalBytes: Int64, paused: Bool, bytesPerSec: Int?, color: NSColor
   ) -> NSAttributedString {
     let head =
       fraction.map { "\(percentText($0)) of \(gigabytes(totalBytes))" }
       ?? gigabytes(totalBytes)
-    let text = paused ? "\(head) · Paused" : head
+    let text: String
+    if paused {
+      text = "\(head) · Paused"
+    } else if let rate = bytesPerSec, rate > 0 {
+      // Speed only appears once the first sample window closes (rate > 0).
+      text = "\(head) · \(transferRate(rate))"
+    } else {
+      text = head
+    }
     return NSAttributedString(
       string: text,
       attributes: [

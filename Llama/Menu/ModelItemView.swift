@@ -261,6 +261,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     var isPaused = false
     var isInstalled = false
     var fraction: Double?
+    var bytesPerSec: Int?
     switch status {
     case .available:
       break
@@ -269,6 +270,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       if progress.totalUnitCount > 0 {
         fraction = Double(progress.completedUnitCount) / Double(progress.totalUnitCount)
       }
+      // `throughput` is republished by ActiveDownload.refreshProgress each sample window.
+      bytesPerSec = progress.throughput
     case .paused(let bytes, let total):
       isPaused = true
       if total > 0 { fraction = Double(bytes) / Double(total) }
@@ -309,6 +312,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
         fraction: fraction,
         totalBytes: model.fileSize,
         paused: isPaused,
+        bytesPerSec: bytesPerSec,
         color: textColor
       )
     } else {

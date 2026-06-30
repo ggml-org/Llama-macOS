@@ -26,6 +26,17 @@ struct ActiveDownload {
   /// sync with the download the way a parallel dict would.
   var plan: HFDownloadPlan?
 
+  // Transfer-rate sampling. `refreshProgress` fires far more often than once a
+  // second (every byte batch from the delegate), so a raw delta between two
+  // calls is noisy; we only recompute the rate once ~1s of wall time has
+  // elapsed and carry the last value between samples. Seeded lazily on the
+  // first refresh so a resumed download's already-on-disk bytes (which appear
+  // in the very first `totalCompleted`) don't get counted as a single fast tick.
+  var lastSampleBytes: Int64 = 0
+  var lastSampleTime: Date?
+  /// Minimum wall time between rate recomputations.
+  private static let sampleInterval: TimeInterval = 1.0
+
   mutating func addTask(_ task: URLSessionDataTask) {
     tasks[task.taskIdentifier] = task
   }
@@ -50,6 +61,27 @@ struct ActiveDownload {
     let totalExpected = max(progress.totalUnitCount, completedFilesBytes + expectedActiveBytes)
     progress.totalUnitCount = max(totalExpected, 1)
     progress.completedUnitCount = totalCompleted
+
+    // Sample the transfer rate. The first call only seeds the baseline (no
+    // window to measure yet); subsequent calls recompute once `sampleInterval`
+    // has elapsed and publish the rate on `progress.throughput`, where the UI
+    // reads it off the status it already carries. `throughput` persists in the
+    // Progress user-info between samples, so there's nothing to re-publish on
+    // the in-between ticks — it stays nil (no speed shown) until the first
+    // window closes.
+    let now = Date()
+    if let last = lastSampleTime {
+      let elapsed = now.timeIntervalSince(last)
+      if elapsed >= Self.sampleInterval {
+        let rate = max(0, Double(totalCompleted - lastSampleBytes) / elapsed)
+        progress.setUserInfoObject(Int(rate), forKey: .throughputKey)
+        lastSampleBytes = totalCompleted
+        lastSampleTime = now
+      }
+    } else {
+      lastSampleBytes = totalCompleted
+      lastSampleTime = now
+    }
   }
 
   var isEmpty: Bool { tasks.isEmpty }
