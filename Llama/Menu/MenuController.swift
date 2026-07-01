@@ -36,6 +36,21 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   private var hintPopover: HintPopover?
 
+  /// A download has finished that the user hasn't seen yet (i.e. hasn't opened
+  /// the menu since). Drives the checkmark badge on the icon; cleared the next
+  /// time the menu opens. In-memory only -- downloads run only while the app is
+  /// up, so there's nothing to persist.
+  private var hasUnseenCompletion = false
+
+  /// Whether the menu is currently open. Lets us treat a completion the user is
+  /// already watching live as "seen", and drives the clear-on-open behaviour.
+  private var isMenuOpen = false
+
+  /// The (badge, dim) pair last applied to the status button, so the frequent
+  /// `refresh()` calls during a download don't rebuild an identical icon image
+  /// on every progress tick.
+  private var appliedIcon: (symbol: String?, dim: CGFloat)?
+
   // Store observer tokens for proper cleanup
   private var observers: [NSObjectProtocol] = []
 
@@ -101,19 +116,94 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func configureStatusItem() {
-    if let button = statusItem.button {
-      button.image =
-        NSImage(named: "MenuIcon")
-        ?? NSImage(systemSymbolName: "brain", accessibilityDescription: nil)
-      button.image?.isTemplate = true
-      // Dim the icon when no model is loaded
-      button.alphaValue = server.isAnyModelLoaded ? 1.0 : 0.4
-    }
+    updateStatusIcon()
 
     let menu = NSMenu()
     menu.delegate = self
     menu.autoenablesItems = false
     statusItem.menu = menu
+  }
+
+  /// Icon opacity for the current server state: full when a model is loaded, mid
+  /// while loading, dim when idle.
+  private var statusIconDimAlpha: CGFloat {
+    if server.isAnyModelLoaded { return 1.0 }
+    if server.isAnyModelLoading { return 0.7 }
+    return 0.4
+  }
+
+  /// The SF Symbol to badge the icon with, or nil for a plain icon. Live download
+  /// activity takes precedence over an unseen completion -- while anything is
+  /// downloading we show the down-arrow; once it all settles, a checkmark flags a
+  /// completion the user hasn't seen yet.
+  private var statusBadgeSymbol: String? {
+    if !modelManager.downloadingModels.isEmpty { return "arrow.down" }
+    if hasUnseenCompletion { return "checkmark" }
+    return nil
+  }
+
+  /// Applies the current icon to the status button. The badge is drawn into the
+  /// same template image as the glyph (a monochrome corner disc with a symbol
+  /// knocked out), so the whole thing keeps the system's menu-bar tinting and
+  /// scaling and dims together via `alphaValue` -- no colored overlay needed.
+  private func updateStatusIcon() {
+    guard let button = statusItem.button else { return }
+    let symbol = statusBadgeSymbol
+    let dim = statusIconDimAlpha
+    guard appliedIcon == nil || appliedIcon! != (symbol, dim) else { return }
+    appliedIcon = (symbol, dim)
+
+    let base =
+      NSImage(named: "MenuIcon")
+      ?? NSImage(systemSymbolName: "brain", accessibilityDescription: nil)
+
+    if let symbol, let base {
+      button.image = badgedTemplate(base: base, symbolName: symbol)
+    } else {
+      base?.isTemplate = true
+      button.image = base
+    }
+    button.alphaValue = dim
+  }
+
+  /// Composites the menu bar glyph with a small badge in the top-right corner: a
+  /// filled disc with `symbolName` knocked out of it, ringed by a thin
+  /// transparent halo so it reads as separate from the glyph. Kept a template
+  /// (fill colors are irrelevant -- the menu bar re-tints the whole image).
+  private func badgedTemplate(base: NSImage, symbolName: String) -> NSImage {
+    let size = base.size
+    let image = NSImage(size: size, flipped: false) { rect in
+      base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+      guard let ctx = NSGraphicsContext.current else { return true }
+
+      // Badge disc tangent to the top-right corner (stays within the canvas, so
+      // it never clips).
+      let d = (size.height * 0.6).rounded()
+      let disc = NSRect(x: size.width - d, y: size.height - d, width: d, height: d)
+
+      // Punch a 1pt transparent ring around the disc to separate it from the glyph.
+      ctx.compositingOperation = .destinationOut
+      NSColor.black.setFill()
+      NSBezierPath(ovalIn: disc.insetBy(dx: -1, dy: -1)).fill()
+
+      // Solid disc.
+      ctx.compositingOperation = .sourceOver
+      NSColor.black.setFill()
+      NSBezierPath(ovalIn: disc).fill()
+
+      // Knock the symbol out of the disc.
+      if let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
+        .withSymbolConfiguration(.init(pointSize: d * 0.6, weight: .heavy))
+      {
+        let s = symbol.size
+        let symRect = NSRect(
+          x: disc.midX - s.width / 2, y: disc.midY - s.height / 2, width: s.width, height: s.height)
+        symbol.draw(in: symRect, from: .zero, operation: .destinationOut, fraction: 1)
+      }
+      return true
+    }
+    image.isTemplate = true
+    return image
   }
 
   // MARK: - NSMenuDelegate
@@ -125,6 +215,13 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   func menuWillOpen(_ menu: NSMenu) {
     guard menu === statusItem.menu else { return }
+    isMenuOpen = true
+    // Opening the menu is the user seeing what finished -- clear the checkmark.
+    // (A still-active download keeps its arrow: that's derived live from state.)
+    if hasUnseenCompletion {
+      hasUnseenCompletion = false
+      updateStatusIcon()
+    }
     modelManager.refreshDownloadedModels()
     // Retry the catalog fetch if it hasn't landed yet (e.g. offline at launch).
     if discoverSuggestions.isEmpty { loadDiscoverSuggestions() }
@@ -132,6 +229,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   func menuDidClose(_ menu: NSMenu) {
     guard menu === statusItem.menu else { return }
+    isMenuOpen = false
 
     // Reset section collapse state
     expandedModelIds.removeAll()
@@ -264,6 +362,14 @@ final class MenuController: NSObject, NSMenuDelegate {
       self?.handleDownloadFailure(notification: note)
     }
 
+    // Download finished - flag it with a checkmark badge (unless the user is
+    // already watching the open menu, in which case they've seen it live).
+    observe(.LBModelDownloadDidComplete) { [weak self] _ in
+      guard let self, !self.isMenuOpen else { return }
+      self.hasUnseenCompletion = true
+      self.updateStatusIcon()
+    }
+
     refresh()
   }
 
@@ -292,16 +398,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   }
 
   private func refresh() {
-    // Update icon opacity: full when loaded, mid when loading, dim when idle
-    if let button = statusItem.button {
-      if server.isAnyModelLoaded {
-        button.alphaValue = 1.0
-      } else if server.isAnyModelLoading {
-        button.alphaValue = 0.7
-      } else {
-        button.alphaValue = 0.4
-      }
-    }
+    updateStatusIcon()
 
     guard let menu = statusItem.menu else { return }
     for item in menu.items {

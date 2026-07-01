@@ -9,6 +9,9 @@ extension Notification.Name {
   static let LBCheckForUpdates = Notification.Name("LBCheckForUpdates")
   static let LBShowSettings = Notification.Name("LBShowSettings")
   static let LBModelDownloadDidFail = Notification.Name("LBModelDownloadDidFail")
+  // Posted when a model's downloads all finish (weights verified + promoted into
+  // the HF cache), so the menu bar can flag a not-yet-seen completion on its icon.
+  static let LBModelDownloadDidComplete = Notification.Name("LBModelDownloadDidComplete")
   static let LBModelStatusDidChange = Notification.Name("LBModelStatusDidChange")
   // Posted when some background flow wants the menu bar to surface a short
   // speech-bubble hint (e.g. deeplink install started). userInfo["message"]

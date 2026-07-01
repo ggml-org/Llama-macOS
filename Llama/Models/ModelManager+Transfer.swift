@@ -252,6 +252,9 @@ extension ModelManager {
         // Clean up the now-empty partial dir (the file itself moved to blobs).
         HFCache.removePartials(cacheDir: cacheDir, modelId: modelId)
         self.refreshDownloadedModels()
+        // Let the menu bar flag the finished download on its icon, in case the
+        // user walked away during a long download and isn't watching the menu.
+        NotificationCenter.default.post(name: .LBModelDownloadDidComplete, object: nil)
       } else {
         self.refreshProgress(modelId: modelId)
       }
