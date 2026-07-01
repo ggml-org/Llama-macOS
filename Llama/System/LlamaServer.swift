@@ -308,9 +308,58 @@ class LlamaServer {
     return LaunchSpec(executablePath: llamaPath, arguments: arguments, env: env)
   }
 
+  /// Reclaims `port` by killing any stray `llama serve` still listening on it.
+  ///
+  /// `stop()` only reaps the process *this* app instance tracks. If a prior
+  /// session was force-killed/crashed without cleanly stopping its child, that
+  /// orphaned `llama serve` keeps holding the port -- the new launch then fails
+  /// to bind and exits, so the stale orphan shadows every future launch and the
+  /// webui shows no models. Killing the listener here breaks that cycle.
+  ///
+  /// Scoped to `llama` processes: if some unrelated app holds the port we leave
+  /// it alone (the launch will surface the conflict as an error instead).
+  nonisolated static func reclaimPort() {
+    // `lsof -ti` prints just the PIDs listening on the TCP port.
+    let lsof = Process()
+    lsof.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+    lsof.arguments = ["-ti", "tcp:\(port)", "-sTCP:LISTEN"]
+    let pipe = Pipe()
+    lsof.standardOutput = pipe
+    lsof.standardError = FileHandle.nullDevice
+    guard (try? lsof.run()) != nil else { return }
+    lsof.waitUntilExit()
+
+    let out = pipe.fileHandleForReading.readDataToEndOfFile()
+    let pids = String(decoding: out, as: UTF8.self)
+      .split(whereSeparator: \.isNewline)
+      .compactMap { pid_t($0) }
+
+    for pid in pids {
+      // Only kill it if it's actually a `llama` process -- never a stranger
+      // that happens to hold the port. `ps -o comm=` prints the executable path.
+      let ps = Process()
+      ps.executableURL = URL(fileURLWithPath: "/bin/ps")
+      ps.arguments = ["-p", "\(pid)", "-o", "comm="]
+      let psPipe = Pipe()
+      ps.standardOutput = psPipe
+      ps.standardError = FileHandle.nullDevice
+      guard (try? ps.run()) != nil else { continue }
+      ps.waitUntilExit()
+
+      let comm = String(decoding: psPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+      guard comm.hasSuffix("llama\n") || comm.hasSuffix("llama") else { continue }
+
+      kill(pid, SIGKILL)
+    }
+  }
+
   /// Launches llama-server in Router Mode
   func start() {
     stop()
+
+    // Reclaim the port from any orphaned `llama serve` a prior crashed session
+    // left holding it -- otherwise this launch can't bind and would exit.
+    Self.reclaimPort()
 
     // Resolve the launch spec up front; a missing install surfaces as an error.
     guard let spec = Self.buildLaunchSpec() else {
