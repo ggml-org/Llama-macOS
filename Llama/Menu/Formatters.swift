@@ -128,13 +128,12 @@ extension Format {
   }
 
   /// Formats model metadata text.
-  /// Format: "3.1 GB  ∣  128k  ∣  4.2 GB mem" (file size + effective context
+  /// Format: "3.1 GB  ∣  4k ctx  ∣  4.2 GB mem" (file size + effective context
   /// tier + projected memory usage at that tier)
   /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
   /// For sideloaded models awaiting their MemProfile: "3.1 GB  ∣  estimating..."
   static func modelMetadata(
     for model: Model,
-    color: NSColor = Theme.Colors.textPrimary,
     incompatibility: String? = nil
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
@@ -142,16 +141,12 @@ extension Format {
     // Prevents letter spacing compression before truncation
     let paragraphStyle = Theme.noTighteningParagraphStyle
 
-    // Tabular digits so the numeric readouts (size, ctx, mem) line up and match
-    // the download subtitle the row flips from.
-    let attributes: [NSAttributedString.Key: Any] = [
-      .font: Theme.Fonts.secondaryTabular,
-      .foregroundColor: color,
-      .paragraphStyle: paragraphStyle,
-    ]
-
+    // The whole metadata line reads as secondary context, so values and units
+    // share one dimmed color. Uses the proportional secondary font -- this line
+    // is static, so it doesn't need the tabular digits the live download
+    // subtitle relies on, and monospaced numbers look out of place here.
     let secondaryAttributes: [NSAttributedString.Key: Any] = [
-      .font: Theme.Fonts.secondaryTabular,
+      .font: Theme.Fonts.secondary,
       .foregroundColor: Theme.Colors.textSecondary,
       .paragraphStyle: paragraphStyle,
     ]
@@ -160,7 +155,7 @@ extension Format {
       result.append(NSAttributedString(string: incompatibility, attributes: secondaryAttributes))
     } else {
       // File size
-      result.append(NSAttributedString(string: model.totalSize, attributes: attributes))
+      result.append(NSAttributedString(string: model.totalSize, attributes: secondaryAttributes))
 
       // Pipe separator
       result.append(NSAttributedString(string: "  ∣  ", attributes: secondaryAttributes))
@@ -171,22 +166,16 @@ extension Format {
       } else if model.ctxBytesPer1kTokens < 0 {
         result.append(NSAttributedString(string: "4k ctx", attributes: secondaryAttributes))
       } else if let tier = model.effectiveCtxTier {
-        // When the device-fit tier is below the model's native max, show both:
-        // "4k of 32k ctx" -- the fit value is the headline, the max is dimmed
-        // context. When they match, just show the single tier label as before.
-        if let nativeMax = model.nativeMaxTier, nativeMax > tier {
-          result.append(NSAttributedString(string: tier.shortLabel, attributes: attributes))
-          result.append(
-            NSAttributedString(string: " of \(nativeMax.label)", attributes: secondaryAttributes))
-        } else {
-          result.append(NSAttributedString(string: tier.label, attributes: attributes))
-        }
+        // Show only the device-fit tier (e.g. "4k ctx"). The model's native max
+        // is available by expanding the row, so repeating it on every line here
+        // is low-signal noise.
+        result.append(NSAttributedString(string: tier.label, attributes: secondaryAttributes))
 
         // Projected memory usage at the selected tier (e.g. "3.3 GB mem") --
         // distinguishes runtime footprint from the on-disk size at the front.
         let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
         result.append(NSAttributedString(string: "  ∣  ", attributes: secondaryAttributes))
-        result.append(NSAttributedString(string: memory(mb: ramMb), attributes: attributes))
+        result.append(NSAttributedString(string: memory(mb: ramMb), attributes: secondaryAttributes))
         result.append(NSAttributedString(string: " mem", attributes: secondaryAttributes))
       }
     }

@@ -14,7 +14,7 @@ enum ContextTier: Int, CaseIterable, Identifiable, Comparable {
   var id: Int { rawValue }
 
   /// Number-only label without the "ctx" suffix (e.g. "4k").
-  /// Used when composing dual-value labels like "4k of 32k ctx".
+  /// Used for the context-size segments in the expanded model detail picker.
   var shortLabel: String { "\(rawValue / 1024)k" }
 
   var label: String { "\(shortLabel) ctx" }

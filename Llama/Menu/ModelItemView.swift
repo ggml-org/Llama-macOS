@@ -333,7 +333,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     } else {
       subtitleLabel.attributedStringValue = Format.modelMetadata(
         for: model,
-        color: textColor,
         incompatibility: incompatibility
       )
     }
