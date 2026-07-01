@@ -284,15 +284,18 @@ class LlamaServer {
       (key: "LLAMA_CACHE", value: Self.emptyCachePath),
     ]
 
+    // Order here is purely cosmetic (`serve` ignores flag order) -- it's
+    // chosen so the rendered command reads well: the two path flags grouped up
+    // top, then the remaining value-taking flags, and the bare toggles last.
     var arguments = [
       // `serve` is the `llama` subcommand that replaces the old `llama-server`.
       "serve",
+      // Path flags, grouped together.
       "--models-preset", presetsPath,
+      "--log-file", "/tmp/llama-server.log",
+      // Other value-taking flags.
       "--port", String(Self.port),
       "--models-max", "1",
-      "--log-file", "/tmp/llama-server.log",
-      "--jinja",
-      "--spec-default",
       "--fit-target", String(Int(Model.memOverheadMb)),
     ]
 
@@ -307,6 +310,9 @@ class LlamaServer {
         "--sleep-idle-seconds", String(UserSettings.sleepIdleTime.rawValue),
       ])
     }
+
+    // Bare toggles (no value) last, so they don't split the value flags above.
+    arguments.append(contentsOf: ["--jinja", "--spec-default"])
 
     return LaunchSpec(executablePath: llamaPath, arguments: arguments, env: env)
   }
