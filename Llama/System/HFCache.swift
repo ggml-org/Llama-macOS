@@ -570,12 +570,23 @@ enum HFCache {
       ?? HFRepoParser.parseQuant(filename: fileBaseName)
       ?? "unknown"
 
-    // Calculate file size (sum all shards if split)
-    let filePaths: [String]
+    // Locate the vision projector (`mmproj*.gguf`) sidecar, if the repo ships
+    // one. Vision models can't do image input without it, and this scan path is
+    // the sole source of `resolvedPaths` for `models.ini` — so if we don't
+    // attach it here, the `mmproj =` line never gets written and vision
+    // silently fails even though the sidecar is on disk.
+    let mmprojFile = findMmprojSidecar(snapshotDir: snapshotDir, mainRelPath: filename, fm: fm)
+
+    // Calculate file size (sum all shards if split, plus the mmproj sidecar so
+    // it matches `Model.fileSize`'s contract: main + shards + mmproj).
+    var filePaths: [String]
     if let shardFiles {
       filePaths = shardFiles.map { snapshotDir.appendingPathComponent($0).path }
     } else {
       filePaths = [snapshotDir.appendingPathComponent(filename).path]
+    }
+    if let mmprojFile {
+      filePaths.append(mmprojFile)
     }
 
     // Resolve symlinks before reading attributes — HF cache stores symlinks in
@@ -628,7 +639,7 @@ enum HFCache {
     let paths = ResolvedPaths(
       modelFile: mainFilePath,
       additionalParts: additionalParts,
-      mmprojFile: nil,
+      mmprojFile: mmprojFile,
       usesMTP: mtpSidecar == nil && fileHasMTPHead(fileBaseName),
       mtpSidecarFile: mtpSidecar,
       hfRepoDirName: repoDir
@@ -686,6 +697,42 @@ enum HFCache {
       }
 
     return chosen.map { searchDir.appendingPathComponent($0).path }
+  }
+
+  /// Finds the vision projector (`mmproj*.gguf`) sidecar for the main file,
+  /// returning its absolute path. Mirrors `HFRepoResolver.pickMmproj`'s policy:
+  /// attach only when there's exactly one candidate, skip when ambiguous — an
+  /// mmproj is quant-agnostic, so we've no reliable way to pick among several.
+  ///
+  /// Search is two-tier to cover both real-world layouts: first the main file's
+  /// own directory (per-quant repos ship `Q4_K_M/mmproj-….gguf` beside the
+  /// quant), then the snapshot top level (flat Gemma-style repos, and unsloth
+  /// subdir repos that keep one shared `mmproj-….gguf` at the root while the
+  /// quants live in subdirs).
+  private static func findMmprojSidecar(
+    snapshotDir: URL, mainRelPath: String, fm: FileManager
+  ) -> String? {
+    let mainDir = (mainRelPath as NSString).deletingLastPathComponent
+    let mainDirURL =
+      mainDir.isEmpty ? snapshotDir : snapshotDir.appendingPathComponent(mainDir)
+
+    // Prefer a sidecar in the main file's own directory; fall back to the
+    // snapshot root only when the main file lives in a subdir.
+    if let hit = singleMmproj(in: mainDirURL, fm: fm) { return hit }
+    if !mainDir.isEmpty, let hit = singleMmproj(in: snapshotDir, fm: fm) { return hit }
+    return nil
+  }
+
+  /// Returns the lone `mmproj*.gguf` in `dir`, or nil if there are none or more
+  /// than one (ambiguous — matching `pickMmproj`'s skip-when-ambiguous policy).
+  private static func singleMmproj(in dir: URL, fm: FileManager) -> String? {
+    guard let entries = try? fm.contentsOfDirectory(atPath: dir.path) else { return nil }
+    let candidates = entries.filter {
+      let name = $0.lowercased()
+      return name.hasPrefix("mmproj") && name.hasSuffix(".gguf")
+    }
+    guard candidates.count == 1 else { return nil }
+    return dir.appendingPathComponent(candidates[0]).path
   }
 }
 
