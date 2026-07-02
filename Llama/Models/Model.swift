@@ -91,14 +91,21 @@ struct Model: Identifiable, Codable {
     self.quantization = quantization
   }
 
+  /// The org whose models are native — ours, conceptually. Native models never
+  /// expose the org concept to the user: no prefix in the id or the row.
+  static let nativeOrg = "ggml-org"
+
+  /// Whether this model is published by the native org.
+  var isNative: Bool { org == Model.nativeOrg }
+
   /// Builds the stable model id shared by the deeplink and post-install scan
-  /// paths. `ggml-org` models are native — ours, conceptually — so they drop
-  /// the org prefix and get a short, slashless id: lowercased repo name with
-  /// the `-GGUF` suffix stripped (e.g. "qwen3-0.6b:Q8_0"). Models from any
-  /// other org keep the `{org}/{repo}:{QUANT}` shape, which matches
-  /// llama-server's `-hf` shorthand.
+  /// paths. Native models drop the org prefix and get a short, slashless id:
+  /// lowercased repo name with the `-GGUF` suffix stripped
+  /// (e.g. "qwen3-0.6b:Q8_0"). Models from any other org keep the
+  /// `{org}/{repo}:{QUANT}` shape, which matches llama-server's `-hf`
+  /// shorthand.
   static func makeId(org: String, repo: String, quant: String) -> String {
-    guard org == "ggml-org" else { return "\(org)/\(repo):\(quant)" }
+    guard org == nativeOrg else { return "\(org)/\(repo):\(quant)" }
     var base = repo
     if base.lowercased().hasSuffix("-gguf") {
       base = String(base.dropLast("-gguf".count))

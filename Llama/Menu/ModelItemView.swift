@@ -314,7 +314,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       sizeColor: textColor,
       hasVision: model.hasVisionSupport,
       quantization: model.quantizationLabel,
-      org: model.org,
+      org: model.isNative ? nil : model.org,
       tags: model.tags
     )
 

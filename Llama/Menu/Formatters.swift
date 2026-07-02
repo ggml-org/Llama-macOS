@@ -184,7 +184,8 @@ extension Format {
   }
 
   /// Formats model name as "Family Size" with configurable colors.
-  /// Prepends "org /" and appends tags after size.
+  /// Prepends "org /" (nil for native models — they never show an org) and
+  /// appends tags after size.
   static func modelName(
     family: String,
     size: String,
@@ -192,17 +193,19 @@ extension Format {
     sizeColor: NSColor = Theme.Colors.textPrimary,
     hasVision: Bool = false,
     quantization: String? = nil,
-    org: String,
+    org: String?,
     tags: [String] = []
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
     // Org prefix in secondary color (e.g. "bartowski /") to disambiguate repos
     // that share a base name across orgs.
-    result.append(
-      NSAttributedString(
-        string: "\(org) / ",
-        attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
+    if let org {
+      result.append(
+        NSAttributedString(
+          string: "\(org) / ",
+          attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
+    }
 
     result.append(
       NSAttributedString(
