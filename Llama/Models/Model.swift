@@ -105,12 +105,30 @@ struct Model: Identifiable, Codable {
   /// `{org}/{repo}:{QUANT}` shape, which matches llama-server's `-hf`
   /// shorthand.
   static func makeId(org: String, repo: String, quant: String) -> String {
-    guard org == nativeOrg else { return "\(org)/\(repo):\(quant)" }
+    "\(idBase(org: org, repo: repo)):\(quant)"
+  }
+
+  /// The pre-colon portion of the id for a given org/repo. Lets callers that
+  /// hold a catalog repo string (`{org}/{repo}`) match against installed model
+  /// ids regardless of quant — e.g. the Discover section hiding suggestions
+  /// whose repo is already installed.
+  static func idBase(org: String, repo: String) -> String {
+    guard org == nativeOrg else { return "\(org)/\(repo)" }
     var base = repo
     if base.lowercased().hasSuffix("-gguf") {
       base = String(base.dropLast("-gguf".count))
     }
-    return "\(base.lowercased()):\(quant)"
+    return base.lowercased()
+  }
+
+  /// `idBase` for a combined `{org}/{repo}` string, as catalog suggestions
+  /// carry it. Returns the input unchanged if there's no slash to split on.
+  static func idBase(orgSlashRepo: String) -> String {
+    guard let slashIdx = orgSlashRepo.firstIndex(of: "/") else { return orgSlashRepo }
+    return idBase(
+      org: String(orgSlashRepo[..<slashIdx]),
+      repo: String(orgSlashRepo[orgSlashRepo.index(after: slashIdx)...])
+    )
   }
 
   /// Display name combining family and size — used in hints, alerts, logs.

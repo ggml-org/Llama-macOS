@@ -62,9 +62,10 @@ enum Catalog {
   // MARK: - Featured suggestions
 
   /// One catalog pick, resolved to a single build for this Mac. This is the unit
-  /// the Discover section renders and installs from. The `repo` matches the
-  /// `{org}/{repo}` prefix of the model id the resolver produces, so the Discover
-  /// section can hide a suggestion once its repo is installed.
+  /// the Discover section renders and installs from. The `repo`, run through
+  /// `Model.idBase`, matches the pre-colon prefix of the model id the resolver
+  /// produces, so the Discover section can hide a suggestion once its repo is
+  /// installed.
   struct Suggestion {
     let brand: String  // "Gemma" — drives the logo
     let sizeName: String  // "Gemma 4 E4B" — the row title

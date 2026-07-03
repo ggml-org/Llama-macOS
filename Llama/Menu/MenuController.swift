@@ -537,14 +537,17 @@ final class MenuController: NSObject, NSMenuDelegate {
   // MARK: - Discover Section
 
   /// Featured suggestions minus anything already installed, downloading, or
-  /// paused — matched by repo, since the suggestion's repo equals the `{org}/{repo}`
-  /// prefix of the model id the resolver produces.
+  /// paused — matched quant-agnostically by running the suggestion's repo
+  /// through the same id grammar (`Model.idBase`) the resolver and cache scan
+  /// use, so native (ggml-org) models' short ids compare correctly.
   private func visibleDiscoverSuggestions(managed: [Model]) -> [Catalog.Suggestion] {
-    let managedRepos = Set(
+    let managedIdBases = Set(
       managed.map { model in
         model.id.split(separator: ":").first.map(String.init) ?? model.id
       })
-    return discoverSuggestions.filter { !managedRepos.contains($0.repo) }
+    return discoverSuggestions.filter {
+      !managedIdBases.contains(Model.idBase(orgSlashRepo: $0.repo))
+    }
   }
 
   /// Adds the "Discover" section: a short list of featured models — up to two
