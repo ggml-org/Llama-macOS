@@ -141,12 +141,17 @@ enum HFRepoParser {
     try! NSRegularExpression(pattern: #"-(\d{5})-of-(\d{5})\.gguf$"#, options: .caseInsensitive)
   }()
 
-  /// Regex matching parameter count segments like "1B", "0.6B", "270M"
+  /// Regex matching parameter count segments like "1B", "0.6B", "270M".
+  /// The optional leading E covers Gemma's MatFormer "effective" sizes
+  /// ("E2B", "E4B") — those repos carry no plain size segment, so missing
+  /// them would collapse the whole repo name into the family. MoE active-size
+  /// markers like "A3B" stay unmatched on purpose: they always follow a plain
+  /// size and render as a tag.
   private static let paramsPattern: NSRegularExpression = {
-    try! NSRegularExpression(pattern: #"^\d+(\.\d+)?[BbMmKkTt]$"#)
+    try! NSRegularExpression(pattern: #"^[Ee]?\d+(\.\d+)?[BbMmKkTt]$"#)
   }()
 
-  /// Returns true if a segment looks like a parameter count (e.g. "1B", "270M", "0.6B")
+  /// Returns true if a segment looks like a parameter count (e.g. "1B", "270M", "0.6B", "E4B")
   private static func isParams(_ segment: String) -> Bool {
     paramsPattern.firstMatch(
       in: segment, range: NSRange(segment.startIndex..., in: segment)
