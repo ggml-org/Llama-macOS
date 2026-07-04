@@ -43,15 +43,15 @@ enum Catalog {
     let repo: String  // "{org}/{repo}"
   }
 
-  /// A parameter tier within a family, e.g. "Gemma 4 E4B".
+  /// A parameter tier within a family, e.g. "Gemma 4 E4B". The catalog's
+  /// `name` is not decoded: rows are titled by the repo's id base, so the
+  /// curated display name is the website's concern only.
   struct Size: Decodable {
-    let name: String
     let builds: [Build]
   }
 
   /// A named release line, e.g. "Gemma 4". Holds the shared metadata.
   struct Family: Decodable {
-    let name: String
     let brand: String
     /// Whether the catalog flags this family for in-app highlighting. Absent → false.
     let featured: Bool?
