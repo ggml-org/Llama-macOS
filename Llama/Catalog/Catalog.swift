@@ -67,8 +67,7 @@ enum Catalog {
   /// installed.
   struct Suggestion {
     let brand: String  // "Gemma" — drives the logo
-    let sizeName: String  // "Gemma 4 E4B" — the row title
-    let repo: String  // "{org}/{repo}"
+    let repo: String  // "{org}/{repo}" — the row title is its id base
     let quant: String?  // catalog quant label, e.g. "Q8_0"
     let sizeLabel: String?  // human size, e.g. "5.0 GB"
     /// Whether this is the size's top listed build — its "full precision"
@@ -132,7 +131,7 @@ enum Catalog {
       }
       let top = size.builds.max(by: { parseBytes($0.size) < parseBytes($1.size) })
       return Suggestion(
-        brand: family.brand, sizeName: size.name,
+        brand: family.brand,
         repo: best.repo, quant: best.quant, sizeLabel: best.size,
         isFullPrecision: best.repo == top?.repo && best.quant == top?.quant)
     }

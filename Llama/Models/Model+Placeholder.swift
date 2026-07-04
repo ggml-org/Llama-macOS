@@ -22,19 +22,16 @@ extension Model {
     let parts = repo.split(separator: "/")
     let org = parsed?.org ?? (parts.first.map(String.init) ?? "")
     let name = parsed?.name ?? (parts.count > 1 ? String(parts[1]) : repo)
-    let sizeLabel = parsed?.params ?? quant
 
     return Model(
       id: modelId,
       family: name,
-      sizeLabel: sizeLabel,
       fileSize: fileSize,
       downloadUrl: mainUrl,
       additionalParts: additionalParts.isEmpty ? nil : additionalParts,
       mmprojUrl: mmprojUrl,
       mtpUrl: mtpUrl,
       org: org,
-      tags: parsed?.tags ?? [],
       quantization: quant
     )
   }

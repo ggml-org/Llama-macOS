@@ -11,12 +11,9 @@ struct Model: Identifiable, Codable {
   /// because both derive the quant label through the same `GGUFQuantLabel`
   /// grammar and build the id through `makeId`.
   let id: String
-  /// Display family name parsed from the repo (e.g. "Qwen3-30B-A3B-Instruct").
+  /// Family name parsed from the repo (e.g. "Qwen3-30B-A3B-Instruct"). Not
+  /// displayed (rows show the id) — drives brand-logo matching and sort order.
   let family: String
-  /// Display size label — parsed parameter count (e.g. "30B") or, if the repo
-  /// name doesn't carry one, the quant label as a fallback. Distinct from the
-  /// numeric `fileSize`: this is the human-facing parameter-size string.
-  let sizeLabel: String
   /// Maximum context length in tokens. 128k upper bound — clamped by the
   /// memory budget once `ctxBytesPer1kTokens` is measured.
   let ctxWindow: Int
@@ -51,16 +48,12 @@ struct Model: Identifiable, Codable {
   /// HF org parsed from the repo dir (e.g. "bartowski"). Shown in the row to
   /// disambiguate repos that share a base name across orgs.
   let org: String
-  /// Extra tags parsed from the repo name (e.g. ["Instruct", "it"]).
-  /// Excludes GGUF/GGML.
-  let tags: [String]
   /// Quantization label (e.g. "Q4_K_M", "Q8_0", "F16"). Part of the id.
   let quantization: String
 
   init(
     id: String,
     family: String,
-    sizeLabel: String,
     ctxWindow: Int = 131_072,
     fileSize: Int64,
     ctxBytesPer1kTokens: Int = 0,
@@ -71,12 +64,10 @@ struct Model: Identifiable, Codable {
     mmprojUrl: URL? = nil,
     mtpUrl: URL? = nil,
     org: String,
-    tags: [String] = [],
     quantization: String
   ) {
     self.id = id
     self.family = family
-    self.sizeLabel = sizeLabel
     self.ctxWindow = ctxWindow
     self.fileSize = fileSize
     self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
@@ -87,7 +78,6 @@ struct Model: Identifiable, Codable {
     self.mmprojUrl = mmprojUrl
     self.mtpUrl = mtpUrl
     self.org = org
-    self.tags = tags
     self.quantization = quantization
   }
 
@@ -131,9 +121,19 @@ struct Model: Identifiable, Codable {
     )
   }
 
-  /// Display name combining family and size — used in hints, alerts, logs.
+  /// The pre-colon portion of this model's id (e.g. "gpt-oss-20b",
+  /// "unsloth/GLM-4.7-Flash-GGUF"). The one display name — menu rows, hints,
+  /// alerts, and logs all show the id, so every surface (including the WebUI,
+  /// which renders the raw id from `/v1/models`) derives from the same string.
+  var idBase: String {
+    guard let colonIdx = id.lastIndex(of: ":") else { return id }
+    return String(id[..<colonIdx])
+  }
+
+  /// Display name — the id base. Kept as a semantic alias so call sites read
+  /// as "the model's name" rather than "an id fragment".
   var displayName: String {
-    "\(family) \(sizeLabel)"
+    idBase
   }
 
   /// Brand logo asset name in `Assets.xcassets/ModelLogos`, matched from the
@@ -141,13 +141,6 @@ struct Model: Identifiable, Codable {
   /// row then falls back to a generic system symbol.
   var brandLogoAsset: String? {
     ModelLogos.asset(matching: family)
-  }
-
-  /// Pretty quantization label (e.g. "Q4") for the row subtitle.
-  /// Nil when the label maps to "no qualifier needed" (full precision, empty).
-  var quantizationLabel: String? {
-    let label = Format.quantization(quantization)
-    return label.isEmpty ? nil : label
   }
 
   /// Human-readable total file size for the metadata line.

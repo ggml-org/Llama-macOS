@@ -54,20 +54,6 @@ enum Format {
     return formatDecimal(gb, unit: " GB")
   }
 
-  // MARK: - Quantization Formatting
-
-  /// Extracts the first segment of a quantization label for compact display.
-  /// Examples: "Q4_K_M" → "Q4", "Q8_0" → "Q8", "F16" → "F16"
-  static func quantization(_ label: String) -> String {
-    let upper = label.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-    guard !upper.isEmpty else { return upper }
-    if let idx = upper.firstIndex(where: { $0 == "_" || $0 == "-" }) {
-      let prefix = upper[..<idx]
-      if !prefix.isEmpty { return String(prefix) }
-    }
-    return upper
-  }
-
   // MARK: - Private Helpers
 
   /// Formats a value with one decimal place, omitting ".0" for whole numbers.
@@ -75,6 +61,38 @@ enum Format {
     let rounded = (value * 10).rounded() / 10
     let format = rounded.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.1f"
     return String(format: format, rounded) + unit
+  }
+
+  /// Renders a quant label as a small pill chip (dimmed text on a subtle
+  /// rounded background) attached inline after the model name. Drawn via an
+  /// NSImage drawing handler, which runs at draw time, so the dynamic theme
+  /// colors resolve against the current light/dark appearance.
+  private static func quantChip(_ quant: String) -> NSAttributedString {
+    let font = NSFont.systemFont(ofSize: 9, weight: .medium)
+    let textAttributes: [NSAttributedString.Key: Any] = [
+      .font: font,
+      .foregroundColor: Theme.Colors.textSecondary,
+    ]
+    let textSize = (quant as NSString).size(withAttributes: textAttributes)
+    let hPad: CGFloat = 5
+    let chipSize = NSSize(width: ceil(textSize.width) + hPad * 2, height: 14)
+
+    let image = NSImage(size: chipSize, flipped: false) { rect in
+      let pill = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+      Theme.Colors.subtleBackground.setFill()
+      pill.fill()
+      (quant as NSString).draw(
+        at: NSPoint(x: hPad, y: (rect.height - textSize.height) / 2),
+        withAttributes: textAttributes)
+      return true
+    }
+
+    let attachment = NSTextAttachment()
+    attachment.image = image
+    // Nudge the chip down so it centers against the 13pt primary text's
+    // x-height rather than sitting on the baseline.
+    attachment.bounds = NSRect(x: 0, y: -2.5, width: chipSize.width, height: chipSize.height)
+    return NSAttributedString(attachment: attachment)
   }
 
   /// Creates an attributed string containing an SF Symbol with the specified color.
@@ -183,57 +201,50 @@ extension Format {
     return result
   }
 
-  /// Formats model name as "Family Size" with configurable colors.
-  /// Prepends "org /" (nil for native models — they never show an org) and
-  /// appends tags after size.
+  /// Formats a model's display name — the id base, shown verbatim so the row
+  /// matches what API clients and the WebUI see. For non-native bases the
+  /// `{org}/` prefix renders in secondary color: the org is real
+  /// disambiguation, but the repo name is the part the eye should land on.
+  /// A non-nil `quant` appends the id's post-colon segment as a small chip —
+  /// same content as the full id, restyled so it reads as metadata — keeping
+  /// same-repo rows at different quants distinguishable.
   static func modelName(
-    family: String,
-    size: String,
-    familyColor: NSColor,
-    sizeColor: NSColor = Theme.Colors.textPrimary,
-    hasVision: Bool = false,
-    quantization: String? = nil,
-    org: String?,
-    tags: [String] = []
+    idBase: String,
+    color: NSColor,
+    quant: String? = nil,
+    hasVision: Bool = false
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
-    // Org prefix in secondary color (e.g. "bartowski /") to disambiguate repos
-    // that share a base name across orgs.
-    if let org {
+    if let slashIdx = idBase.firstIndex(of: "/") {
+      let prefix = String(idBase[...slashIdx])  // includes the slash
+      let rest = String(idBase[idBase.index(after: slashIdx)...])
       result.append(
         NSAttributedString(
-          string: "\(org) / ",
+          string: prefix,
           attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
+      result.append(
+        NSAttributedString(string: rest, attributes: Theme.primaryAttributes(color: color)))
+    } else {
+      result.append(
+        NSAttributedString(string: idBase, attributes: Theme.primaryAttributes(color: color)))
     }
 
-    result.append(
-      NSAttributedString(
-        string: family, attributes: Theme.primaryAttributes(color: familyColor)))
-    result.append(
-      NSAttributedString(
-        string: " \(size)", attributes: Theme.primaryAttributes(color: sizeColor)))
-
-    // Tags after size in secondary color (e.g. "Instruct")
-    if !tags.isEmpty {
-      let tagStr = " " + tags.joined(separator: " ")
-      result.append(
-        NSAttributedString(
-          string: tagStr,
-          attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
+    if let quant {
+      // The id's post-colon segment, rendered as a small chip instead of
+      // inline text: even dimmed, a text suffix made the title read heavy,
+      // while a chip visually files the quant as metadata. Shown verbatim
+      // (canonical uppercase), matching the id and the WebUI's badges — the
+      // chip's small size keeps the caps from grabbing attention.
+      result.append(NSAttributedString(string: " "))
+      result.append(quantChip(quant))
     }
 
     if hasVision {
       result.append(NSAttributedString(string: " "))
       result.append(
         Format.symbol(
-          "eyeglasses", pointSize: Theme.Fonts.primary.pointSize, color: sizeColor))
-    }
-    if quantization != nil {
-      result.append(NSAttributedString(string: " "))
-      result.append(
-        Format.symbol(
-          "q.square", pointSize: Theme.Fonts.primary.pointSize, color: Theme.Colors.textSecondary))
+          "eyeglasses", pointSize: Theme.Fonts.primary.pointSize, color: color))
     }
 
     // Disable letter-spacing tightening before truncation (see Theme.noTighteningParagraphStyle).

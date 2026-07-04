@@ -307,15 +307,13 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let isCompatible = model.isCompatible()
     let textColor = isCompatible ? baseTextColor : Theme.Colors.textSecondary
 
+    // Quant renders as a dimmed suffix (the id's post-colon part), but only
+    // when it carries information — full-precision builds have nothing to say.
     titleLabel.attributedStringValue = Format.modelName(
-      family: model.family,
-      size: model.sizeLabel,
-      familyColor: textColor,
-      sizeColor: textColor,
-      hasVision: model.hasVisionSupport,
-      quantization: model.quantizationLabel,
-      org: model.isNative ? nil : model.org,
-      tags: model.tags
+      idBase: model.idBase,
+      color: textColor,
+      quant: model.quantization.isEmpty ? nil : model.quantization,
+      hasVision: model.hasVisionSupport
     )
 
     let incompatibility = !isCompatible ? model.incompatibilitySummary() : nil

@@ -19,30 +19,22 @@ final class CatalogItemView: ItemView {
   /// belongs on line one next to the name (see `titleText`).
   private var subtitleText: String { suggestion.sizeLabel ?? "" }
 
-  /// Title: the size name, with a muted quant suffix only when the pick is a
-  /// below-full-precision fallback, e.g. "Gemma 4 E4B Q4_K_M". Full-precision
-  /// picks stay quant-free — quantization is a concept most users shouldn't
-  /// have to meet, so we surface it only when it carries information: "this is
-  /// a reduced build because the full one wouldn't fit on this Mac". The muted
-  /// color keeps it quiet enough that novices' eyes slide past it.
+  /// Title: the model's id base (e.g. "gemma-3-4b-it-qat") — the same string
+  /// the installed row, the API, and the WebUI show, so the name a user sees
+  /// before installing is the name they'll use after. A muted quant suffix
+  /// appears only when the pick is a below-full-precision fallback.
+  /// Full-precision picks stay quant-free — quantization is a concept most
+  /// users shouldn't have to meet, so we surface it only when it carries
+  /// information: "this is a reduced build because the full one wouldn't fit
+  /// on this Mac". The muted color keeps it quiet enough that novices' eyes
+  /// slide past it.
   private var titleText: NSAttributedString {
-    let result = NSMutableAttributedString(
-      string: suggestion.sizeName,
-      attributes: Theme.primaryAttributes(color: Theme.Colors.textPrimary))
-    if let quant = suggestion.quant, !suggestion.isFullPrecision {
-      let quantColor = Theme.Colors.textSecondary
-      // Widen the gap before the quant: a plain space reads as tighter than the
-      // inter-word spaces in the name, making the quant look glued on. `.kern`
-      // adds tracking *after* the character, so apply it to the leading space
-      // only — applying it to the whole run would also splay the quant's letters.
-      var spaceAttributes = Theme.primaryAttributes(color: quantColor)
-      spaceAttributes[.kern] = 3
-      result.append(NSAttributedString(string: " ", attributes: spaceAttributes))
-      result.append(
-        NSAttributedString(
-          string: quant, attributes: Theme.primaryAttributes(color: quantColor)))
-    }
-    return result
+    // Reuses the installed row's formatter so the base and the quant suffix
+    // get identical treatment in both sections.
+    Format.modelName(
+      idBase: Model.idBase(orgSlashRepo: suggestion.repo),
+      color: Theme.Colors.textPrimary,
+      quant: suggestion.isFullPrecision ? nil : suggestion.quant)
   }
 
   init(suggestion: Catalog.Suggestion, onInstall: @escaping (Catalog.Suggestion) -> Void) {

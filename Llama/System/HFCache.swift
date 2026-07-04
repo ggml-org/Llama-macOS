@@ -603,19 +603,14 @@ enum HFCache {
     // llama-server and Llama w/o changing model IDs in their code.
     let modelId = Model.makeId(org: parsed.org, repo: parsed.repo, quant: quant)
 
-    // Build the display size label — use params if available, otherwise show quant only
-    let sizeLabel = parsed.params ?? quant
-
     let entry = Model(
       id: modelId,
       family: parsed.name,
-      sizeLabel: sizeLabel,
       ctxWindow: 131_072,  // 128k upper bound — clamped by memory budget
       fileSize: totalFileSize,
       // ctxBytesPer1kTokens stays 0 until the async MemProfile probe runs.
       downloadUrl: URL(string: "file:///")!,
       org: parsed.org,
-      tags: parsed.tags,
       quantization: quant
     )
 
