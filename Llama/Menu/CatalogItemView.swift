@@ -108,7 +108,19 @@ final class CatalogItemView: ItemView {
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
   }
 
-  @objc private func didClickRow() { onInstall(suggestion) }
+  /// ⌘-click opens the suggestion's repo on Hugging Face instead of installing.
+  /// Deliberately undiscoverable for now -- a lightweight way to vet a
+  /// recommendation while we decide whether the link deserves real UI.
+  @objc private func didClickRow() {
+    if NSEvent.modifierFlags.contains(.command),
+      let url = URL(string: "https://huggingface.co/\(suggestion.repo)")
+    {
+      openInBrowser(url)
+      return
+    }
+    onInstall(suggestion)
+  }
+
   @objc private func didClickInstall() { onInstall(suggestion) }
 
   override func viewDidChangeEffectiveAppearance() {
