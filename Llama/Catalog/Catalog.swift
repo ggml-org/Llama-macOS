@@ -70,11 +70,6 @@ enum Catalog {
     let repo: String  // "{org}/{repo}" — the row title is its id base
     let quant: String?  // catalog quant label, e.g. "Q8_0"
     let sizeLabel: String?  // human size, e.g. "5.0 GB"
-    /// Whether this is the size's top listed build — its "full precision"
-    /// (Q8 for 16-bit families, Q4 for QAT ones). False only when the top
-    /// build didn't fit and a lower quant was substituted; the row surfaces
-    /// the quant label in exactly that case.
-    let isFullPrecision: Bool
   }
 
   /// Fetches the catalog and returns one suggestion per fitting size of each
@@ -123,17 +118,13 @@ enum Catalog {
       let fitting = size.builds.filter {
         Model.estimatedWeightFits(bytes: parseBytes($0.size), budgetMb: budgetMb)
       }
-      // Best quant = biggest fitting download of this size. It's full precision
-      // when it's also the size's biggest build overall — i.e. nothing above it
-      // was excluded for not fitting.
+      // Best quant = biggest fitting download of this size.
       guard let best = fitting.max(by: { parseBytes($0.size) < parseBytes($1.size) }) else {
         return nil
       }
-      let top = size.builds.max(by: { parseBytes($0.size) < parseBytes($1.size) })
       return Suggestion(
         brand: family.brand,
-        repo: best.repo, quant: best.quant, sizeLabel: best.size,
-        isFullPrecision: best.repo == top?.repo && best.quant == top?.quant)
+        repo: best.repo, quant: best.quant, sizeLabel: best.size)
     }
   }
 

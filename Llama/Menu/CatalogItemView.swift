@@ -21,20 +21,17 @@ final class CatalogItemView: ItemView {
 
   /// Title: the model's id base (e.g. "gemma-3-4b-it-qat") — the same string
   /// the installed row, the API, and the WebUI show, so the name a user sees
-  /// before installing is the name they'll use after. A muted quant suffix
-  /// appears only when the pick is a below-full-precision fallback.
-  /// Full-precision picks stay quant-free — quantization is a concept most
-  /// users shouldn't have to meet, so we surface it only when it carries
-  /// information: "this is a reduced build because the full one wouldn't fit
-  /// on this Mac". The muted color keeps it quiet enough that novices' eyes
-  /// slide past it.
+  /// before installing is the name they'll use after. The quant chip follows
+  /// the same rule as installed rows (shown whenever there is one), so the
+  /// row looks identical before and after installing — no chip appearing out
+  /// of nowhere once the model lands in the installed section.
   private var titleText: NSAttributedString {
-    // Reuses the installed row's formatter so the base and the quant suffix
+    // Reuses the installed row's formatter so the base and the quant chip
     // get identical treatment in both sections.
     Format.modelName(
       idBase: Model.idBase(orgSlashRepo: suggestion.repo),
       color: Theme.Colors.textPrimary,
-      quant: suggestion.isFullPrecision ? nil : suggestion.quant)
+      quant: suggestion.quant)
   }
 
   init(suggestion: Catalog.Suggestion, onInstall: @escaping (Catalog.Suggestion) -> Void) {
