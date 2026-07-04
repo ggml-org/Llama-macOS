@@ -10,12 +10,14 @@ import os.log
 /// install can get a model running in a couple of clicks without first visiting
 /// the website.
 ///
-/// The two picks per family are a smaller, faster-to-download size and the
-/// largest size that fits this machine's memory — so a user can try something
-/// quickly or go straight for the most capable build their Mac can run. They're
-/// shown unlabeled (the model name's param-size and the download size carry the
-/// meaning), and collapse to a single row when they resolve to the same build
-/// (small Macs, single-size families).
+/// Each featured family shows every size this Mac can run, one row per size,
+/// each resolved to the highest-precision quant that fits. "Full precision" is
+/// whatever the catalog lists as the size's top build — Q8 for 16-bit families,
+/// Q4 for QAT ones like Gemma 3 — and lower quants are strictly fallbacks. So a
+/// row's quant is never a choice we made: a below-top quant means the top one
+/// wouldn't run on this machine, nothing more. Which sizes exist and which
+/// families are featured is the website's curation; the app only filters by
+/// what fits.
 ///
 /// The full browsing experience stays on the web; the app only ever reads the
 /// `featured` slice.
@@ -44,9 +46,6 @@ enum Catalog {
   /// A parameter tier within a family, e.g. "Gemma 4 E4B".
   struct Size: Decodable {
     let name: String
-    /// Parameter count label, e.g. "4B", "270M". Drives the smaller-pick floor.
-    /// Absent → treated as below any floor (never chosen as the smaller pick).
-    let params: String?
     let builds: [Build]
   }
 
@@ -74,10 +73,10 @@ enum Catalog {
     let sizeLabel: String?  // human size, e.g. "5.0 GB"
   }
 
-  /// Fetches the catalog and returns up to two suggestions per featured family
-  /// (a smaller size and the largest that fits — see `picks(for:)`), in catalog
-  /// order. Returns an empty list on any failure — Discover simply doesn't appear,
-  /// and the user can still install from the web catalog or via deeplink.
+  /// Fetches the catalog and returns one suggestion per fitting size of each
+  /// featured family (see `picks(for:)`), in catalog order. Returns an empty
+  /// list on any failure — Discover simply doesn't appear, and the user can
+  /// still install from the web catalog or via deeplink.
   static func fetchFeatured(systemMemoryMb: UInt64) async -> [Suggestion] {
     let families: [Family]
     do {
@@ -101,79 +100,33 @@ enum Catalog {
 
   // MARK: - Selection
 
-  /// Minimum parameter count (in millions) for the smaller pick. That row is
-  /// meant to be the fastest way to a *useful* running model, so we skip the
-  /// sub-billion "toy" sizes that would make a poor first impression. 3B sits in
-  /// the gap common families leave between their small tier (~1–2B) and their
-  /// first genuinely capable size (~4B), so the floor reliably lands on that
-  /// 4B-class build rather than a 270M/1B one.
-  private static let smallerPickMinParamsMillions = 3_000.0
-
-  /// A flattened (size, build) candidate, tagged with parsed numeric size/params.
-  private struct Candidate {
-    let size: Size
-    let build: Build
-    let bytes: Int64
-    let paramsMillions: Double
-  }
-
-  /// Picks up to two builds to suggest for a family, both bounded by this Mac's
-  /// memory budget:
+  /// Picks the builds to suggest for a family: one per size that fits this
+  /// Mac's memory budget, in catalog order.
   ///
-  /// - a smaller, faster-to-download size — the smallest fitting build at or
-  ///   above the param floor, so it's quick to try yet not a toy.
-  /// - the largest fitting build — the most capable size this Mac can run.
-  ///
-  /// Returns the two as `[smaller, largest]` when they differ. When they resolve
-  /// to the same build, or no build clears the param floor, returns a single
-  /// suggestion. Returns an empty array when nothing fits — Discover is a quick
-  /// start surface, so a family this Mac can't run is dropped rather than shown
-  /// as an uninstallable row. If the whole featured set is too big, the section
-  /// is empty and the menu falls back to the "Browse models" link.
+  /// Each size resolves to its highest-precision fitting quant — the largest
+  /// build within budget — so full precision (whatever the size's top listed
+  /// build is) wins whenever it fits and lower quants are strictly fallbacks.
+  /// Quant selection is thus mechanical, not curatorial: a below-top quant
+  /// always means the top one wouldn't run here. Sizes with no fitting build
+  /// are dropped rather than shown as uninstallable rows; a family where
+  /// nothing fits contributes no rows. If the whole featured set is too big,
+  /// the section is empty and the menu falls back to the "Browse models" link.
   private static func picks(for family: Family, budgetMb: Double) -> [Suggestion] {
-    // Flatten to candidates, tagging each with its parsed byte size and params.
-    let candidates: [Candidate] =
-      family.sizes.flatMap { size in
-        size.builds.map { build in
-          Candidate(
-            size: size, build: build,
-            bytes: parseBytes(build.size),
-            paramsMillions: parseParamsMillions(size.params))
-        }
+    family.sizes.compactMap { size in
+      // A build fits when its estimated weight memory is within budget. Unknown
+      // sizes parse to 0 bytes and are treated as fitting (don't hide),
+      // matching the resolver's posture.
+      let fitting = size.builds.filter {
+        Model.estimatedWeightFits(bytes: parseBytes($0.size), budgetMb: budgetMb)
       }
-
-    // A build fits when its estimated weight memory is within budget. Unknown
-    // sizes are treated as fitting (don't hide), matching the resolver's posture.
-    let fitting = candidates.filter {
-      Model.estimatedWeightFits(bytes: $0.bytes, budgetMb: budgetMb)
+      // Best quant = biggest fitting download of this size.
+      guard let best = fitting.max(by: { parseBytes($0.size) < parseBytes($1.size) }) else {
+        return nil
+      }
+      return Suggestion(
+        brand: family.brand, sizeName: size.name,
+        repo: best.repo, quant: best.quant, sizeLabel: best.size)
     }
-    guard let best = fitting.max(by: { $0.bytes < $1.bytes }) else { return [] }
-
-    // Smaller pick: smallest fitting build that clears the param floor.
-    let smaller =
-      fitting
-      .filter { $0.paramsMillions >= smallerPickMinParamsMillions }
-      .min(by: { $0.bytes < $1.bytes })
-
-    func suggestion(_ c: Candidate) -> Suggestion {
-      Suggestion(
-        brand: family.brand, sizeName: c.size.name,
-        repo: c.build.repo, quant: c.build.quant, sizeLabel: c.build.size)
-    }
-
-    // When there's no distinct smaller build (none clears the floor, or it's the
-    // same build as the largest), show a single row.
-    guard let smaller = smaller, !sameBuild(smaller, best) else {
-      return [suggestion(best)]
-    }
-    return [suggestion(smaller), suggestion(best)]
-  }
-
-  /// Whether two candidates point at the same downloadable build. Repo is unique
-  /// per size and quant distinguishes builds within a repo, so the pair
-  /// identifies a build.
-  private static func sameBuild(_ a: Candidate, _ b: Candidate) -> Bool {
-    a.build.repo == b.build.repo && a.build.quant == b.build.quant
   }
 
   /// Parses catalog size strings like "5.0 GB", "806 MB", "12.1 GB" into bytes.
@@ -192,35 +145,6 @@ enum Catalog {
     default: multiplier = 1_000_000_000
     }
     return Int64(value * multiplier)
-  }
-
-  /// Parses catalog param labels into millions of parameters. The catalog uses
-  /// several shapes, so we read the *leading* number and the first B/M unit that
-  /// follows it, ignoring anything else:
-  ///
-  /// - "4B" → 4000, "270M" → 270, "0.8B" → 800
-  /// - "E4B" → 4000 (Gemma 3n's "effective params" notation; leading E ignored)
-  /// - "122B-A10B" → 122000 (MoE total-active; we floor on the leading total)
-  /// - "14B Reasoning" → 14000 (trailing words ignored)
-  /// - "Flash" / missing → 0 (no leading number)
-  ///
-  /// A 0 result keeps it below any floor, so it's never the smaller pick (but it
-  /// can still be the largest-fitting pick, where params don't matter).
-  private static func parseParamsMillions(_ label: String?) -> Double {
-    guard let label = label?.trimmingCharacters(in: .whitespaces), !label.isEmpty else { return 0 }
-    var chars = Substring(label.uppercased())
-
-    // Gemma 3n writes effective params as "E2B"/"E4B" — drop the leading marker.
-    if chars.first == "E" { chars = chars.dropFirst() }
-
-    // Read the leading number (digits and a decimal point).
-    let numberStr = chars.prefix { $0.isNumber || $0 == "." }
-    guard let value = Double(numberStr), value > 0 else { return 0 }
-
-    // The unit is the first B/M after the number ("M" → millions, else billions).
-    let rest = chars.dropFirst(numberStr.count)
-    let multiplier = rest.first(where: { $0 == "B" || $0 == "M" }) == "M" ? 1.0 : 1_000.0
-    return value * multiplier
   }
 }
 
