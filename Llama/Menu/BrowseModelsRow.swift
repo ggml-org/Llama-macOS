@@ -1,32 +1,35 @@
 import AppKit
 
-/// Trailing row under the Recommended suggestions that links to the web catalog
-/// for more models — the curated picks are a starting point, and the catalog has
-/// more (it's curated, not all of Hugging Face, hence "more" not "all").
+/// Standalone row (in its own separator-delimited slot, below the Recommended
+/// section when that's present) linking to the web catalog for more models — the
+/// curated picks are a starting point, and the catalog has more. It stays put
+/// whether the Recommended picks are shown, exhausted, or unavailable.
 ///
 /// Styled to match the model rows it follows, not the section headers above them:
 /// flush-left gray text put it in the header gutter, where it read as a heading
 /// for content that isn't there. It borrows a model row's whole grammar — a
-/// leading icon in the same circular container (a globe for the web catalog),
+/// leading icon in the same circular container (a grid for the model catalog),
 /// two-line text (label over caption), and a trailing glyph naming the action.
 /// Where a model row's trailing glyph is a download arrow, here it's
 /// arrow.up.forward, signaling the click navigates away to the web.
-final class BrowseMoreRow: ItemView {
+final class BrowseModelsRow: ItemView {
   private let url: URL
 
   init(url: URL) {
     self.url = url
     super.init(frame: .zero)
 
-    // Globe in the same circular container the model rows use for their logos —
-    // it reads as "the web catalog" and keeps the icon column visually consistent.
+    // Grid glyph in the same circular container the model rows use for their
+    // logos — it reads as "a catalog of items to browse" and keeps the icon
+    // column visually consistent. The web-destination cue is carried by the
+    // caption and the trailing arrow, not the icon.
     let icon = IconView()
     icon.imageView.image = NSImage(
-      systemSymbolName: "globe", accessibilityDescription: "Web catalog")
+      systemSymbolName: "square.grid.2x2", accessibilityDescription: "Model catalog")
     icon.inactiveTintColor = Theme.Colors.modelIconTint
 
     // Two-line text echoing a model row: primary name over a tertiary caption.
-    let title = Theme.primaryLabel("Browse more")
+    let title = Theme.primaryLabel("Browse models")
     let subtitle = Theme.tertiaryLabel("Full catalog on the web")
     let textColumn = NSStackView(views: [title, subtitle])
     textColumn.orientation = .vertical

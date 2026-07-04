@@ -17,7 +17,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   /// Reset on menu close so each open starts collapsed.
   private var isInstalledListExpanded = false
 
-  /// Web catalog the Discover "Browse more" link points at — more models live
+  /// Web catalog the Discover "Browse models" link points at — more models live
   /// here. Matches the empty-state browse link.
   private static let browseCatalogUrl = URL(string: "https://llama.app/")!
 
@@ -270,15 +270,14 @@ final class MenuController: NSObject, NSMenuDelegate {
     // slot when nothing's installed — so it anchors the menu instead of vanishing
     // and leaving Recommended as a floating first section.
     addInstalledSection(to: menu, models: managed)
-    if suggestions.isEmpty {
-      // No picks to show — all recommended models already installed, or the
-      // catalog is unavailable (offline) or hasn't finished loading yet. Keep a
-      // standalone Browse more link so the web catalog stays one click away.
-      menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
-      menu.addItem(NSMenuItem.viewItem(with: BrowseMoreRow(url: Self.browseCatalogUrl)))
-    } else {
-      addDiscoverSection(to: menu, suggestions: suggestions)
-    }
+    addDiscoverSection(to: menu, suggestions: suggestions)
+
+    // The Browse models row lives outside the Recommended section: it's the permanent
+    // escape hatch to the full web catalog, so it stays in the same spot whether
+    // the picks above are present, exhausted (all installed), or unavailable
+    // (offline / still loading).
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
+    menu.addItem(NSMenuItem.viewItem(with: BrowseModelsRow(url: Self.browseCatalogUrl)))
 
     addFooter(to: menu)
 
@@ -552,8 +551,8 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   /// Adds the "Discover" section: a short list of featured models — up to two
   /// device-appropriate picks per family — that install with a single click.
-  /// Hidden when there's nothing to suggest. An Installed section always precedes
-  /// it, so it draws a divider above itself.
+  /// The whole section (divider + header + rows) is omitted when there's nothing
+  /// to suggest; the standalone Browse models row below it covers that state.
   private func addDiscoverSection(to menu: NSMenu, suggestions: [Catalog.Suggestion]) {
     guard !suggestions.isEmpty else { return }
 
@@ -571,10 +570,6 @@ final class MenuController: NSObject, NSMenuDelegate {
       }
       menu.addItem(NSMenuItem.viewItem(with: view))
     }
-
-    // Trailing link to the web catalog — the picks above are a starting point;
-    // more models live on the web.
-    menu.addItem(NSMenuItem.viewItem(with: BrowseMoreRow(url: Self.browseCatalogUrl)))
   }
 
   /// Starts a download for a catalog suggestion via the shared deeplink installer.
