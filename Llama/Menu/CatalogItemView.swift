@@ -19,16 +19,17 @@ final class CatalogItemView: ItemView {
   /// belongs on line one next to the name (see `titleText`).
   private var subtitleText: String { suggestion.sizeLabel ?? "" }
 
-  /// Title: the size name with a muted quant suffix, e.g. "Gemma 4 E4B Q4_K_M".
-  /// Discover picks one build per size, so the quant isn't a choice here — but
-  /// experienced users scrutinizing the recommendation want to know which quant
-  /// they're getting. The muted color keeps it quiet enough that novices' eyes
-  /// slide past it. Quant is dropped when the catalog omits it.
+  /// Title: the size name, with a muted quant suffix only when the pick is a
+  /// below-full-precision fallback, e.g. "Gemma 4 E4B Q4_K_M". Full-precision
+  /// picks stay quant-free — quantization is a concept most users shouldn't
+  /// have to meet, so we surface it only when it carries information: "this is
+  /// a reduced build because the full one wouldn't fit on this Mac". The muted
+  /// color keeps it quiet enough that novices' eyes slide past it.
   private var titleText: NSAttributedString {
     let result = NSMutableAttributedString(
       string: suggestion.sizeName,
       attributes: Theme.primaryAttributes(color: Theme.Colors.textPrimary))
-    if let quant = suggestion.quant {
+    if let quant = suggestion.quant, !suggestion.isFullPrecision {
       let quantColor = Theme.Colors.textSecondary
       // Widen the gap before the quant: a plain space reads as tighter than the
       // inter-word spaces in the name, making the quant look glued on. `.kern`
