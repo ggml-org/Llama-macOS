@@ -116,6 +116,18 @@ enum HFRepoParser {
     return false
   }
 
+  /// Returns the declared shard count of a split-shard filename.
+  /// e.g. "model-00001-of-00003.gguf" → 3
+  static func shardTotal(_ filename: String) -> Int? {
+    guard
+      let match = splitShardPattern.firstMatch(
+        in: filename, range: NSRange(filename.startIndex..., in: filename)
+      ),
+      let totalRange = Range(match.range(at: 2), in: filename)
+    else { return nil }
+    return Int(filename[totalRange])
+  }
+
   /// Returns the base name for a split shard (everything before the shard pattern).
   /// e.g. "model-00001-of-00003.gguf" → "model"
   static func splitShardBaseName(_ filename: String) -> String? {

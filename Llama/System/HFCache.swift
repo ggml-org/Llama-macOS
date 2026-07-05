@@ -487,9 +487,15 @@ enum HFCache {
         // Process split shard groups (one entry per group, using first shard)
         for (_, shardFilenames) in shardGroups {
           let sorted = shardFilenames.sorted()
-          // Only include groups where the first shard exists
+          // Only include complete groups: first shard present AND every shard of
+          // the declared `-of-NNNNN` count on disk. Shards are promoted into the
+          // snapshot one by one as each finishes downloading, so a mid-download
+          // scan can see a partial set — treating that as installed would make
+          // the model appear twice (installed + downloading) and lets the
+          // partials GC delete the in-flight download's staging files.
           guard let firstShard = sorted.first,
-            HFRepoParser.isFirstShard(firstShard)
+            HFRepoParser.isFirstShard(firstShard),
+            sorted.count == HFRepoParser.shardTotal(firstShard)
           else { continue }
 
           if let result = buildSideloadedEntry(
