@@ -12,6 +12,7 @@ final class HeaderView: ItemView {
   private let linkLabel = Theme.secondaryLabel()
   private let copyButton = NSButton()
   private let webUiLabel = Theme.secondaryLabel()
+  private let restartLabel = Theme.secondaryLabel()
 
   private var currentUrl: URL?
   private var webUiUrl: URL?
@@ -75,6 +76,20 @@ final class HeaderView: ItemView {
     webUiLabel.addGestureRecognizer(webUiClick)
     webUiLabel.isSelectable = false
 
+    // Restart Label Configuration -- shown in place of the WebUI link when the
+    // server is in an error state, so the user has a way to retry from the menu
+    let restartClick = NSClickGestureRecognizer(target: self, action: #selector(restartServer))
+    restartLabel.addGestureRecognizer(restartClick)
+    restartLabel.isSelectable = false
+    restartLabel.attributedStringValue = NSAttributedString(
+      string: "Restart",
+      attributes: [
+        .foregroundColor: NSColor.linkColor,
+        .font: Theme.Fonts.secondary,
+      ]
+    )
+    restartLabel.isHidden = true
+
     statusStackView.addArrangedSubview(statusLabel)
     statusStackView.addArrangedSubview(linkLabel)
     statusStackView.addArrangedSubview(NSView.spacer(width: 4))
@@ -82,6 +97,7 @@ final class HeaderView: ItemView {
     statusStackView.addArrangedSubview(NSView.spacer(width: 8))
     statusStackView.addArrangedSubview(NSView.flexibleSpacer())
     statusStackView.addArrangedSubview(webUiLabel)
+    statusStackView.addArrangedSubview(restartLabel)
   }
 
   func refresh() {
@@ -117,6 +133,7 @@ final class HeaderView: ItemView {
       linkLabel.isHidden = true
       copyButton.isHidden = true
       webUiLabel.isHidden = true
+      restartLabel.isHidden = false
       needsDisplay = true
       return
     }
@@ -146,6 +163,7 @@ final class HeaderView: ItemView {
     linkLabel.isHidden = false
     copyButton.isHidden = false
     webUiLabel.isHidden = false
+    restartLabel.isHidden = true
 
     let attrWebUi = NSAttributedString(
       string: "WebUI",
@@ -160,6 +178,12 @@ final class HeaderView: ItemView {
     Theme.updateCopyIcon(copyButton, showingConfirmation: showingCopyConfirmation)
 
     needsDisplay = true
+  }
+
+  @objc private func restartServer() {
+    // reload() regenerates models.ini first, so the retry also picks up any
+    // config changes made since the crash; it runs from .error (only .idle skips).
+    server.reload()
   }
 
   @objc private func openWebUi() {
