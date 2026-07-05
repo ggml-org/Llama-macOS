@@ -42,8 +42,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   // Icon and action buttons
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
-  /// Combined pause/play affordance: `pause.circle` while a download is in flight,
-  /// `play.circle` when the row is paused (partials on disk, no transfer). Always
+  /// Combined pause/play affordance: `pause.fill` while a download is in flight,
+  /// `play.fill` when the row is paused (partials on disk, no transfer). Always
   /// visible on downloading rows, anchored at the trailing edge so it doesn't shift
   /// when the hover-only cancel X appears beside it. Clicking it toggles, same as a
   /// row-body click.
@@ -86,7 +86,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       cancelImageView, symbol: "xmark.circle.fill", tooltip: "Cancel download",
       color: .tertiaryLabelColor)
     // Pause/play icon: actual symbol and tooltip are set in `refresh()` based on status.
-    Theme.configure(pausePlayImageView, symbol: "pause.circle", color: .tertiaryLabelColor)
+    Theme.configure(pausePlayImageView, symbol: "pause.fill", color: .tertiaryLabelColor)
     Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
 
     unloadButton.target = self
@@ -360,7 +360,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let showPausePlay = isDownloading || isPaused
     pausePlayImageView.isHidden = !showPausePlay
     if showPausePlay {
-      let symbol = isDownloading ? "pause.circle" : "play.circle"
+      let symbol = isDownloading ? "pause.fill" : "play.fill"
       let tooltip = isDownloading ? "Pause download" : "Resume download"
       pausePlayImageView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
       pausePlayImageView.toolTip = tooltip
