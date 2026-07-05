@@ -130,9 +130,9 @@ extension Format {
   /// in flight: "1.2 GB of 3.1 GB", or just "Paused" when interrupted. Progress is
   /// conveyed by the bar, so no percentage here. Uses tabular digits (so the
   /// counting-up "downloaded" figure doesn't jitter its width) and the same
-  /// secondary font / no-tightening paragraph style as `modelMetadata`.
+  /// secondary font / color / no-tightening paragraph style as `modelMetadata`.
   static func downloadSubtitle(
-    downloadedBytes: Int64, totalBytes: Int64, paused: Bool, color: NSColor
+    downloadedBytes: Int64, totalBytes: Int64, paused: Bool
   ) -> NSAttributedString {
     let text =
       paused ? "Paused" : "\(bytesAdaptive(downloadedBytes)) of \(bytesAdaptive(totalBytes))"
@@ -140,7 +140,7 @@ extension Format {
       string: text,
       attributes: [
         .font: Theme.Fonts.secondaryTabular,
-        .foregroundColor: color,
+        .foregroundColor: Theme.Colors.textSecondary,
         .paragraphStyle: Theme.noTighteningParagraphStyle,
       ])
   }

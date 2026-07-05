@@ -313,9 +313,9 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     showAsDownloading = isDownloading || isPaused || isCancelled
 
-    let baseTextColor = showAsDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
+    // Only incompatible models dim the title; download state doesn't affect it.
     let isCompatible = model.isCompatible()
-    let textColor = isCompatible ? baseTextColor : Theme.Colors.textSecondary
+    let textColor = isCompatible ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
 
     // Quant renders as a dimmed suffix (the id's post-colon part), but only
     // when it carries information — full-precision builds have nothing to say.
@@ -335,8 +335,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       subtitleLabel.attributedStringValue = Format.downloadSubtitle(
         downloadedBytes: downloadedBytes,
         totalBytes: model.fileSize,
-        paused: isPaused,
-        color: textColor
+        paused: isPaused
       )
     } else {
       subtitleLabel.attributedStringValue = Format.modelMetadata(
