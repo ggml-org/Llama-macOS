@@ -75,7 +75,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       ?? NSImage(systemSymbolName: "cube.fill", accessibilityDescription: "Model")
 
     // Configure action buttons
-    Theme.configure(cancelImageView, symbol: "xmark", color: .systemRed)
+    Theme.configure(cancelImageView, symbol: "xmark.circle.fill", color: .tertiaryLabelColor)
     // Pause/play icon: actual symbol is set in `refresh()` based on status.
     Theme.configure(pausePlayImageView, symbol: "pause.circle", color: .tertiaryLabelColor)
     Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
@@ -187,7 +187,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let rowClickRecognizer = addGesture(action: #selector(didClickRow))
     rowClickRecognizer.delegate = self
 
-    // Dedicated click target on the red X so paused rows can be cancelled explicitly
+    // Dedicated click target on the cancel X so paused rows can be cancelled explicitly
     // (the row body itself resumes a paused download — opposite action, same row).
     let cancelClick = NSClickGestureRecognizer(target: self, action: #selector(didClickCancel))
     cancelImageView.addGestureRecognizer(cancelClick)
@@ -386,7 +386,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    cancelImageView.contentTintColor = .systemRed
+    cancelImageView.contentTintColor = .tertiaryLabelColor
     unloadButton.contentTintColor = .tertiaryLabelColor
     copyIdButton.contentTintColor = .tertiaryLabelColor
     deleteButton.contentTintColor = .tertiaryLabelColor
