@@ -42,9 +42,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   // Icon and action buttons
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
-  /// Combined pause/play affordance: shows `pause.circle` while a download is in flight,
-  /// `play.circle` when the row is in the paused state (partials on disk, no transfer).
-  /// Clicking it toggles between the two; the same toggle also fires on row-body clicks.
+  /// Combined pause/play affordance: `pause.circle` while a download is in flight,
+  /// `play.circle` when the row is paused (partials on disk, no transfer). Always
+  /// visible on downloading rows, anchored at the trailing edge so it doesn't shift
+  /// when the hover-only cancel X appears beside it. Clicking it toggles, same as a
+  /// row-body click.
   private let pausePlayImageView = NSImageView()
   /// Slim progress bar shown while a download is in flight, on the right of the
   /// row. Replaces the old inline "42%" text so the size-on-disk readout can stay
@@ -56,6 +58,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let copyIdButton = NSButton()
   private let deleteButton = NSButton()
   private let hoverButtonsStack = NSStackView()
+
+  /// Whether the row is currently styled as downloading (in flight, paused, or in the
+  /// brief post-cancel window). Set by `refresh()`; read back both to detect the
+  /// cancelled transition and to gate the hover-only cancel X in `highlightDidChange`.
+  private var showAsDownloading = false
 
   init(
     model: Model, server: LlamaServer, modelManager: ModelManager,
@@ -75,8 +82,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       ?? NSImage(systemSymbolName: "cube.fill", accessibilityDescription: "Model")
 
     // Configure action buttons
-    Theme.configure(cancelImageView, symbol: "xmark.circle.fill", color: .tertiaryLabelColor)
-    // Pause/play icon: actual symbol is set in `refresh()` based on status.
+    Theme.configure(
+      cancelImageView, symbol: "xmark.circle.fill", tooltip: "Cancel download",
+      color: .tertiaryLabelColor)
+    // Pause/play icon: actual symbol and tooltip are set in `refresh()` based on status.
     Theme.configure(pausePlayImageView, symbol: "pause.circle", color: .tertiaryLabelColor)
     Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
 
@@ -140,11 +149,12 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // Accessory stack — pause/play sits next to the cancel X, mirroring iOS's
-    // "tap-to-pause + X-to-discard" progress affordance. The progress bar lives
-    // on the subtitle line (see `subtitleRow`), next to the size-on-disk readout.
+    // Accessory stack — the hover-only cancel X (see `highlightDidChange`) precedes
+    // the always-on pause/play toggle, so the toggle stays anchored at the trailing
+    // edge and doesn't shift when the X appears. The progress bar lives on the
+    // subtitle line (see `subtitleRow`), next to the size-on-disk readout.
     let accessoryStack = NSStackView(views: [
-      pausePlayImageView, cancelImageView, hoverButtonsStack, unloadButton,
+      cancelImageView, pausePlayImageView, hoverButtonsStack, unloadButton,
     ])
     accessoryStack.orientation = .horizontal
     accessoryStack.alignment = .centerY
@@ -193,8 +203,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     cancelImageView.addGestureRecognizer(cancelClick)
 
     // Pause/play button. Same action as clicking the row body; the button just makes
-    // the affordance discoverable on downloading rows without requiring the user to
-    // guess that "click the row" pauses.
+    // the affordance discoverable without requiring the user to guess that "click
+    // the row" pauses/resumes.
     let pausePlayClick = NSClickGestureRecognizer(
       target: self, action: #selector(didClickPausePlay))
     pausePlayImageView.addGestureRecognizer(pausePlayClick)
@@ -298,10 +308,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // If the item was downloading and is now available (cancelled), it will be removed from the list.
     // We preserve the "downloading" styling to avoid a flicker of the "available" styling (primary color)
     // before the item disappears.
-    let wasDownloading = !cancelImageView.isHidden
+    let wasDownloading = showAsDownloading
     let isCancelled = wasDownloading && !isDownloading && !isPaused && !isInstalled
 
-    let showAsDownloading = isDownloading || isPaused || isCancelled
+    showAsDownloading = isDownloading || isPaused || isCancelled
 
     let baseTextColor = showAsDownloading ? Theme.Colors.textSecondary : Theme.Colors.textPrimary
     let isCompatible = model.isCompatible()
@@ -335,9 +345,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       )
     }
 
-    cancelImageView.isHidden = !showAsDownloading
+    // Cancel X is hover-only, matching the copy/delete hover buttons on installed rows.
+    cancelImageView.isHidden = !(showAsDownloading && isHighlighted)
 
-    // Progress bar mirrors the cancel affordance's visibility. A nil fraction
+    // Progress bar shows whenever the row is styled as downloading. A nil fraction
     // (download not yet reporting, or a paused zero-total) reads as empty.
     progressBar.isHidden = !showAsDownloading
     if showAsDownloading {
@@ -382,6 +393,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let isDownloading = modelManager.isDownloading(model)
     let showHoverButtons = highlighted && isInstalled && !isActive && !isDownloading
     hoverButtonsStack.isHidden = !showHoverButtons
+
+    // Cancel X is the downloading-row hover affordance (see `refresh()` for the
+    // same gate on state changes while hovered).
+    cancelImageView.isHidden = !(highlighted && showAsDownloading)
   }
 
   override func viewDidChangeEffectiveAppearance() {
