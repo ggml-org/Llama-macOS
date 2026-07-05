@@ -226,7 +226,15 @@ enum HFRepoResolver {
   ) throws -> Pick {
     // Sidecars (`mtp-…`) carry a quant label too, so exclude them up front or a
     // `quant=Q8_0` request could match the MTP head instead of the main weights.
-    let allGgufs = siblings.filter { isGgufCandidate($0.rfilename) && !isMtpSidecar($0.rfilename) }
+    // Split-shard continuations (`-00002-of-00003.gguf`, …) are excluded too:
+    // every shard of a set parses to the same quant label, and picking a
+    // non-first shard as "main" breaks the shard expansion downstream (it
+    // assumes main == first shard when building `additionalParts`).
+    let allGgufs = siblings.filter { sib in
+      guard isGgufCandidate(sib.rfilename) && !isMtpSidecar(sib.rfilename) else { return false }
+      let name = (sib.rfilename as NSString).lastPathComponent
+      return !HFRepoParser.isSplitShard(name) || HFRepoParser.isFirstShard(name)
+    }
     guard !allGgufs.isEmpty else { throw ResolveError.noGgufFiles(repo) }
 
     // 1. Explicit quant: match any sibling whose parsed label == requested.
@@ -253,16 +261,14 @@ enum HFRepoResolver {
 
     // 2. No quant: mirror llama.cpp's `find_best_model`
     // (`common/download.cpp:623`) — try Q4_K_M tag, then Q4_0 tag, else fall
-    // back to the largest fits-budget candidate. Skip imatrix/mmproj/split-
-    // shard-continuations — we only want standalone mains or the first shard
-    // of a sharded set. For sharded quants, compatibility uses the sum of all
-    // shard sizes when HF provided per-shard sizes; otherwise we fall back to
-    // the first shard's size.
+    // back to the largest fits-budget candidate. Skip imatrix/mmproj — we only
+    // want main weights (shard continuations are already excluded above). For
+    // sharded quants, compatibility uses the sum of all shard sizes when HF
+    // provided per-shard sizes; otherwise we fall back to the first shard's size.
     let selectable = allGgufs.filter { sib in
       let name = (sib.rfilename as NSString).lastPathComponent
       if name.lowercased().hasPrefix("mmproj") { return false }
       if name.lowercased().contains("imatrix") { return false }
-      if HFRepoParser.isSplitShard(name) && !HFRepoParser.isFirstShard(name) { return false }
       return true
     }
     guard !selectable.isEmpty else { throw ResolveError.noGgufFiles(repo) }
