@@ -251,6 +251,15 @@ extension ModelManager {
         // updateActiveDownload already removed once the last task finished.
         // Clean up the now-empty partial dir (the file itself moved to blobs).
         HFCache.removePartials(cacheDir: cacheDir, modelId: modelId)
+        // Optimistically mark the model installed before the async cache re-scan
+        // lands. Without this, the model is neither downloading nor installed for
+        // a beat, so its row hops back to the catalog list and then reappears.
+        // The scan below replaces `downloadedModels` wholesale with the
+        // authoritative on-disk entry, so no dedup is needed.
+        if !self.downloadedModels.contains(where: { $0.id == modelId }) {
+          self.downloadedModels.append(model)
+          self.downloadedModels.sort(by: Model.displayOrder(_:_:))
+        }
         self.refreshDownloadedModels()
         // Let the menu bar flag the finished download on its icon, in case the
         // user walked away during a long download and isn't watching the menu.
