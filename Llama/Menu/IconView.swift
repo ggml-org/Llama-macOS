@@ -1,7 +1,7 @@
 import AppKit
 
 /// Circular container (28pt) for installed model icons that displays state transitions.
-/// The icon itself is 16pt, centered within the container (12pt while downloading).
+/// The icon itself is 16pt, centered within the container (13pt while downloading).
 /// - Inactive: subtle background, tinted icon
 /// - Active: blue background, white icon
 /// - Loading: shows spinner in place of icon
@@ -13,7 +13,7 @@ final class IconView: NSView {
   /// Icon size while the ring is shown. Slightly smaller than the resting 16pt
   /// so the glyph clears the ring, mirroring how Chrome shrinks the favicon
   /// while a page loads and restores it when done.
-  private static let downloadingIconSize: CGFloat = 12
+  private static let downloadingIconSize: CGFloat = 13
 
   /// The image view containing the model icon. Set the `image` property directly.
   let imageView = NSImageView()
@@ -158,6 +158,9 @@ final class IconView: NSView {
     let iconSize = isDownloading ? Self.downloadingIconSize : Layout.uiIconSize
     iconWidthConstraint.constant = iconSize
     iconHeightConstraint.constant = iconSize
+    // Re-render symbols at the target size rather than downscaling the 16pt
+    // raster into the 12pt frame -- scaled bitmaps of SF Symbols look blurry.
+    imageView.symbolConfiguration = .init(pointSize: iconSize, weight: .regular)
 
     if isActive {
       layer.setBackgroundColor(.controlAccentColor, in: self)
