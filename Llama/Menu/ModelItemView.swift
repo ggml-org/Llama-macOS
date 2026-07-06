@@ -3,10 +3,10 @@ import Foundation
 
 /// Interactive menu item representing a single installed/downloading model.
 /// Visual states:
-/// - Downloading: rounded square icon (inactive) + progress
-/// - Installed: rounded square icon (inactive) + label
-/// - Loading: rounded square icon (active)
-/// - Running: rounded square icon (active)
+/// - Downloading: icon with progress ring around it + pause/play toggle
+/// - Installed: circular icon (inactive) + label
+/// - Loading: circular icon (active, spinner)
+/// - Running: circular icon (active)
 final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let model: Model
   private unowned let server: LlamaServer
@@ -43,15 +43,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
   /// Combined pause/play affordance: `pause.fill` while a download is in flight,
-  /// `play.fill` when the row is paused (partials on disk, no transfer). Always
-  /// visible on downloading rows, anchored at the trailing edge so it doesn't shift
-  /// when the hover-only cancel X appears beside it. Clicking it toggles, same as a
-  /// row-body click.
+  /// `play.fill` when the row is paused. Always visible on downloading rows,
+  /// anchored at the trailing edge so it doesn't shift when the hover-only
+  /// cancel X appears beside it. Clicking it toggles, same as a row-body click.
+  /// Progress itself is shown as a ring around the leading icon (see `IconView`).
   private let pausePlayImageView = NSImageView()
-  /// Slim progress bar shown while a download is in flight, on the right of the
-  /// row. Replaces the old inline "42%" text so the size-on-disk readout can stay
-  /// fixed on the left instead of shifting to make room for a percentage.
-  private let progressBar = ProgressBarView()
   private let unloadButton = NSButton()
 
   // Hover action buttons (shown on hover for installed models)
@@ -110,7 +106,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Start hidden
     cancelImageView.isHidden = true
     pausePlayImageView.isHidden = true
-    progressBar.isHidden = true
     unloadButton.isHidden = true
     hoverButtonsStack.isHidden = true
 
@@ -122,18 +117,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
   private func setupLayout() {
-    // Subtitle line: the metadata/size label with the download progress bar
-    // trailing it. The bar sits right next to the size-on-disk readout (line two)
-    // rather than off on the row's right edge, and is hidden when not downloading.
-    let subtitleRow = NSStackView(views: [progressBar, subtitleLabel])
-    subtitleRow.orientation = .horizontal
-    subtitleRow.alignment = .centerY
-    subtitleRow.spacing = 6
-    // Hidden views collapse in the stack, so on installed rows (bar hidden) the
-    // subtitle sits flush at the leading edge as before.
-
     // Text column
-    let textColumn = NSStackView(views: [titleLabel, subtitleRow])
+    let textColumn = NSStackView(views: [titleLabel, subtitleLabel])
     textColumn.orientation = .vertical
     textColumn.alignment = .leading
     textColumn.spacing = Layout.textLineSpacing
@@ -151,8 +136,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Accessory stack — the hover-only cancel X (see `highlightDidChange`) precedes
     // the always-on pause/play toggle, so the toggle stays anchored at the trailing
-    // edge and doesn't shift when the X appears. The progress bar lives on the
-    // subtitle line (see `subtitleRow`), next to the size-on-disk readout.
+    // edge and doesn't shift when the X appears. Progress is the ring around the
+    // leading icon, not a trailing accessory.
     let accessoryStack = NSStackView(views: [
       cancelImageView, pausePlayImageView, hoverButtonsStack, unloadButton,
     ])
@@ -278,9 +263,9 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let isLoading = server.isLoading(model: model)
     let status = modelManager.status(for: model)
 
-    // Derive row state from a single status switch. `fraction` drives the progress
-    // bar fill; nil means "unknown" (downloading before first response, or paused
-    // with a zero total) and reads as the minimum dot. `downloadedBytes` feeds the
+    // Derive row state from a single status switch. `fraction` drives the icon's
+    // progress ring; nil means "unknown" (downloading before first response, or paused
+    // with a zero total) and reads as the minimum arc. `downloadedBytes` feeds the
     // "N of total" subtitle. Paused and downloading share the same in-flight
     // styling; only the label text and the pause/play icon differ.
     var isDownloading = false
@@ -329,7 +314,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let incompatibility = !isCompatible ? model.incompatibilitySummary() : nil
     // Subtitle swaps between size+ctx (for installed/available rows) and a
     // transfer readout while a download is in flight: "1.2 GB of 3.1 GB", plus
-    // " · Paused" when interrupted. The progress bar leads it (see `subtitleRow`).
+    // " · Paused" when interrupted.
     // Ctx tier is only meaningful once fully downloaded, so it's omitted here.
     if showAsDownloading {
       subtitleLabel.attributedStringValue = Format.downloadSubtitle(
@@ -347,18 +332,20 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Cancel X is hover-only, matching the copy/delete hover buttons on installed rows.
     cancelImageView.isHidden = !(showAsDownloading && isHighlighted)
 
-    // Progress bar shows whenever the row is styled as downloading. A nil fraction
-    // (download not yet reporting, or a paused zero-total) reads as empty.
-    progressBar.isHidden = !showAsDownloading
-    if showAsDownloading {
-      progressBar.fraction = fraction ?? 0
-    }
+    // While the row is styled as downloading, the leading icon swaps into its
+    // downloading look: a progress ring around the rim with the glyph shrunk
+    // inside (see `IconView.downloadFraction`). Keyed off `showAsDownloading`
+    // (not the narrower live-or-paused state) so the icon holds this look
+    // through the post-cancel flicker window too, instead of popping back to
+    // the chip background for a frame before the row disappears.
+    iconView.downloadFraction = showAsDownloading ? (fraction ?? 0) : nil
 
-    // Pause/play icon swaps based on live vs. paused state. Hidden during the post-cancel
-    // flicker window (isCancelled) so the about-to-disappear row doesn't show a resume arrow.
-    let showPausePlay = isDownloading || isPaused
-    pausePlayImageView.isHidden = !showPausePlay
-    if showPausePlay {
+    // Pause/play icon swaps based on live vs. paused state. Hidden during the
+    // post-cancel flicker window (isCancelled) so the about-to-disappear row
+    // doesn't show a resume arrow.
+    let inTransfer = isDownloading || isPaused
+    pausePlayImageView.isHidden = !inTransfer
+    if inTransfer {
       let symbol = isDownloading ? "pause.fill" : "play.fill"
       let tooltip = isDownloading ? "Pause download" : "Resume download"
       pausePlayImageView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)

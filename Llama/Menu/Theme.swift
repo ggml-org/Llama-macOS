@@ -221,6 +221,16 @@ extension CALayer {
   }
 }
 
+extension CAShapeLayer {
+  // Sets the layer's stroke color, resolving dynamic colors for current appearance
+  // - Parameters:
+  //   - color: The color to set (can be dynamic)
+  //   - view: The view whose appearance should be used for resolving the color
+  func setStrokeColor(_ color: NSColor, in view: NSView) {
+    strokeColor = color.resolvedColor(in: view)
+  }
+}
+
 // Internal helper for resolving dynamic NSColor to CGColor
 extension NSColor {
   // Resolves this NSColor to a CGColor using the view's effective appearance
