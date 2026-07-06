@@ -3,7 +3,7 @@ import Foundation
 
 /// Interactive menu item representing a single installed/downloading model.
 /// Visual states:
-/// - Downloading: icon with progress ring around it + pause/play toggle
+/// - Downloading: progress ring with a pause/play glyph in place of the icon
 /// - Installed: circular icon (inactive) + label
 /// - Loading: circular icon (active, spinner)
 /// - Running: circular icon (active)
@@ -42,12 +42,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   // Icon and action buttons
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
-  /// Combined pause/play affordance: `pause.fill` while a download is in flight,
-  /// `play.fill` when the row is paused. Always visible on downloading rows,
-  /// anchored at the trailing edge so it doesn't shift when the hover-only
-  /// cancel X appears beside it. Clicking it toggles, same as a row-body click.
-  /// Progress itself is shown as a ring around the leading icon (see `IconView`).
-  private let pausePlayImageView = NSImageView()
   private let unloadButton = NSButton()
 
   // Hover action buttons (shown on hover for installed models)
@@ -81,8 +75,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     Theme.configure(
       cancelImageView, symbol: "xmark.circle.fill", tooltip: "Cancel download",
       color: .tertiaryLabelColor)
-    // Pause/play icon: actual symbol and tooltip are set in `refresh()` based on status.
-    Theme.configure(pausePlayImageView, symbol: "pause.fill", color: .tertiaryLabelColor)
     Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
 
     unloadButton.target = self
@@ -105,7 +97,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Start hidden
     cancelImageView.isHidden = true
-    pausePlayImageView.isHidden = true
     unloadButton.isHidden = true
     hoverButtonsStack.isHidden = true
 
@@ -134,12 +125,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // Accessory stack — the hover-only cancel X (see `highlightDidChange`) precedes
-    // the always-on pause/play toggle, so the toggle stays anchored at the trailing
-    // edge and doesn't shift when the X appears. Progress is the ring around the
-    // leading icon, not a trailing accessory.
+    // Accessory stack — the cancel X is the only downloading-row accessory
+    // (hover-only, see `highlightDidChange`); progress and pause/play both live
+    // in the ring around the leading icon (see `IconView`).
     let accessoryStack = NSStackView(views: [
-      cancelImageView, pausePlayImageView, hoverButtonsStack, unloadButton,
+      cancelImageView, hoverButtonsStack, unloadButton,
     ])
     accessoryStack.orientation = .horizontal
     accessoryStack.alignment = .centerY
@@ -163,7 +153,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
-    Layout.constrainToIconSize(pausePlayImageView)
     Layout.constrainToIconSize(unloadButton)
     Layout.constrainToIconSize(copyIdButton)
     Layout.constrainToIconSize(deleteButton)
@@ -174,8 +163,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
-    pausePlayImageView.setContentHuggingPriority(.required, for: .horizontal)
-    pausePlayImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
   }
 
   private func setupGestures() {
@@ -186,13 +173,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // (the row body itself resumes a paused download — opposite action, same row).
     let cancelClick = NSClickGestureRecognizer(target: self, action: #selector(didClickCancel))
     cancelImageView.addGestureRecognizer(cancelClick)
-
-    // Pause/play button. Same action as clicking the row body; the button just makes
-    // the affordance discoverable without requiring the user to guess that "click
-    // the row" pauses/resumes.
-    let pausePlayClick = NSClickGestureRecognizer(
-      target: self, action: #selector(didClickPausePlay))
-    pausePlayImageView.addGestureRecognizer(pausePlayClick)
   }
 
   @objc private func didClickRow() {
@@ -215,14 +195,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Explicit discard — works for both active downloads and paused (interrupted) ones.
     // In both cases we want the `.partial` staging dir gone and the row removed.
     actionHandler.cancelDownload(for: model)
-  }
-
-  @objc private func didClickPausePlay() {
-    // Same toggle as row-body click — performPrimaryAction already dispatches to
-    // pause (when downloading) or resume (when paused). The button just makes the
-    // affordance discoverable; it's not a separate code path.
-    actionHandler.performPrimaryAction(for: model)
-    refresh()
   }
 
   @objc private func didClickUnload() {
@@ -251,7 +223,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   ) -> Bool {
     let loc = event.locationInWindow
     let actionTargets: [NSView] = [
-      unloadButton, copyIdButton, deleteButton, cancelImageView, pausePlayImageView,
+      unloadButton, copyIdButton, deleteButton, cancelImageView,
     ]
     return !actionTargets.contains { view in
       !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
@@ -333,24 +305,13 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     cancelImageView.isHidden = !(showAsDownloading && isHighlighted)
 
     // While the row is styled as downloading, the leading icon swaps into its
-    // downloading look: a progress ring around the rim with the glyph shrunk
-    // inside (see `IconView.downloadFraction`). Keyed off `showAsDownloading`
-    // (not the narrower live-or-paused state) so the icon holds this look
-    // through the post-cancel flicker window too, instead of popping back to
-    // the chip background for a frame before the row disappears.
+    // downloading look: a progress ring around the rim with a pause/play glyph
+    // in place of the icon (see `IconView.downloadFraction`). Keyed off
+    // `showAsDownloading` (not the narrower live-or-paused state) so the icon
+    // holds this look through the post-cancel flicker window too, instead of
+    // popping back to the chip background for a frame before the row disappears.
     iconView.downloadFraction = showAsDownloading ? (fraction ?? 0) : nil
-
-    // Pause/play icon swaps based on live vs. paused state. Hidden during the
-    // post-cancel flicker window (isCancelled) so the about-to-disappear row
-    // doesn't show a resume arrow.
-    let inTransfer = isDownloading || isPaused
-    pausePlayImageView.isHidden = !inTransfer
-    if inTransfer {
-      let symbol = isDownloading ? "pause.fill" : "play.fill"
-      let tooltip = isDownloading ? "Pause download" : "Resume download"
-      pausePlayImageView.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-      pausePlayImageView.toolTip = tooltip
-    }
+    iconView.downloadPaused = isPaused
 
     unloadButton.isHidden = !isActive
 

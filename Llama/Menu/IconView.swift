@@ -1,32 +1,27 @@
 import AppKit
 
 /// Circular container (28pt) for installed model icons that displays state transitions.
-/// The icon itself is 16pt, centered within the container (13pt while downloading).
+/// The icon itself is 16pt, centered within the container.
 /// - Inactive: subtle background, tinted icon
 /// - Active: blue background, white icon
 /// - Loading: shows spinner in place of icon
-/// - Downloading: no background; a progress ring around the rim with the icon
-///   shrunk inside it (the Chrome favicon-loading pattern) -- see `downloadFraction`
+/// - Downloading: no background; a progress ring around the rim with a pause/play
+///   glyph in place of the icon -- see `downloadFraction` / `downloadPaused`
 final class IconView: NSView {
   /// Ring stroke. Runs along the chip's own rim, inset by half the stroke.
-  private static let ringLineWidth: CGFloat = 3
-  /// Icon size while the ring is shown. Slightly smaller than the resting 16pt
-  /// so the glyph clears the ring, mirroring how Chrome shrinks the favicon
-  /// while a page loads and restores it when done.
-  private static let downloadingIconSize: CGFloat = 13
+  private static let ringLineWidth: CGFloat = 2.5
 
   /// The image view containing the model icon. Set the `image` property directly.
   let imageView = NSImageView()
   private let spinner = NSProgressIndicator()
+  /// Pause (in flight) / play (paused) glyph shown in place of the model icon
+  /// while the ring is up, making the downloading chip read as a control.
+  private let pausePlayView = NSImageView()
 
   /// Ring layers: a faint full-circle track with a progress arc on top, drawn
   /// with `strokeEnd`. Hidden unless `downloadFraction` is set.
   private let trackLayer = CAShapeLayer()
   private let progressLayer = CAShapeLayer()
-
-  /// Icon size constraints, kept so the glyph can shrink while downloading.
-  private var iconWidthConstraint: NSLayoutConstraint!
-  private var iconHeightConstraint: NSLayoutConstraint!
 
   var isActive: Bool = false { didSet { refresh() } }
   private var isLoading: Bool = false { didSet { refresh() } }
@@ -46,6 +41,20 @@ final class IconView: NSView {
     }
   }
 
+  /// Swaps the in-ring glyph between pause (in flight) and play (paused).
+  /// Only visible while `downloadFraction` is set. Assigned on every progress
+  /// tick, so no-op writes bail early instead of rebuilding the symbol image.
+  var downloadPaused: Bool = false {
+    didSet {
+      guard downloadPaused != oldValue else { return }
+      let symbol = downloadPaused ? "play.fill" : "pause.fill"
+      pausePlayView.image = NSImage(
+        systemSymbolName: symbol,
+        accessibilityDescription: downloadPaused ? "Resume download" : "Pause download")
+      refresh()  // tooltip depends on both this and the downloading state
+    }
+  }
+
   override var intrinsicContentSize: NSSize {
     NSSize(width: Layout.iconViewSize, height: Layout.iconViewSize)
   }
@@ -57,9 +66,14 @@ final class IconView: NSView {
 
     imageView.translatesAutoresizingMaskIntoConstraints = false
     imageView.symbolConfiguration = .init(pointSize: Layout.uiIconSize, weight: .regular)
-    // Scale into whatever frame the size constraints dictate, so both brand
-    // logos and SF Symbols shrink cleanly in the downloading state.
-    imageView.imageScaling = .scaleProportionallyUpOrDown
+
+    // Pause/play glyph, sized to sit comfortably inside the ring. Starts as
+    // pause (the in-flight symbol); `downloadPaused` swaps it from there.
+    pausePlayView.translatesAutoresizingMaskIntoConstraints = false
+    pausePlayView.symbolConfiguration = .init(pointSize: 10, weight: .bold)
+    pausePlayView.image = NSImage(
+      systemSymbolName: "pause.fill", accessibilityDescription: "Pause download")
+    pausePlayView.isHidden = true
 
     for shape in [trackLayer, progressLayer] {
       shape.fillColor = nil
@@ -77,8 +91,7 @@ final class IconView: NSView {
 
     addSubview(imageView)
     addSubview(spinner)
-    iconWidthConstraint = imageView.widthAnchor.constraint(equalToConstant: Layout.uiIconSize)
-    iconHeightConstraint = imageView.heightAnchor.constraint(equalToConstant: Layout.uiIconSize)
+    addSubview(pausePlayView)
     NSLayoutConstraint.activate([
       // Container is fixed at iconViewSize so it can't be squeezed when long titles
       // or hover buttons compete for row width. Intrinsic size alone isn't enough —
@@ -87,10 +100,12 @@ final class IconView: NSView {
       heightAnchor.constraint(equalToConstant: Layout.iconViewSize),
       imageView.centerXAnchor.constraint(equalTo: centerXAnchor),
       imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
-      iconWidthConstraint,
-      iconHeightConstraint,
+      imageView.widthAnchor.constraint(equalToConstant: Layout.uiIconSize),
+      imageView.heightAnchor.constraint(equalToConstant: Layout.uiIconSize),
       spinner.centerXAnchor.constraint(equalTo: centerXAnchor),
       spinner.centerYAnchor.constraint(equalTo: centerYAnchor),
+      pausePlayView.centerXAnchor.constraint(equalTo: centerXAnchor),
+      pausePlayView.centerYAnchor.constraint(equalTo: centerYAnchor),
     ])
     refresh()
   }
@@ -144,23 +159,21 @@ final class IconView: NSView {
 
   private func refresh() {
     guard let layer else { return }
-    // Spinner appears in the center and the glyph hides while loading.
-    imageView.isHidden = isLoading
-    spinner.isHidden = !isLoading
-
-    // Downloading look: ring in place of the chip background, icon shrunk so it
-    // clears the ring; restored to full size the moment the download ends.
+    // Downloading look: ring in place of the chip background, pause/play glyph
+    // in place of the model icon; both restored the moment the download ends.
     let isDownloading = downloadFraction != nil
     trackLayer.isHidden = !isDownloading
     progressLayer.isHidden = !isDownloading
     trackLayer.setStrokeColor(Theme.Colors.subtleBackground, in: self)
     progressLayer.setStrokeColor(Theme.Colors.textSecondary, in: self)
-    let iconSize = isDownloading ? Self.downloadingIconSize : Layout.uiIconSize
-    iconWidthConstraint.constant = iconSize
-    iconHeightConstraint.constant = iconSize
-    // Re-render symbols at the target size rather than downscaling the 16pt
-    // raster into the 12pt frame -- scaled bitmaps of SF Symbols look blurry.
-    imageView.symbolConfiguration = .init(pointSize: iconSize, weight: .regular)
+    pausePlayView.isHidden = !isDownloading
+    pausePlayView.contentTintColor = .tertiaryLabelColor
+    toolTip = isDownloading ? (downloadPaused ? "Resume download" : "Pause download") : nil
+
+    // Spinner appears in the center and the glyph hides while loading;
+    // the pause/play glyph replaces the icon while downloading.
+    imageView.isHidden = isLoading || isDownloading
+    spinner.isHidden = !isLoading
 
     if isActive {
       layer.setBackgroundColor(.controlAccentColor, in: self)
