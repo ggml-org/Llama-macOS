@@ -640,11 +640,19 @@ enum HFCache {
     let mtpSidecar = findMTPSidecar(
       snapshotDir: snapshotDir, mainRelPath: filename, mainQuant: quant, fm: fm)
 
+    // Embedded-head detection reads the GGUF metadata (the ground truth --
+    // unsloth's MTP builds carry no filename marker at all), falling back to
+    // the filename heuristic only when the header can't be parsed. This must
+    // stay conservative: wrongly emitting `spec-type = draft-mtp` for a
+    // headless model makes llama-server fail to load it entirely.
+    let hasEmbeddedHead =
+      GGUFMetadata.hasEmbeddedMTPHead(path: mainFilePath) ?? fileHasMTPHead(fileBaseName)
+
     let paths = ResolvedPaths(
       modelFile: mainFilePath,
       additionalParts: additionalParts,
       mmprojFile: mmprojFile,
-      usesMTP: mtpSidecar == nil && fileHasMTPHead(fileBaseName),
+      usesMTP: mtpSidecar == nil && hasEmbeddedHead,
       mtpSidecarFile: mtpSidecar,
       hfRepoDirName: repoDir
     )
@@ -652,9 +660,10 @@ enum HFCache {
     return (entry: entry, paths: paths)
   }
 
-  /// Detects whether a GGUF carries an embedded MTP head from its filename.
-  /// Builds that ship one tag themselves with an `mtp` token delimited by the
-  /// usual filename separators -- e.g. `Qwen3.6-27B-Q4_K_M-mtp.gguf` or
+  /// Filename fallback for embedded-MTP detection, used only when the GGUF
+  /// header can't be parsed (see `GGUFMetadata.hasEmbeddedMTPHead`). Some
+  /// builds tag themselves with an `mtp` token delimited by the usual filename
+  /// separators -- e.g. `Qwen3.6-27B-Q4_K_M-mtp.gguf` or
   /// `Qwen3.6-27B-MTP-Q8_0.gguf`. We match the delimited token (not a bare
   /// substring) so an unrelated name can't trip it. There's no separate sidecar
   /// to download: the head rides inside the main file.
