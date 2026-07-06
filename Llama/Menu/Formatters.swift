@@ -127,15 +127,17 @@ extension Format {
   // MARK: - Model Metadata (composite)
 
   /// Transfer readout shown to the right of the progress bar while a download is
-  /// in flight: "1.2 GB of 3.1 GB", or just "Paused" when interrupted. Progress is
-  /// conveyed by the bar, so no percentage here. Uses tabular digits (so the
-  /// counting-up "downloaded" figure doesn't jitter its width) and the same
+  /// in flight: "1.2 GB of 3.1 GB", with " · Paused" appended when interrupted.
+  /// Progress is conveyed by the bar, so no percentage here. Uses tabular digits
+  /// (so the counting-up "downloaded" figure doesn't jitter its width) and the same
   /// secondary font / color / no-tightening paragraph style as `modelMetadata`.
   static func downloadSubtitle(
     downloadedBytes: Int64, totalBytes: Int64, paused: Bool
   ) -> NSAttributedString {
-    let text =
-      paused ? "Paused" : "\(bytesAdaptive(downloadedBytes)) of \(bytesAdaptive(totalBytes))"
+    var text = "\(bytesAdaptive(downloadedBytes)) of \(bytesAdaptive(totalBytes))"
+    if paused {
+      text += " · Paused"
+    }
     return NSAttributedString(
       string: text,
       attributes: [

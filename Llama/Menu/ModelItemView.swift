@@ -328,8 +328,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     let incompatibility = !isCompatible ? model.incompatibilitySummary() : nil
     // Subtitle swaps between size+ctx (for installed/available rows) and a
-    // transfer readout while a download is in flight: "1.2 GB of 3.1 GB", or
-    // "Paused" when interrupted. The progress bar leads it (see `subtitleRow`).
+    // transfer readout while a download is in flight: "1.2 GB of 3.1 GB", plus
+    // " · Paused" when interrupted. The progress bar leads it (see `subtitleRow`).
     // Ctx tier is only meaningful once fully downloaded, so it's omitted here.
     if showAsDownloading {
       subtitleLabel.attributedStringValue = Format.downloadSubtitle(
