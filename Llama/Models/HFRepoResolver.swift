@@ -254,10 +254,12 @@ enum HFRepoResolver {
         logger.info(
           "Ambiguous quant \(requested) in \(repo): \(matches.count) matches; picked largest")
       }
-      // The picked sibling's parsed label is the canonical quant — we ran it
-      // through the same grammar the post-download sideloaded scan uses, so
-      // the resulting `{org}/{repo}:{QUANT}` id round-trips exactly.
-      let canonical = GGUFQuantLabel.parse(picked.rfilename) ?? requested.uppercased()
+      // The picked sibling's parsed label, canonicalized to llama.cpp's tag
+      // shape — the same derivation the post-download sideloaded scan uses,
+      // so the resulting `{org}/{repo}:{QUANT}` id round-trips exactly (and
+      // matches how llama-server names the model at runtime).
+      let canonical = GGUFQuantLabel.canonicalTag(
+        GGUFQuantLabel.parse(picked.rfilename) ?? requested)
       return Pick(
         rfilename: picked.rfilename,
         quant: canonical)
@@ -292,12 +294,12 @@ enum HFRepoResolver {
       throw ResolveError.noCompatibleFile(repo: repo)
     }
     let label =
-      GGUFQuantLabel.parse(best.rfilename)
-      ?? HFRepoParser.parseQuant(filename: (best.rfilename as NSString).lastPathComponent)
-      ?? "unknown"
+      (GGUFQuantLabel.parse(best.rfilename)
+        ?? HFRepoParser.parseQuant(filename: (best.rfilename as NSString).lastPathComponent))
+      .map(GGUFQuantLabel.canonicalTag) ?? "unknown"
     return Pick(
       rfilename: best.rfilename,
-      quant: label.uppercased())
+      quant: label)
   }
 
   /// Picks the largest sibling from a list, ranking sharded variants by the
@@ -413,8 +415,12 @@ enum HFRepoResolver {
     let candidates = siblings.filter { isMtpSidecar($0.rfilename) }
     guard !candidates.isEmpty else { return nil }
 
+    // Canonicalize the head's label before comparing — `mainQuant` is already
+    // the canonical tag, while `parse` keeps HF-style prefixes like `UD-`.
     if let exact = candidates.first(where: {
-      GGUFQuantLabel.parse($0.rfilename).map { GGUFQuantLabel.matches($0, mainQuant) } ?? false
+      GGUFQuantLabel.parse($0.rfilename).map {
+        GGUFQuantLabel.matches(GGUFQuantLabel.canonicalTag($0), mainQuant)
+      } ?? false
     }) {
       return exact
     }

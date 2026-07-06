@@ -570,11 +570,14 @@ enum HFCache {
     // diverging grammars here means pending entries never get reaped.
     // `HFRepoParser.parseQuant` is the fallback for legacy flat filenames
     // where the label sits outside the HF enum but still starts with Q/F/IQ.
+    // The parsed label then gets canonicalized to llama.cpp's tag shape
+    // (`UD-Q4_K_XL` → `Q4_K_XL`) so the id matches how llama-server names the
+    // model after normalizing our `models.ini` section headers.
     let fileBaseName = URL(fileURLWithPath: filename).lastPathComponent
     let quant =
-      GGUFQuantLabel.parse(filename)
-      ?? HFRepoParser.parseQuant(filename: fileBaseName)
-      ?? "unknown"
+      (GGUFQuantLabel.parse(filename)
+        ?? HFRepoParser.parseQuant(filename: fileBaseName))
+      .map(GGUFQuantLabel.canonicalTag) ?? "unknown"
 
     // Locate the vision projector (`mmproj*.gguf`) sidecar, if the repo ships
     // one. Vision models can't do image input without it, and this scan path is
@@ -685,9 +688,13 @@ enum HFCache {
     guard !heads.isEmpty else { return nil }
 
     // Prefer the quant-matched head; else the smallest by resolved blob size.
+    // Canonicalize the head's label before comparing — `mainQuant` is already
+    // the canonical tag, while `parse` keeps HF-style prefixes like `UD-`.
     let chosen =
       heads.first(where: {
-        GGUFQuantLabel.parse($0).map { GGUFQuantLabel.matches($0, mainQuant) } ?? false
+        GGUFQuantLabel.parse($0).map {
+          GGUFQuantLabel.matches(GGUFQuantLabel.canonicalTag($0), mainQuant)
+        } ?? false
       })
       ?? heads.min { a, b in
         let aSize = fm.fileSize(

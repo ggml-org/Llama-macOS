@@ -62,4 +62,28 @@ enum GGUFQuantLabel {
   static func matches(_ a: String, _ b: String) -> Bool {
     a.caseInsensitiveCompare(b) == .orderedSame
   }
+
+  /// Canonicalizes a quant tag the way llama.cpp does (`canonical_tag` in
+  /// `common/preset.cpp`): keep only the last `-`/`.`-delimited token,
+  /// uppercased — so `UD-Q4_K_XL` becomes `Q4_K_XL`.
+  ///
+  /// Model ids must go through this because llama-server applies the same
+  /// normalization to `models.ini` section names when it loads them. If we
+  /// built ids with the HF-style label (which keeps prefixes like Unsloth's
+  /// `UD-`), the server would silently rename the model and every request
+  /// using our id — the webui chat link, external API clients — would 404.
+  /// `parse` stays HF-faithful for matching deeplink `quant=` params; this is
+  /// only for the identity we route on.
+  static func canonicalTag(_ tag: String) -> String {
+    let upper = tag.uppercased()
+    if let sep = upper.lastIndex(where: { $0 == "-" || $0 == "." }) {
+      let token = upper[upper.index(after: sep)...]
+      // llama.cpp's regex requires a non-empty [A-Z0-9_]+ token after the
+      // separator; anything else falls back to the whole tag uppercased.
+      if !token.isEmpty, token.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) {
+        return String(token)
+      }
+    }
+    return upper
+  }
 }
