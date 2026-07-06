@@ -170,23 +170,12 @@ class LlamaServer {
     /// Only the env vars *we* set -- not the full inherited environment.
     let env: [(key: String, value: String)]
 
-    /// Renders the spec as a copy-pasteable shell command: the env-var
-    /// assignments, then the binary and its arguments, all shell-quoted, on a
-    /// single line. This is what gets copied to the clipboard.
-    var shellCommand: String {
-      let envPart = env.map { "\($0.key)=\(Self.quote($0.value))" }
-      let cmdPart = [executablePath] + arguments.map(Self.quote)
-      return (envPart + cmdPart).joined(separator: " ")
-    }
-
-    /// A reading-friendly rendering of the same command: the env vars as plain
+    /// A reading-friendly rendering of the command: the env vars as plain
     /// `export` statements up top (each flush-left on its own line), a blank
     /// line, then the invocation -- the binary and subcommand on one line, with
     /// each `--flag` (grouped with its value) hanging-indented below. Paths are
-    /// shown literally and shell-quoted where needed (same quoting as
-    /// `shellCommand`), so the block stays paste-and-run correct and shows
-    /// exactly what runs. Meant for the eye; the clipboard still gets the
-    /// compact single-line `shellCommand`.
+    /// shown literally and shell-quoted where needed, so the block stays
+    /// paste-and-run correct and shows exactly what runs.
     var displayCommand: String {
       // Group arguments so a `--flag` carries its following value(s) on one
       // line; bare positional args (like `serve`) stand alone.
@@ -237,7 +226,6 @@ class LlamaServer {
 
     /// Minimal shell quoting: wraps a token in single quotes only if it
     /// contains characters that the shell would otherwise treat specially.
-    /// Shared by `shellCommand` and the reading-friendly `displayCommand`.
     private static func quote(_ s: String) -> String {
       guard s.contains(where: { !$0.isLetter && !$0.isNumber && !"-_./=:".contains($0) })
       else { return s }

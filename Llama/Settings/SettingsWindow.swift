@@ -127,9 +127,6 @@ struct SettingsView: View {
   // by default -- it's an advanced, read-only reference, so it shouldn't
   // inflate the window height until a user opens it.
   @State private var serverCommandExpanded = false
-  // Briefly true right after copying the server command, to swap the copy
-  // glyph for a checkmark as confirmation.
-  @State private var serverCommandCopied = false
 
   var body: some View {
     Form {
@@ -262,71 +259,45 @@ struct SettingsView: View {
       // Collapsed by default: it's advanced and informational, so the chevron
       // doubles as a hint that this isn't a primary setting.
       Section {
-        VStack(alignment: .leading, spacing: 8) {
-          // Header row -- the entire row is the toggle target (a generous hit
-          // area, unlike a lone chevron), and the label stays flush-left so it
-          // lines up with every other row's title. The chevron sits on the
-          // trailing edge, rotating to point down when expanded.
-          Button {
-            serverCommandExpanded.toggle()
-            // Drop any lingering copy confirmation so reopening starts clean.
-            serverCommandCopied = false
-          } label: {
-            HStack(alignment: .firstTextBaseline) {
-              VStack(alignment: .leading, spacing: 2) {
-                Text("Server command")
+        // Header row -- the entire row is the toggle target (a generous hit
+        // area, unlike a lone chevron), and the label stays flush-left so it
+        // lines up with every other row's title. The chevron sits on the
+        // trailing edge, rotating to point down when expanded.
+        Button {
+          serverCommandExpanded.toggle()
+        } label: {
+          HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+              Text("Server command")
 
-                Text("The command that starts the server, reflecting your settings above.")
-                  .font(.system(size: 11))
-                  .foregroundStyle(.secondary)
-              }
-
-              Spacer()
-
-              Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+              Text("The command that starts the server, reflecting your settings above.")
+                .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-                .rotationEffect(.degrees(serverCommandExpanded ? 90 : 0))
             }
-            // Extend the tappable region across the full row, gaps included.
-            .contentShape(Rectangle())
-          }
-          .buttonStyle(.plain)
 
-          if serverCommandExpanded {
-            // The command itself: monospaced, wrapping, and selectable so a user
-            // can read or grab any part of it. Lightly syntax-highlighted to make
-            // the structure (env vars, flags, values) easier to scan. Styled as a
-            // white, borderless panel -- dropping the input-style border keeps it
-            // from reading as an editable text field while staying crisp; the copy
-            // button sits in the corner, the way code blocks present one.
-            Text(highlightedCommand)
-              .font(.system(size: 11, design: .monospaced))
-              .textSelection(.enabled)
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .fixedSize(horizontal: false, vertical: true)
-              .padding(8)
-              .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-              .overlay(alignment: .topTrailing) {
-                // Copy the full command to the clipboard as a single pasteable
-                // line, then show a checkmark for ~1.5s as confirmation.
-                Button {
-                  NSPasteboard.general.clearContents()
-                  NSPasteboard.general.setString(serverCommandForCopy, forType: .string)
-                  serverCommandCopied = true
-                  Task {
-                    try? await Task.sleep(for: .seconds(1.5))
-                    serverCommandCopied = false
-                  }
-                } label: {
-                  Image(systemName: serverCommandCopied ? "checkmark" : "doc.on.doc")
-                    .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Copy the command")
-                .padding(6)
-              }
+            Spacer()
+
+            Image(systemName: "chevron.right")
+              .font(.system(size: 12, weight: .semibold))
+              .foregroundStyle(.secondary)
+              .rotationEffect(.degrees(serverCommandExpanded ? 90 : 0))
           }
+          // Extend the tappable region across the full row, gaps included.
+          .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+
+        if serverCommandExpanded {
+          // The command itself: monospaced, wrapping, and selectable so a user
+          // can read or grab any part of it. Lightly syntax-highlighted to make
+          // the structure (env vars, flags, values) easier to scan. Its own row
+          // in the section (no panel of its own), so the form draws its native
+          // separator between the header and the command.
+          Text(highlightedCommand)
+            .font(.system(size: 11, design: .monospaced))
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
     }
@@ -348,10 +319,6 @@ struct SettingsView: View {
     return LlamaServer.buildLaunchSpec()?.displayCommand ?? "llama not installed"
   }
 
-  /// The single-line form copied to the clipboard -- paste-ready in a terminal.
-  private var serverCommandForCopy: String {
-    LlamaServer.buildLaunchSpec()?.shellCommand ?? ""
-  }
 
   /// Appearance-adaptive palette for the server-command syntax highlighting.
   /// Kept deliberately low-saturation and Xcode-flavored so the block reads as
