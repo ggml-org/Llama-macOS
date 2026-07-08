@@ -405,9 +405,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // Optimistically update state immediately for responsive UI
     downloadedModels.removeAll { $0.id == model.id }
     resolvedPaths.removeValue(forKey: model.id)
-    if updateModelsFile() {
-      LlamaServer.shared.reload()
-    }
+    syncServer()
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
 
     // Move file deletion to background queue to avoid blocking main thread
@@ -441,6 +439,14 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // Re-scan to rebuild resolvedPaths
     refreshDownloadedModels()
     logger.error("Failed to delete model: \(error.localizedDescription)")
+  }
+
+  /// Regenerates `models.ini` and restarts the server only when the content
+  /// actually changed — the single "model list changed, tell the server" path.
+  func syncServer() {
+    if updateModelsFile() {
+      LlamaServer.shared.reload()
+    }
   }
 
   /// Updates the `models.ini` file required for using llama-server in Router Mode.
@@ -606,9 +612,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
 
     // Only reload server if models.ini actually changed
-    if updateModelsFile() {
-      LlamaServer.shared.reload()
-    }
+    syncServer()
 
     NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: self)
 
@@ -656,9 +660,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
           }
 
           // Regenerate models.ini now that we have accurate memory info
-          if mgr.updateModelsFile() {
-            LlamaServer.shared.reload()
-          }
+          mgr.syncServer()
 
           NotificationCenter.default.post(name: .LBModelDownloadedListDidChange, object: mgr)
         }
