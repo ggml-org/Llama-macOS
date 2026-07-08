@@ -22,7 +22,7 @@ Or download from [Releases](https://github.com/ggml-org/Llama-macOS/releases).
 
 Llama runs a local server at `http://localhost:8080/v1`.
 
-- **Install models** — from the built-in catalog
+- **Install models** — from the recommended list or Hugging Face
 - **Connect any app** — chat UIs, editors, CLI tools, scripts
 - **Models load when requested** — and unload when idle
 
@@ -63,7 +63,7 @@ curl http://localhost:8080/v1/chat/completions \
 
 Replace `gemma-3-4b` with any model ID from `http://localhost:8080/v1/models`.
 
-See complete API reference in `llama-server` [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
+See complete API reference in the llama.cpp server [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
 
 ## Experimental settings
 
@@ -82,6 +82,5 @@ defaults delete app.llama.Llama exposeToNetwork
 
 ## Roadmap
 
-- [ ] Support for adding models outside the built-in catalog
 - [ ] Support for loading multiple models at the same time
 - [ ] Support for multiple configurations per model (e.g., multiple context lengths)
