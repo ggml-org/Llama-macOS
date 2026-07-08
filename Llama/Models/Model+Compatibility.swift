@@ -13,6 +13,10 @@ extension Model {
   /// Llama's predictions and llama-server's runtime checks use the same value.
   static let memOverheadMb: Double = 2048
 
+  /// Overhead multiplier applied to the model file size when estimating weight
+  /// memory without a MemProfile measurement. 1.05 = 5% overhead.
+  static let weightOverheadMultiplier = 1.05
+
   /// Calculates available memory budget in MB based on system memory.
   /// Formula: totalRAM * 0.75 - overhead
   static func memoryBudget(systemMemoryMb: UInt64) -> Double {
@@ -26,7 +30,7 @@ extension Model {
   /// check runs at launch once the MemProfile probe has measured resident bytes.
   static func estimatedWeightFits(bytes: Int64?, budgetMb: Double) -> Bool {
     guard let bytes, bytes > 0 else { return true }
-    let weightMb = Double(bytes) / 1_048_576.0 * 1.05
+    let weightMb = Double(bytes) / 1_048_576.0 * weightOverheadMultiplier
     return weightMb <= budgetMb
   }
 
@@ -63,14 +67,14 @@ extension Model {
 
   /// Weight memory (MB) used by compatibility math.
   /// Prefers the measured `residentBytes` (correct for MoE models). Falls
-  /// back to `fileSize * overheadMultiplier` when the MemProfile probe
+  /// back to `fileSize * weightOverheadMultiplier` when the MemProfile probe
   /// hasn't landed yet (pre-download placeholders).
   private var weightMemoryMb: Double {
     if residentBytes > 0 {
       return Double(residentBytes) / 1_048_576.0
     }
     let fileSizeMb = Self.bytesToMb(fileSize)
-    return fileSizeMb * overheadMultiplier
+    return fileSizeMb * Self.weightOverheadMultiplier
   }
 
   /// Computes compatibility info for a model

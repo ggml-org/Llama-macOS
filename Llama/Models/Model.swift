@@ -27,9 +27,6 @@ struct Model: Identifiable, Codable {
   /// `fileSize * overheadMultiplier`. For MoE models this is much smaller than
   /// `fileSize`, since only active experts contribute to resident memory.
   var residentBytes: Int
-  /// Overhead multiplier for the model file size used when residentBytes is
-  /// unavailable (e.g. pre-download placeholders). 1.05 = 5% overhead.
-  let overheadMultiplier: Double
   /// Remote main GGUF URL — used by the deeplink download path. Sideloaded
   /// scan-discovered entries set this to `file:///` since no remote URL is
   /// needed once files are on disk.
@@ -58,7 +55,6 @@ struct Model: Identifiable, Codable {
     fileSize: Int64,
     ctxBytesPer1kTokens: Int = 0,
     residentBytes: Int = 0,
-    overheadMultiplier: Double = 1.05,
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
     mmprojUrl: URL? = nil,
@@ -72,7 +68,6 @@ struct Model: Identifiable, Codable {
     self.fileSize = fileSize
     self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
     self.residentBytes = residentBytes
-    self.overheadMultiplier = overheadMultiplier
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts
     self.mmprojUrl = mmprojUrl
