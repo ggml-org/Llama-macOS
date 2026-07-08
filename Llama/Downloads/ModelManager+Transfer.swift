@@ -356,17 +356,15 @@ extension ModelManager {
       return
     }
 
-    // Park as a paused row. tearDownActiveDownload cancels the model's other tasks,
-    // clears retry counters, and (given partial bytes on disk) surfaces the paused
-    // row with its existing resume affordance — no failure alert.
+    // Park as a paused row. tearDownActiveDownload cancels the model's other
+    // tasks and (given partial bytes on disk) surfaces the paused row with its
+    // existing resume affordance — no failure alert. When offline, the row is
+    // flagged to auto-resume on the next path-restored edge.
     logger.info(
       "Parking \(model.displayName) as paused after transient failure (network \(self.isNetworkAvailable ? "up, attempts exhausted" : "down"))"
     )
-    tearDownActiveDownload(modelId: modelId, outcome: .pause)
-    if !isNetworkAvailable {
-      // Re-register (teardown just cleared it) so the path-restored edge resumes it.
-      downloadsPausedForConnectivity.insert(modelId)
-    }
+    tearDownActiveDownload(
+      modelId: modelId, outcome: .pause(resumeOnReconnect: !isNetworkAvailable))
   }
 
   /// Schedules a retry with exponential backoff. The partial file on disk is our resume state,

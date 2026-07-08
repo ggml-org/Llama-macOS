@@ -79,10 +79,6 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// monitor delivers its first update, so a download started before then isn't
   /// wrongly treated as offline.
   var isNetworkAvailable = true
-  /// Model ids we paused because the network path went away mid-download. These
-  /// auto-resume on the next offline→online path edge; user-initiated pauses are
-  /// deliberately absent so they stay paused.
-  var downloadsPausedForConnectivity: Set<String> = []
 
   private var urlSession: URLSession!
   let logger = Logger(subsystem: Logging.subsystem, category: "ModelManager")
@@ -122,30 +118,28 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   }
 
   /// Reacts to a network-path change. On the offline→online edge, resumes any
-  /// downloads we parked for connectivity. Ignores every other transition (staying
-  /// online, going offline, interface swaps) so we only ever kick resumes off a
-  /// genuine restoration.
+  /// downloads we parked for connectivity (`resumeOnReconnect`). Ignores every
+  /// other transition (staying online, going offline, interface swaps) so we
+  /// only ever kick resumes off a genuine restoration.
   private func handlePathUpdate(satisfied: Bool) {
     let wasAvailable = isNetworkAvailable
     isNetworkAvailable = satisfied
-    guard satisfied, !wasAvailable, !downloadsPausedForConnectivity.isEmpty else { return }
+    guard satisfied, !wasAvailable else { return }
+
+    // downloadModel mutates pausedDownloads, so iterate a snapshot.
+    let toResume = pausedDownloads.values.filter(\.resumeOnReconnect)
+    guard !toResume.isEmpty else { return }
 
     logger.info(
-      "Network path restored; resuming \(self.downloadsPausedForConnectivity.count) connectivity-paused download(s)"
-    )
-    // downloadModel (and the guard below) mutate the set, so iterate a snapshot;
-    // drop any id that's no longer paused (user discarded/resumed in the meantime).
-    for modelId in Array(downloadsPausedForConnectivity) {
-      guard let model = pausedDownloads[modelId]?.model else {
-        downloadsPausedForConnectivity.remove(modelId)
-        continue
-      }
+      "Network path restored; resuming \(toResume.count) connectivity-paused download(s)")
+    for paused in toResume {
       do {
-        try downloadModel(model)
+        try downloadModel(paused.model)
       } catch {
+        // downloadModel consumed the paused entry (flag included) before
+        // throwing, so the model won't retry until the user resumes it by hand.
         logger.error(
-          "Auto-resume failed for \(model.displayName): \(error.localizedDescription)")
-        downloadsPausedForConnectivity.remove(modelId)
+          "Auto-resume failed for \(paused.model.displayName): \(error.localizedDescription)")
       }
     }
   }
@@ -165,10 +159,10 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // We do keep the byte count around to pre-seed the placeholder Progress below —
     // without it, the row flashes 0% while HF metadata is being fetched (before
     // writers open and `refreshProgress` can re-derive the real figure).
+    // Consuming the entry also consumes its `resumeOnReconnect` flag — starting
+    // (or resuming) supersedes any connectivity-park state; if the download fails
+    // offline again the transient path parks it anew.
     let resumedBytes = pausedDownloads.removeValue(forKey: model.id)?.bytesOnDisk ?? 0
-    // Starting (or resuming) supersedes any connectivity-park state for this model;
-    // if it fails again offline the transient path re-registers it.
-    downloadsPausedForConnectivity.remove(model.id)
 
     let filesToDownload = try prepareDownload(for: model)
     guard !filesToDownload.isEmpty else { return }
@@ -249,7 +243,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // back to 0% while the tasks spin up.
     guard let plan = activeDownloads[modelId]?.plan else {
       logger.error("Missing HF download plan when starting tasks for \(model.displayName)")
-      tearDownActiveDownload(modelId: modelId, outcome: .pause)
+      tearDownActiveDownload(modelId: modelId, outcome: .pause(resumeOnReconnect: false))
       return
     }
     let cacheDir = UserSettings.hfCacheDirectory
@@ -607,8 +601,13 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       .union(activeDownloads.keys)
     pausedDownloads = pausedDownloads.filter { !excluded.contains($0.key) }
     for entry in paused where !excluded.contains(entry.model.id) {
+      // Preserve an existing entry's resumeOnReconnect flag — placeholders know
+      // nothing about connectivity, and clobbering the flag here would stop a
+      // connectivity-parked download from auto-resuming when a refresh lands
+      // mid-outage.
       pausedDownloads[entry.model.id] = PausedDownload(
-        model: entry.model, bytesOnDisk: entry.bytesOnDisk)
+        model: entry.model, bytesOnDisk: entry.bytesOnDisk,
+        resumeOnReconnect: pausedDownloads[entry.model.id]?.resumeOnReconnect ?? false)
     }
 
     // Only reload server if models.ini actually changed
@@ -678,7 +677,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// can resume it later. The model reappears in the Installed section as paused.
   func pauseModelDownload(_ model: Model) {
     guard activeDownloads[model.id] != nil else { return }
-    tearDownActiveDownload(modelId: model.id, outcome: .pause)
+    tearDownActiveDownload(modelId: model.id, outcome: .pause(resumeOnReconnect: false))
   }
 
   // MARK: - Convenience Methods
@@ -740,7 +739,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     /// Used by the user "pause" action and by internal failure paths — if the failure
     /// cleanup already deleted the file (401/403/404, hash mismatch, too-small), the
     /// paused entry is skipped and the row simply disappears.
-    case pause
+    /// `resumeOnReconnect` marks a connectivity-forced pause: the paused row
+    /// auto-resumes on the next offline→online path edge.
+    case pause(resumeOnReconnect: Bool)
   }
 
   /// Stops every in-flight URLSession task for a model, clears in-memory bookkeeping,
@@ -749,10 +750,6 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// identically except for what happens to the `.partial` files.
   func tearDownActiveDownload(modelId: String, outcome: TeardownOutcome) {
     let model = activeDownloads[modelId]?.model
-
-    // Any teardown clears connectivity-park state; the transient path re-inserts
-    // afterward for the offline case, so user pause/discard here stays paused.
-    downloadsPausedForConnectivity.remove(modelId)
 
     if activeDownloads[modelId] != nil {
       cancelTasks(for: modelId)
@@ -768,11 +765,12 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     case .discard:
       pausedDownloads.removeValue(forKey: modelId)
       HFCache.removePartials(cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)
-    case .pause:
+    case .pause(let resumeOnReconnect):
       let bytes = HFCache.partialBytes(
         cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)
       if bytes > 0, let model {
-        pausedDownloads[modelId] = PausedDownload(model: model, bytesOnDisk: bytes)
+        pausedDownloads[modelId] = PausedDownload(
+          model: model, bytesOnDisk: bytes, resumeOnReconnect: resumeOnReconnect)
       } else {
         // Failure path already wiped the partials (e.g. 404, hash mismatch) — nothing
         // to resume, so don't leave a ghost entry in pausedDownloads.
@@ -793,7 +791,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// delegate-queue failure handler (via a main-actor hop).
   func failDownload(model: Model, reason: String) {
     logger.error("Model download failed (\(reason)) for model: \(model.displayName)")
-    tearDownActiveDownload(modelId: model.id, outcome: .pause)
+    tearDownActiveDownload(modelId: model.id, outcome: .pause(resumeOnReconnect: false))
     NotificationCenter.default.post(
       name: .LBModelDownloadDidFail,
       object: self,

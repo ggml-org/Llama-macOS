@@ -6,6 +6,11 @@ import Foundation
 struct PausedDownload {
   let model: Model
   let bytesOnDisk: Int64
+  /// True when the pause was forced by the network path dropping mid-download;
+  /// such entries auto-resume on the next offline→online edge (`handlePathUpdate`).
+  /// User-initiated pauses keep this false so they stay paused. In-memory only —
+  /// a restart rehydrates paused rows from placeholders with the flag off.
+  var resumeOnReconnect = false
 }
 
 /// Tracks the progress of a multi-file model download.
