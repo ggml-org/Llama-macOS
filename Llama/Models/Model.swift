@@ -95,6 +95,11 @@ struct Model: Identifiable, Codable {
     "\(idBase(org: org, repo: repo)):\(quant)"
   }
 
+  /// `makeId` for a combined `{org}/{repo}` string, as deeplinks carry it.
+  static func makeId(orgSlashRepo: String, quant: String) -> String {
+    "\(idBase(orgSlashRepo: orgSlashRepo)):\(quant)"
+  }
+
   /// The pre-colon portion of the id for a given org/repo. Lets callers that
   /// hold a catalog repo string (`{org}/{repo}`) match against installed model
   /// ids regardless of quant — e.g. the Discover section hiding suggestions

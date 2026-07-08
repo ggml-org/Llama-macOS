@@ -540,10 +540,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   /// through the same id grammar (`Model.idBase`) the resolver and cache scan
   /// use, so native (ggml-org) models' short ids compare correctly.
   private func visibleDiscoverSuggestions(managed: [Model]) -> [Catalog.Suggestion] {
-    let managedIdBases = Set(
-      managed.map { model in
-        model.id.split(separator: ":").first.map(String.init) ?? model.id
-      })
+    let managedIdBases = Set(managed.map(\.idBase))
     return discoverSuggestions.filter {
       !managedIdBases.contains(Model.idBase(orgSlashRepo: $0.repo))
     }

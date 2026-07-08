@@ -128,15 +128,9 @@ enum HFRepoResolver {
       uniqueKeysWithValues: siblings.map { ($0.rfilename, $0.size ?? 0) })
     let approxBytes = allPicked.reduce(Int64(0)) { $0 + (sizeByPath[$1] ?? 0) }
 
-    // `repo` is already validated as `{org}/{name}` upstream; split it and run
-    // both halves through the shared id grammar so native (ggml-org) models
+    // Run the repo through the shared id grammar so native (ggml-org) models
     // get the same short id here as in the post-install scan.
-    let slashIdx = repo.firstIndex(of: "/")!
-    let modelId = Model.makeId(
-      org: String(repo[..<slashIdx]),
-      repo: String(repo[repo.index(after: slashIdx)...]),
-      quant: pick.quant
-    )
+    let modelId = Model.makeId(orgSlashRepo: repo, quant: pick.quant)
 
     let mainUrl = resolveUrl(repo: repo, path: pick.rfilename)
     let extraUrls = shards.dropFirst().map { resolveUrl(repo: repo, path: $0) }
@@ -233,9 +227,11 @@ enum HFRepoResolver {
     //   breaks the shard expansion downstream (it assumes main == first shard
     //   when building `additionalParts`).
     let allGgufs = siblings.filter { sib in
-      guard isGgufCandidate(sib.rfilename) && !isMtpSidecar(sib.rfilename) else { return false }
+      guard isGgufCandidate(sib.rfilename),
+        !SidecarPicker.isMtp(sib.rfilename),
+        !SidecarPicker.isMmproj(sib.rfilename)
+      else { return false }
       let name = (sib.rfilename as NSString).lastPathComponent
-      if name.lowercased().hasPrefix("mmproj") { return false }
       if name.lowercased().contains("imatrix") { return false }
       return !HFRepoParser.isSplitShard(name) || HFRepoParser.isFirstShard(name)
     }
@@ -390,57 +386,32 @@ enum HFRepoResolver {
     return shards
   }
 
-  /// Picks an mmproj sidecar: a lone `mmproj*.gguf` sibling, else nothing
-  /// (logs when multiple candidates exist — picking silently would risk
-  /// installing the wrong variant, e.g. F16 vs Q8, for vision).
+  /// Picks the mmproj sidecar among the repo's siblings. Selection policy
+  /// (lone candidate or skip) lives in `SidecarPicker.mmproj`, shared with the
+  /// cache scan.
   private static func pickMmproj(repo: String, siblings: [Sibling]) -> Sibling? {
-    let candidates = siblings.filter { sib in
-      let name = (sib.rfilename as NSString).lastPathComponent.lowercased()
-      return name.hasPrefix("mmproj") && name.hasSuffix(".gguf")
-    }
-    guard !candidates.isEmpty else { return nil }
-
-    if candidates.count == 1 { return candidates[0] }
-
-    logger.info("Multiple mmproj candidates in \(repo); skipping attach.")
-    return nil
+    let names = siblings.map(\.rfilename)
+    guard let picked = SidecarPicker.mmproj(among: names) else { return nil }
+    return siblings.first { $0.rfilename == picked }
   }
 
   /// Picks the MTP draft-head sidecar (`mtp-….gguf`) for the chosen main quant.
-  /// Repos commonly ship one head per quant (e.g. `mtp-…-Q4_0`, `mtp-…-Q8_0`),
-  /// so we prefer the head whose quant matches the main (what llama.cpp's
-  /// `find_best_mtp` does), falling back to the smallest head when there's no
-  /// exact match -- the head is tiny, so size is the safe tie-breaker.
+  /// Selection policy (quant-matched head, else smallest) lives in
+  /// `SidecarPicker.mtp`; unknown sizes rank last.
   private static func pickMtp(repo: String, siblings: [Sibling], mainQuant: String) -> Sibling? {
-    let candidates = siblings.filter { isMtpSidecar($0.rfilename) }
-    guard !candidates.isEmpty else { return nil }
-
-    // Canonicalize the head's label before comparing — `mainQuant` is already
-    // the canonical tag, while `parse` keeps HF-style prefixes like `UD-`.
-    if let exact = candidates.first(where: {
-      GGUFQuantLabel.parse($0.rfilename).map {
-        GGUFQuantLabel.matches(GGUFQuantLabel.canonicalTag($0), mainQuant)
-      } ?? false
-    }) {
-      return exact
-    }
-
-    // No quant-matched head -- take the smallest available (heads are small;
-    // any quant works as a draft, so minimize the download).
-    return candidates.min { ($0.size ?? .max) < ($1.size ?? .max) }
+    let sizeByName = Dictionary(
+      uniqueKeysWithValues: siblings.map { ($0.rfilename, $0.size ?? .max) })
+    let names = siblings.map(\.rfilename)
+    guard let picked = SidecarPicker.mtp(among: names, mainQuant: mainQuant, sizeOf: {
+      sizeByName[$0] ?? .max
+    }) else { return nil }
+    return siblings.first { $0.rfilename == picked }
   }
 
   // MARK: - Helpers
 
   private static func isGgufCandidate(_ path: String) -> Bool {
     path.lowercased().hasSuffix(".gguf")
-  }
-
-  /// True for an MTP draft-head sidecar -- a `.gguf` whose filename starts with
-  /// `mtp-`. Matches the convention llama.cpp keys on (`find_best_mtp`).
-  private static func isMtpSidecar(_ path: String) -> Bool {
-    let name = (path as NSString).lastPathComponent.lowercased()
-    return name.hasPrefix("mtp-") && name.hasSuffix(".gguf")
   }
 
   private static func resolveUrl(repo: String, path: String) -> URL {

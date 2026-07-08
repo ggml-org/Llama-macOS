@@ -537,12 +537,11 @@ enum HFCache {
     }
 
     return allFiles.filter { relativePath in
-      let fileName = URL(fileURLWithPath: relativePath).lastPathComponent.lowercased()
       // Skip mmproj (vision projection) and mtp- (speculative draft head)
       // sidecars -- neither is a runnable model on its own.
-      return fileName.hasSuffix(".gguf")
-        && !fileName.hasPrefix("mmproj")
-        && !fileName.hasPrefix("mtp-")
+      relativePath.lowercased().hasSuffix(".gguf")
+        && !SidecarPicker.isMmproj(relativePath)
+        && !SidecarPicker.isMtp(relativePath)
     }
   }
 
@@ -674,11 +673,10 @@ enum HFCache {
   }
 
   /// Finds a sidecar MTP draft head (`mtp-….gguf`) shipped beside the main file,
-  /// returning its absolute path. Repos pair one head per quant, so we prefer
-  /// the head whose quant matches the main (mirroring llama.cpp's `find_best_mtp`)
-  /// and fall back to the smallest head otherwise -- heads are tiny, so size is
-  /// the safe tie-breaker. Looks only in the main file's own directory, where
-  /// the snapshot places its siblings.
+  /// returning its absolute path. Selection policy lives in `SidecarPicker.mtp`;
+  /// sizes are measured on the resolved blob (snapshot entries are symlinks).
+  /// Looks only in the main file's own directory, where the snapshot places its
+  /// siblings.
   private static func findMTPSidecar(
     snapshotDir: URL, mainRelPath: String, mainQuant: String, fm: FileManager
   ) -> String? {
@@ -690,36 +688,15 @@ enum HFCache {
     guard let entries = try? fm.contentsOfDirectory(atPath: searchDir.path) else {
       return nil
     }
-    let heads = entries.filter {
-      let name = $0.lowercased()
-      return name.hasPrefix("mtp-") && name.hasSuffix(".gguf")
+    let chosen = SidecarPicker.mtp(among: entries, mainQuant: mainQuant) {
+      fm.fileSize(atPath: searchDir.appendingPathComponent($0).resolvingSymlinksInPath().path)
     }
-    guard !heads.isEmpty else { return nil }
-
-    // Prefer the quant-matched head; else the smallest by resolved blob size.
-    // Canonicalize the head's label before comparing — `mainQuant` is already
-    // the canonical tag, while `parse` keeps HF-style prefixes like `UD-`.
-    let chosen =
-      heads.first(where: {
-        GGUFQuantLabel.parse($0).map {
-          GGUFQuantLabel.matches(GGUFQuantLabel.canonicalTag($0), mainQuant)
-        } ?? false
-      })
-      ?? heads.min { a, b in
-        let aSize = fm.fileSize(
-          atPath: searchDir.appendingPathComponent(a).resolvingSymlinksInPath().path)
-        let bSize = fm.fileSize(
-          atPath: searchDir.appendingPathComponent(b).resolvingSymlinksInPath().path)
-        return aSize < bSize
-      }
-
     return chosen.map { searchDir.appendingPathComponent($0).path }
   }
 
   /// Finds the vision projector (`mmproj*.gguf`) sidecar for the main file,
-  /// returning its absolute path. Mirrors `HFRepoResolver.pickMmproj`'s policy:
-  /// attach only when there's exactly one candidate, skip when ambiguous — an
-  /// mmproj is quant-agnostic, so we've no reliable way to pick among several.
+  /// returning its absolute path. Selection policy (lone candidate or skip)
+  /// lives in `SidecarPicker.mmproj`, shared with the deeplink resolver.
   ///
   /// Search is two-tier to cover both real-world layouts: first the main file's
   /// own directory (per-quant repos ship `Q4_K_M/mmproj-….gguf` beside the
@@ -740,16 +717,11 @@ enum HFCache {
     return nil
   }
 
-  /// Returns the lone `mmproj*.gguf` in `dir`, or nil if there are none or more
-  /// than one (ambiguous — matching `pickMmproj`'s skip-when-ambiguous policy).
+  /// Returns the lone `mmproj*.gguf` in `dir` (per `SidecarPicker.mmproj`'s
+  /// policy) as an absolute path, or nil.
   private static func singleMmproj(in dir: URL, fm: FileManager) -> String? {
     guard let entries = try? fm.contentsOfDirectory(atPath: dir.path) else { return nil }
-    let candidates = entries.filter {
-      let name = $0.lowercased()
-      return name.hasPrefix("mmproj") && name.hasSuffix(".gguf")
-    }
-    guard candidates.count == 1 else { return nil }
-    return dir.appendingPathComponent(candidates[0]).path
+    return SidecarPicker.mmproj(among: entries).map { dir.appendingPathComponent($0).path }
   }
 }
 
