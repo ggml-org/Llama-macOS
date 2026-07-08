@@ -51,12 +51,12 @@ You can also use the built-in WebUI at http://localhost:2276 while Llama is runn
 
 ```sh
 # list installed models
-curl http://localhost:2276/v1/models
+curl http://localhost:8080/v1/models
 ```
 
 ```sh
 # chat with Gemma 3 4B (assuming it's installed)
-curl http://localhost:2276/v1/chat/completions \
+curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model": "gemma-3-4b", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
