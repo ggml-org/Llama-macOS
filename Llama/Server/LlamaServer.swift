@@ -99,12 +99,6 @@ class LlamaServer {
   var activeModelId: String? {
     modelStatuses.first { $0.value == .loaded || $0.value == .loading }?.key
   }
-  var memoryUsageMb: Double = 0 {
-    didSet { NotificationCenter.default.post(name: .LBServerMemoryDidChange, object: self) }
-  }
-
-  private var memoryTask: Task<Void, Never>?
-
   // Store observer token for proper cleanup
   private var settingsObserver: NSObjectProtocol?
 
@@ -426,7 +420,6 @@ class LlamaServer {
   /// Terminates the currently running llama-server process and resets state
   func stop() {
     // Set to .idle before terminating so the handler knows this is intentional
-    memoryUsageMb = 0
     state = .idle
 
     // Clearing statuses also clears the derived `activeModelId`, so a stopped
@@ -454,7 +447,6 @@ class LlamaServer {
     stopActiveProcess()
     cleanUpPipes()
     stopStatusPolling()
-    stopMemoryMonitoring()
   }
 
   /// Gracefully terminates the currently running process
@@ -578,73 +570,10 @@ class LlamaServer {
     await MainActor.run {
       if self.state == .loading {
         self.state = .running
-        self.startMemoryMonitoring()
       }
       if self.modelStatuses != newStatuses {
         self.modelStatuses = newStatuses
       }
-    }
-  }
-
-  private func startMemoryMonitoring() {
-    stopMemoryMonitoring()
-
-    memoryTask = Task.detached { [weak self] in
-      guard let self = self else { return }
-
-      while !Task.isCancelled {
-        let (isRunning, pid) = await MainActor.run {
-          (self.state == .running, self.activeProcess?.processIdentifier)
-        }
-
-        guard isRunning, let pid = pid else { break }
-
-        let memoryValue = Self.measureMemoryUsageMb(pid: pid)
-        await MainActor.run {
-          self.memoryUsageMb = memoryValue
-        }
-
-        try? await Task.sleep(nanoseconds: 2_000_000_000)
-      }
-    }
-  }
-
-  private func stopMemoryMonitoring() {
-    memoryTask?.cancel()
-    memoryTask = nil
-  }
-
-  /// Measures the current memory footprint of the llama-server process
-  nonisolated static func measureMemoryUsageMb(pid: Int32) -> Double {
-    let task = Process()
-    task.executableURL = URL(fileURLWithPath: "/usr/bin/footprint")
-    task.arguments = ["-s", String(pid)]
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = Pipe()
-
-    do {
-      try task.run()
-      task.waitUntilExit()
-
-      guard task.terminationStatus == 0 else { return 0 }
-
-      let output =
-        String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-      guard let range = output.range(of: "Footprint: ") else { return 0 }
-
-      let components = output[range.upperBound...].components(separatedBy: .whitespaces)
-      guard components.count >= 2, let value = Double(components[0]) else { return 0 }
-
-      switch components[1] {
-      case "MB": return value
-      case "GB": return value * 1024
-      case "KB": return value / 1024
-      default: return 0
-      }
-    } catch {
-      return 0
     }
   }
 

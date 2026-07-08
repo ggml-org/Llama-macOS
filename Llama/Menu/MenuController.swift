@@ -326,9 +326,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     // the setup banner.
     observe(.LBCLIInstallStateDidChange, rebuildMenu: true)
 
-    // Server memory usage changed - update running model stats
-    observe(.LBServerMemoryDidChange)
-
     // Model status changed (loaded/unloaded)
     observe(.LBModelStatusDidChange)
 
