@@ -176,19 +176,10 @@ enum UserSettings {
   /// Defaults to ~/.cache/huggingface/hub, can be overridden in Settings.
   static var hfCacheDirectory: URL {
     get {
-      let dir: URL
-      if let path = defaults.string(forKey: Keys.hfCacheDirectory) {
-        dir = URL(fileURLWithPath: path, isDirectory: true)
-      } else {
-        dir = defaultHFCacheDirectory
+      guard let path = defaults.string(forKey: Keys.hfCacheDirectory) else {
+        return defaultHFCacheDirectory
       }
-
-      // Ensure directory exists
-      if !FileManager.default.fileExists(atPath: dir.path) {
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-      }
-
-      return dir
+      return URL(fileURLWithPath: path, isDirectory: true)
     }
     set {
       if newValue == defaultHFCacheDirectory {
@@ -196,6 +187,11 @@ enum UserSettings {
       } else {
         defaults.set(newValue.path, forKey: Keys.hfCacheDirectory)
       }
+      // Ensure the chosen directory exists so the first scan/download after a
+      // change doesn't race its creation. (Download paths also create their
+      // own subdirs with intermediates, so this is belt-and-braces.)
+      try? FileManager.default.createDirectory(
+        at: newValue, withIntermediateDirectories: true)
     }
   }
 
