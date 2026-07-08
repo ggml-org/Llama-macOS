@@ -5,10 +5,8 @@ extension Model {
 
   /// We evaluate compatibility assuming a 4k-token context, which is the
   /// default llama.cpp launches with when no explicit value is provided.
+  /// Models must also support at least this context length to launch.
   static let compatibilityCtxWindowTokens: Double = 4_096
-
-  /// Models must support at least this context length to launch.
-  static let minimumCtxWindowTokens: Double = compatibilityCtxWindowTokens
 
   /// Memory overhead reserved for macOS and other apps (in MB).
   /// This margin is also passed to llama-server via --fit-target so both
@@ -30,48 +28,6 @@ extension Model {
     guard let bytes, bytes > 0 else { return true }
     let weightMb = Double(bytes) / 1_048_576.0 * 1.05
     return weightMb <= budgetMb
-  }
-
-  func usableCtxWindow(
-    desiredTokens: Int? = nil,
-    maximizeContext: Bool = false
-  ) -> Int? {
-    let minimumTokens = Int(Self.minimumCtxWindowTokens)
-    guard ctxWindow >= minimumTokens else { return nil }
-
-    let sysMem = SystemMemory.memoryMb
-    guard sysMem > 0 else { return nil }
-
-    let budgetMb = Self.memoryBudget(systemMemoryMb: sysMem)
-    let weightMb = weightMemoryMb
-    if weightMb > budgetMb { return nil }
-
-    // Default to 4k context unless maximizing or explicitly requested
-    let defaultContext = maximizeContext ? ctxWindow : minimumTokens
-    let effectiveDesired = desiredTokens.flatMap { $0 > 0 ? $0 : nil } ?? defaultContext
-
-    let desiredTokensDouble = Double(effectiveDesired)
-
-    let ctxBytesPerToken = Double(ctxBytesPer1kTokens) / 1_000.0
-    let maxTokensFromMemory: Double = {
-      if ctxBytesPerToken <= 0 {
-        return Double(ctxWindow)
-      }
-      let remainingMb = budgetMb - weightMb
-      if remainingMb <= 0 { return 0 }
-      let remainingBytes = remainingMb * 1_048_576.0
-      return remainingBytes / ctxBytesPerToken
-    }()
-
-    let cappedTokens = min(Double(ctxWindow), desiredTokensDouble, maxTokensFromMemory)
-    if cappedTokens < Self.minimumCtxWindowTokens { return nil }
-
-    let floored = Int(cappedTokens)
-    var rounded = floored
-    if rounded < minimumTokens { rounded = minimumTokens }
-    if rounded > ctxWindow { rounded = ctxWindow }
-
-    return rounded
   }
 
   func isCompatible(
@@ -121,9 +77,7 @@ extension Model {
   private func compatibilityInfo(
     ctxWindowTokens: Double = compatibilityCtxWindowTokens
   ) -> CompatibilityInfo {
-    let minimumTokens = Self.minimumCtxWindowTokens
-
-    if Double(ctxWindow) < minimumTokens {
+    if Double(ctxWindow) < Self.compatibilityCtxWindowTokens {
       return CompatibilityInfo(
         isCompatible: false,
         incompatibilitySummary: "requires models with ≥4k context"

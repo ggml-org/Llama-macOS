@@ -85,9 +85,6 @@ struct Model: Identifiable, Codable {
   /// expose the org concept to the user: no prefix in the id or the row.
   static let nativeOrg = "ggml-org"
 
-  /// Whether this model is published by the native org.
-  var isNative: Bool { org == Model.nativeOrg }
-
   /// Builds the stable model id shared by the deeplink and post-install scan
   /// paths. Native models drop the org prefix and get a short, slashless id:
   /// lowercased repo name with the `-GGUF` suffix stripped

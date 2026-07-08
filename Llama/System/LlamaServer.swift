@@ -4,7 +4,6 @@ import os.log
 /// Essential errors that can occur during llama-server operations
 enum LlamaServerError: Error, LocalizedError, Equatable {
   case launchFailed(String)
-  case healthCheckFailed
   case invalidPath(String)
   case portInUse(port: Int, by: String)
 
@@ -12,8 +11,6 @@ enum LlamaServerError: Error, LocalizedError, Equatable {
     switch self {
     case .launchFailed(let reason):
       return "Failed to start server: \(reason)"
-    case .healthCheckFailed:
-      return "Server failed to respond"
     case .invalidPath(let path):
       return "Invalid file: \(path)"
     case .portInUse(let port, let by):

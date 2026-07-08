@@ -112,18 +112,6 @@ enum Format {
 }
 
 extension Format {
-  // MARK: - Metadata Formatting
-
-  /// Creates a bullet separator for metadata lines (e.g., "2.5 GB · 128k · 4 GB").
-  /// Optionally accepts a paragraph style to prevent letter spacing compression.
-  static func metadataSeparator(paragraphStyle: NSParagraphStyle? = nil) -> NSAttributedString {
-    var attrs = Theme.tertiaryAttributes
-    if let paragraphStyle {
-      attrs[.paragraphStyle] = paragraphStyle
-    }
-    return NSAttributedString(string: " · ", attributes: attrs)
-  }
-
   // MARK: - Model Metadata (composite)
 
   /// Transfer readout shown to the right of the progress bar while a download is
