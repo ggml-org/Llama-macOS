@@ -45,7 +45,7 @@ Llama works with any OpenAI-compatible client.
 - **CLI tools** — OpenCode ([instructions](https://github.com/ggml-org/Llama-macOS/discussions/44)), Claude Code ([instructions](https://github.com/ggml-org/Llama-macOS/discussions/45))
 - **Custom scripts** — curl, AI SDK, etc.
 
-You can also use the built-in WebUI at http://localhost:2276 while Llama is running.
+You can also use the built-in WebUI at http://localhost:8080 while Llama is running.
 
 ## API examples
 
@@ -61,7 +61,7 @@ curl http://localhost:8080/v1/chat/completions \
   -d '{"model": "gemma-3-4b", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-Replace `gemma-3-4b` with any model ID from `http://localhost:2276/v1/models`.
+Replace `gemma-3-4b` with any model ID from `http://localhost:8080/v1/models`.
 
 See complete API reference in `llama-server` [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
 
