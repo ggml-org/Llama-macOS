@@ -63,8 +63,8 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// queue (nonisolated) and the main actor; the table serializes all access.
   nonisolated let writerTable = WriterTable()
 
-  // Retry state: tracks attempt count per URL for exponential backoff
-  var retryAttempts: [URL: Int] = [:]
+  // Retry policy. The per-URL attempt counters live on each `ActiveDownload`
+  // entry, so they're dropped automatically with the entry on teardown.
   let maxRetryAttempts = 3
   let baseRetryDelay: TimeInterval = 2.0  // Doubles each attempt: 2s, 4s, 8s
 
@@ -83,8 +83,8 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   private var urlSession: URLSession!
   let logger = Logger(subsystem: Logging.subsystem, category: "ModelManager")
 
-  // Throttle progress notifications to prevent excessive UI refreshes.
-  var lastNotificationTime: [String: Date] = [:]
+  /// Minimum interval between progress notifications, to prevent excessive UI
+  /// refreshes. The per-download timestamp lives on the `ActiveDownload` entry.
   let notificationThrottleInterval: TimeInterval = 0.1
 
   override init() {
@@ -723,7 +723,6 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
     if aggregate.isEmpty {
       activeDownloads.removeValue(forKey: modelId)
-      lastNotificationTime.removeValue(forKey: modelId)
       return true
     } else {
       activeDownloads[modelId] = aggregate
@@ -753,12 +752,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
     if activeDownloads[modelId] != nil {
       cancelTasks(for: modelId)
+      // Removing the entry also drops its retry counters and notification
+      // throttle state — they live on the ActiveDownload.
       activeDownloads.removeValue(forKey: modelId)
-      lastNotificationTime.removeValue(forKey: modelId)
-      // Clear retry counters — a subsequent resume/retry should start a fresh budget.
-      if let model {
-        for url in model.allDownloadUrls { clearRetryState(for: url) }
-      }
     }
 
     switch outcome {

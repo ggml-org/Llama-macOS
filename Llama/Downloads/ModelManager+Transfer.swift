@@ -119,11 +119,11 @@ extension ModelManager {
 
     guard let modelId = dataTask.taskDescription else { return }
     DispatchQueue.main.async { [weak self] in
-      guard let self = self else { return }
+      guard let self = self, var download = self.activeDownloads[modelId] else { return }
       let now = Date()
-      let lastTime = self.lastNotificationTime[modelId] ?? .distantPast
-      if now.timeIntervalSince(lastTime) >= self.notificationThrottleInterval {
-        self.lastNotificationTime[modelId] = now
+      if now.timeIntervalSince(download.lastNotified) >= self.notificationThrottleInterval {
+        download.lastNotified = now
+        self.activeDownloads[modelId] = download
         self.refreshProgress(modelId: modelId)
         self.postDownloadsDidChange()
       }
@@ -240,9 +240,10 @@ extension ModelManager {
 
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
-      self.clearRetryState(for: writer.url)
 
       let wasCompleted = self.updateActiveDownload(modelId: modelId) { agg in
+        // This file is done — drop its retry counter along with its task.
+        agg.retryAttempts.removeValue(forKey: writer.url)
         agg.markTaskFinished(dataTask, fileSize: fileSize)
       }
       if wasCompleted {
@@ -350,7 +351,7 @@ extension ModelManager {
   /// - attempts exhausted while online: the connection is genuinely troubled; park
   ///   as a paused row (no modal) the user can resume by hand, with a fresh budget.
   func handleTransientFailure(model: Model, url: URL, modelId: String) {
-    let attempts = retryAttempts[url] ?? 0
+    let attempts = activeDownloads[modelId]?.retryAttempts[url] ?? 0
     if isNetworkAvailable && attempts < maxRetryAttempts {
       scheduleRetry(url: url, modelId: modelId)
       return
@@ -370,8 +371,8 @@ extension ModelManager {
   /// Schedules a retry with exponential backoff. The partial file on disk is our resume state,
   /// so all we need to do is re-open a writer and issue a fresh Range request.
   private func scheduleRetry(url: URL, modelId: String) {
-    let attempts = retryAttempts[url] ?? 0
-    retryAttempts[url] = attempts + 1
+    let attempts = activeDownloads[modelId]?.retryAttempts[url] ?? 0
+    activeDownloads[modelId]?.retryAttempts[url] = attempts + 1
 
     // Exponential backoff: 2s, 4s, 8s
     let delay = baseRetryDelay * pow(2.0, Double(attempts))
@@ -383,12 +384,9 @@ extension ModelManager {
     DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
       guard let self = self else { return }
 
-      // Verify download is still active (user may have cancelled)
-      guard let model = self.activeDownloads[modelId]?.model
-      else {
-        self.clearRetryState(for: url)
-        return
-      }
+      // Verify download is still active (user may have cancelled) — if not,
+      // teardown removed the entry, retry counters and all.
+      guard let model = self.activeDownloads[modelId]?.model else { return }
 
       self.logger.info("Retrying download for \(url.lastPathComponent)")
       self.restartTask(model: model, url: url)
@@ -423,11 +421,6 @@ extension ModelManager {
       // Register and start the task (no-op if cancelled during the re-hash).
       startWriterTask(writer, modelId: model.id)
     }
-  }
-
-  /// Clears retry state for a URL (called on success or user cancellation).
-  func clearRetryState(for url: URL) {
-    retryAttempts.removeValue(forKey: url)
   }
 
 }

@@ -30,6 +30,12 @@ struct ActiveDownload {
   /// fetch completing. Shares this entry's lifecycle, so it can't drift out of
   /// sync with the download the way a parallel dict would.
   var plan: HFDownloadPlan?
+  /// Retry attempts consumed per file URL (exponential-backoff budget).
+  /// Living here, the counters die with the entry — teardown and completion
+  /// need no separate cleanup, and a later resume starts a fresh budget.
+  var retryAttempts: [URL: Int] = [:]
+  /// When the last progress notification was posted (UI refresh throttle).
+  var lastNotified: Date = .distantPast
 
   mutating func addTask(_ task: URLSessionDataTask) {
     tasks[task.taskIdentifier] = task
