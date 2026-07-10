@@ -5,11 +5,10 @@ import Foundation
 /// cache scan (post-install). Metadata is parsed from the HF repo dir name and
 /// the GGUF filename — there is no curated catalog backing this struct.
 struct Model: Identifiable, Codable {
-  /// Stable model id built by `makeId` — `{base}:{TAG}` (matching
-  /// llama-server's `-hf` shorthand), with a short slashless base for native
-  /// (ggml-org) models. Stable across the deeplink and post-install scan paths
-  /// because both derive the tag through `GGUFQuant.tag(forPath:)` and build
-  /// the id through `makeId`.
+  /// Stable model id built by `makeId` — the verbatim `{org}/{repo}:{TAG}`,
+  /// exactly llama-server's `-hf` shorthand, for every org. Stable across the
+  /// deeplink and post-install scan paths because both derive the tag through
+  /// `GGUFQuant.tag(forPath:)` and build the id through `makeId`.
   let id: String
   /// Family name parsed from the repo (e.g. "Qwen3-30B-A3B-Instruct"). Not
   /// displayed (rows show the id) — drives brand-logo matching and sort order.
@@ -72,16 +71,12 @@ struct Model: Identifiable, Codable {
     self.org = org
   }
 
-  /// The org whose models are native — ours, conceptually. Native models never
-  /// expose the org concept to the user: no prefix in the id or the row.
-  static let nativeOrg = "ggml-org"
-
   /// Builds the stable model id shared by the deeplink and post-install scan
-  /// paths. Native models drop the org prefix and get a short, slashless id:
-  /// lowercased repo name with the `-GGUF` suffix stripped
-  /// (e.g. "qwen3-0.6b:Q8_0"). Models from any other org keep the
-  /// `{org}/{repo}:{QUANT}` shape, which matches llama-server's `-hf`
-  /// shorthand.
+  /// paths: the verbatim `{org}/{repo}:{TAG}`, matching llama-server's `-hf`
+  /// shorthand for every org — no lowercasing, no `-GGUF` stripping, no org
+  /// dropped. One grammar means every id round-trips through `-hf` and matches
+  /// llama-server's own cache-scan naming; row-length concerns are handled by
+  /// the display layer (`ModelIdParser`), not the id.
   static func makeId(org: String, repo: String, tag: String) -> String {
     "\(idBase(org: org, repo: repo)):\(tag)"
   }
@@ -96,28 +91,20 @@ struct Model: Identifiable, Codable {
   /// ids regardless of quant — e.g. the Discover section hiding suggestions
   /// whose repo is already installed.
   static func idBase(org: String, repo: String) -> String {
-    guard org == nativeOrg else { return "\(org)/\(repo)" }
-    var base = repo
-    if base.lowercased().hasSuffix("-gguf") {
-      base = String(base.dropLast("-gguf".count))
-    }
-    return base.lowercased()
+    "\(org)/\(repo)"
   }
 
   /// `idBase` for a combined `{org}/{repo}` string, as catalog suggestions
-  /// carry it. Returns the input unchanged if there's no slash to split on.
+  /// carry it. The id base is the repo string verbatim.
   static func idBase(orgSlashRepo: String) -> String {
-    guard let slashIdx = orgSlashRepo.firstIndex(of: "/") else { return orgSlashRepo }
-    return idBase(
-      org: String(orgSlashRepo[..<slashIdx]),
-      repo: String(orgSlashRepo[orgSlashRepo.index(after: slashIdx)...])
-    )
+    orgSlashRepo
   }
 
-  /// The pre-colon portion of this model's id (e.g. "gpt-oss-20b",
-  /// "unsloth/GLM-4.7-Flash-GGUF"). The one display name — menu rows, hints,
-  /// alerts, and logs all show the id, so every surface (including the WebUI,
-  /// which renders the raw id from `/v1/models`) derives from the same string.
+  /// The pre-colon portion of this model's id (e.g.
+  /// "unsloth/GLM-4.7-Flash-GGUF"). Hints, alerts, and logs show it raw; menu
+  /// rows render a parsed view of the id (`ModelIdParser`) — a deterministic
+  /// rendering, not a second name, so every surface still derives from the
+  /// one id string.
   var idBase: String {
     guard let colonIdx = id.lastIndex(of: ":") else { return id }
     return String(id[..<colonIdx])

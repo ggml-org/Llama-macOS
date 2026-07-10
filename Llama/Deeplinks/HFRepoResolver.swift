@@ -18,10 +18,9 @@ enum HFRepoResolver {
 
   /// Everything needed to start a download for a resolved deeplink.
   struct Resolved {
-    /// Stable id from `Model.makeId` — `"{org}/{repo}:{TAG}"`, or the short
-    /// slashless form for native (ggml-org) models. Matches the id shape
-    /// `HFCache.buildSideloadedEntry` produces, so post-install the row keeps
-    /// the same identity without any handoff.
+    /// Stable id from `Model.makeId` — the verbatim `"{org}/{repo}:{TAG}"`.
+    /// Matches the id shape `HFCache.buildSideloadedEntry` produces, so
+    /// post-install the row keeps the same identity without any handoff.
     let modelId: String
     /// `"{org}/{repo}"` — mirrors the `repo` query param.
     let repo: String
