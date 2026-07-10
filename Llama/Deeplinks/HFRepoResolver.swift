@@ -18,15 +18,13 @@ enum HFRepoResolver {
 
   /// Everything needed to start a download for a resolved deeplink.
   struct Resolved {
-    /// Stable id from `Model.makeId` — `"{org}/{repo}:{QUANT}"`, or the short
+    /// Stable id from `Model.makeId` — `"{org}/{repo}:{TAG}"`, or the short
     /// slashless form for native (ggml-org) models. Matches the id shape
     /// `HFCache.buildSideloadedEntry` produces, so post-install the row keeps
     /// the same identity without any handoff.
     let modelId: String
     /// `"{org}/{repo}"` — mirrors the `repo` query param.
     let repo: String
-    /// Canonical quant label, matching the sideloaded scan's id grammar.
-    let quant: String
     /// Main GGUF URL (goes into `Model.downloadUrl`).
     let mainUrl: URL
     /// Sharded parts, if any (`-00002-of-NNNNN.gguf`, ...).
@@ -98,7 +96,7 @@ enum HFRepoResolver {
     // Up-front validation: a malformed but present quant is a hard reject.
     // Otherwise a tampered link could silently install a different file by
     // falling through to default-quant resolution.
-    if let quant, GGUFQuantLabel.parse(quant) == nil {
+    if let quant, GGUFQuant.parseLabel(quant) == nil {
       throw ResolveError.invalidQuant(quant)
     }
 
@@ -109,7 +107,7 @@ enum HFRepoResolver {
 
     let budgetMb = Model.memoryBudget(systemMemoryMb: systemMemoryMb)
 
-    // File selection: pick the main GGUF (plus an optional canonical quant label).
+    // File selection: pick the main GGUF (plus its canonical quant tag).
     let pick = try selectMain(
       repo: repo, requestedQuant: quant,
       siblings: siblings, budgetMb: budgetMb
@@ -118,7 +116,7 @@ enum HFRepoResolver {
     // Expand shards + attach mmproj + attach the quant-matched MTP head.
     let shards = try expandShards(main: pick.rfilename, siblings: siblings, repo: repo)
     let mmproj = pickMmproj(repo: repo, siblings: siblings)
-    let mtp = pickMtp(repo: repo, siblings: siblings, mainQuant: pick.quant)
+    let mtp = pickMtp(repo: repo, siblings: siblings, mainQuant: pick.tag)
 
     // Aggregate size (main + shards + mmproj + mtp), dropping unknown entries.
     var allPicked: [String] = shards  // includes the main shard at index 0
@@ -130,7 +128,7 @@ enum HFRepoResolver {
 
     // Run the repo through the shared id grammar so native (ggml-org) models
     // get the same short id here as in the post-install scan.
-    let modelId = Model.makeId(orgSlashRepo: repo, quant: pick.quant)
+    let modelId = Model.makeId(orgSlashRepo: repo, tag: pick.tag)
 
     let mainUrl = resolveUrl(repo: repo, path: pick.rfilename)
     let extraUrls = shards.dropFirst().map { resolveUrl(repo: repo, path: $0) }
@@ -140,7 +138,6 @@ enum HFRepoResolver {
     return Resolved(
       modelId: modelId,
       repo: repo,
-      quant: pick.quant,
       mainUrl: mainUrl,
       additionalParts: Array(extraUrls),
       mmprojUrl: mmprojUrl,
@@ -211,7 +208,7 @@ enum HFRepoResolver {
   /// Outcome of the main-file pick.
   private struct Pick {
     let rfilename: String  // repo-relative path
-    let quant: String  // canonical label
+    let tag: String  // canonical quant tag (goes into the model id)
   }
 
   private static func selectMain(
@@ -240,8 +237,8 @@ enum HFRepoResolver {
     // 1. Explicit quant: match any sibling whose parsed label == requested.
     if let requested = requestedQuant {
       let matches = allGgufs.filter { sib in
-        guard let label = GGUFQuantLabel.parse(sib.rfilename) else { return false }
-        return GGUFQuantLabel.matches(label, requested)
+        guard let label = GGUFQuant.parseLabel(sib.rfilename) else { return false }
+        return GGUFQuant.matches(label, requested)
       }
       guard let picked = largest(matches, siblings: siblings, repo: repo) else {
         throw ResolveError.quantNotFound(repo: repo, quant: requested)
@@ -250,15 +247,13 @@ enum HFRepoResolver {
         logger.info(
           "Ambiguous quant \(requested) in \(repo): \(matches.count) matches; picked largest")
       }
-      // The picked sibling's parsed label, canonicalized to llama.cpp's tag
-      // shape — the same derivation the post-download sideloaded scan uses,
-      // so the resulting `{org}/{repo}:{QUANT}` id round-trips exactly (and
-      // matches how llama-server names the model at runtime).
-      let canonical = GGUFQuantLabel.canonicalTag(
-        GGUFQuantLabel.parse(picked.rfilename) ?? requested)
+      // Tag via the shared derivation (file-derived label first, `requested`
+      // only as last resort) — the same chain the post-download sideloaded
+      // scan uses, so the resulting `{org}/{repo}:{TAG}` id round-trips
+      // exactly (and matches how llama-server names the model at runtime).
       return Pick(
         rfilename: picked.rfilename,
-        quant: canonical)
+        tag: GGUFQuant.tag(forPath: picked.rfilename, requested: requested))
     }
 
     // 2. No quant: mirror llama.cpp's `find_best_model`
@@ -289,13 +284,9 @@ enum HFRepoResolver {
     guard let best = preferred ?? largest(compatible, siblings: siblings, repo: repo) else {
       throw ResolveError.noCompatibleFile(repo: repo)
     }
-    let label =
-      (GGUFQuantLabel.parse(best.rfilename)
-        ?? HFRepoParser.parseQuant(filename: (best.rfilename as NSString).lastPathComponent))
-      .map(GGUFQuantLabel.canonicalTag) ?? "unknown"
     return Pick(
       rfilename: best.rfilename,
-      quant: label)
+      tag: GGUFQuant.tag(forPath: best.rfilename))
   }
 
   /// Picks the largest sibling from a list, ranking sharded variants by the

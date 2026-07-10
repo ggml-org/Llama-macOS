@@ -47,8 +47,8 @@ enum SidecarPicker {
     guard !candidates.isEmpty else { return nil }
 
     if let exact = candidates.first(where: { candidate in
-      GGUFQuantLabel.parse(candidate).map {
-        GGUFQuantLabel.matches(GGUFQuantLabel.canonicalTag($0), mainQuant)
+      GGUFQuant.parseLabel(candidate).map {
+        GGUFQuant.matches(GGUFQuant.canonicalTag($0), mainQuant)
       } ?? false
     }) {
       return exact

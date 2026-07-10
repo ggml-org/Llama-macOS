@@ -5,11 +5,11 @@ import Foundation
 /// cache scan (post-install). Metadata is parsed from the HF repo dir name and
 /// the GGUF filename — there is no curated catalog backing this struct.
 struct Model: Identifiable, Codable {
-  /// Stable model id built by `makeId` — `{org}/{repo}:{QUANT}` (matching
-  /// llama-server's `-hf` shorthand), or a short slashless form for native
+  /// Stable model id built by `makeId` — `{base}:{TAG}` (matching
+  /// llama-server's `-hf` shorthand), with a short slashless base for native
   /// (ggml-org) models. Stable across the deeplink and post-install scan paths
-  /// because both derive the quant label through the same `GGUFQuantLabel`
-  /// grammar and build the id through `makeId`.
+  /// because both derive the tag through `GGUFQuant.tag(forPath:)` and build
+  /// the id through `makeId`.
   let id: String
   /// Family name parsed from the repo (e.g. "Qwen3-30B-A3B-Instruct"). Not
   /// displayed (rows show the id) — drives brand-logo matching and sort order.
@@ -45,8 +45,6 @@ struct Model: Identifiable, Codable {
   /// HF org parsed from the repo dir (e.g. "bartowski"). Shown in the row to
   /// disambiguate repos that share a base name across orgs.
   let org: String
-  /// Quantization label (e.g. "Q4_K_M", "Q8_0", "F16"). Part of the id.
-  let quantization: String
 
   init(
     id: String,
@@ -59,8 +57,7 @@ struct Model: Identifiable, Codable {
     additionalParts: [URL]? = nil,
     mmprojUrl: URL? = nil,
     mtpUrl: URL? = nil,
-    org: String,
-    quantization: String
+    org: String
   ) {
     self.id = id
     self.family = family
@@ -73,7 +70,6 @@ struct Model: Identifiable, Codable {
     self.mmprojUrl = mmprojUrl
     self.mtpUrl = mtpUrl
     self.org = org
-    self.quantization = quantization
   }
 
   /// The org whose models are native — ours, conceptually. Native models never
@@ -86,13 +82,13 @@ struct Model: Identifiable, Codable {
   /// (e.g. "qwen3-0.6b:Q8_0"). Models from any other org keep the
   /// `{org}/{repo}:{QUANT}` shape, which matches llama-server's `-hf`
   /// shorthand.
-  static func makeId(org: String, repo: String, quant: String) -> String {
-    "\(idBase(org: org, repo: repo)):\(quant)"
+  static func makeId(org: String, repo: String, tag: String) -> String {
+    "\(idBase(org: org, repo: repo)):\(tag)"
   }
 
   /// `makeId` for a combined `{org}/{repo}` string, as deeplinks carry it.
-  static func makeId(orgSlashRepo: String, quant: String) -> String {
-    "\(idBase(orgSlashRepo: orgSlashRepo)):\(quant)"
+  static func makeId(orgSlashRepo: String, tag: String) -> String {
+    "\(idBase(orgSlashRepo: orgSlashRepo)):\(tag)"
   }
 
   /// The pre-colon portion of the id for a given org/repo. Lets callers that
@@ -125,6 +121,14 @@ struct Model: Identifiable, Codable {
   var idBase: String {
     guard let colonIdx = id.lastIndex(of: ":") else { return id }
     return String(id[..<colonIdx])
+  }
+
+  /// The post-colon portion of the id — the canonical quant tag (e.g.
+  /// "Q4_K_M", "MXFP4", "unknown"). Computed from `id` rather than stored so
+  /// the two can never disagree; `makeId` is the only writer of both.
+  var quantTag: String {
+    guard let colonIdx = id.lastIndex(of: ":") else { return "" }
+    return String(id[id.index(after: colonIdx)...])
   }
 
   /// Display name — the id base. Kept as a semantic alias so call sites read

@@ -134,7 +134,7 @@
       return Model(
         // Real ids go through the shared grammar (native shortening, -GGUF
         // stripping) — the fixture must too, now that rows display the id.
-        id: Model.makeId(org: org, repo: repo, quant: quant),
+        id: Model.makeId(org: org, repo: repo, tag: quant),
         family: family,
         fileSize: Int64(fileGB * 1_000_000_000),
         // 0 => pending probe ("estimating..."); ~150 KB per 1k tokens is a
@@ -144,8 +144,7 @@
         downloadUrl: url,
         mmprojUrl: vision ? url : nil,
         mtpUrl: mtp ? url : nil,
-        org: org,
-        quantization: quant)
+        org: org)
     }
   }
 #endif

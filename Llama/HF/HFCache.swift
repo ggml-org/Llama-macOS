@@ -547,9 +547,9 @@ enum HFCache {
 
   /// Builds a `Model` + `ResolvedPaths` from a discovered GGUF file.
   ///
-  /// Quant derivation uses `GGUFQuantLabel.parse` first and falls back to
-  /// `HFRepoParser.parseQuant` — this makes deeplink-originated installs and
-  /// scan-discovered installs agree on `{org}/{repo}:{QUANT}` so they round-trip.
+  /// Quant tags come from `GGUFQuant.tag(forPath:)` — the same derivation the
+  /// deeplink resolver uses, so deeplink-originated installs and
+  /// scan-discovered installs agree on `{org}/{repo}:{TAG}` and round-trip.
   private static func buildSideloadedEntry(
     repoDir: String,
     filename: String,
@@ -560,23 +560,11 @@ enum HFCache {
     // Parse metadata from repo dir name
     guard let parsed = HFRepoParser.parse(repoDir: repoDir) else { return nil }
 
-    // Parse quantization. `GGUFQuantLabel` runs the full HF grammar against the
-    // whole repo-relative path, so it catches the label whether it's in a subdir
-    // prefix (`Q4_K_M/model.gguf`), in the filename (`model-Q4_K_M.gguf`), or
-    // wearing an Unsloth `UD-` prefix. This is load-bearing for identity: the
-    // deeplink resolver builds `{org}/{repo}:{QUANT}` using the same function,
-    // and `updateDownloadedModels` cleans up pending rows by id match —
-    // diverging grammars here means pending entries never get reaped.
-    // `HFRepoParser.parseQuant` is the fallback for legacy flat filenames
-    // where the label sits outside the HF enum but still starts with Q/F/IQ.
-    // The parsed label then gets canonicalized to llama.cpp's tag shape
-    // (`UD-Q4_K_XL` → `Q4_K_XL`) so the id matches how llama-server names the
-    // model after normalizing our `models.ini` section headers.
-    let fileBaseName = URL(fileURLWithPath: filename).lastPathComponent
-    let quant =
-      (GGUFQuantLabel.parse(filename)
-        ?? HFRepoParser.parseQuant(filename: fileBaseName))
-      .map(GGUFQuantLabel.canonicalTag) ?? "unknown"
+    // Derive the quant tag. This is load-bearing for identity: the deeplink
+    // resolver builds `{org}/{repo}:{TAG}` through the same function, and
+    // `updateDownloadedModels` cleans up pending rows by id match — a
+    // diverging derivation here means pending entries never get reaped.
+    let quant = GGUFQuant.tag(forPath: filename)
 
     // Locate the vision projector (`mmproj*.gguf`) sidecar, if the repo ships
     // one. Vision models can't do image input without it, and this scan path is
@@ -609,7 +597,7 @@ enum HFCache {
     // get a short slashless id; other orgs keep "{org}/{repo}:{QUANT}", which
     // matches llama-server's `-hf` shorthand so power users can switch b/w
     // llama-server and Llama w/o changing model IDs in their code.
-    let modelId = Model.makeId(org: parsed.org, repo: parsed.repo, quant: quant)
+    let modelId = Model.makeId(org: parsed.org, repo: parsed.repo, tag: quant)
 
     let entry = Model(
       id: modelId,
@@ -618,8 +606,7 @@ enum HFCache {
       fileSize: totalFileSize,
       // ctxBytesPer1kTokens stays 0 until the async MemProfile probe runs.
       downloadUrl: URL(string: "file:///")!,
-      org: parsed.org,
-      quantization: quant
+      org: parsed.org
     )
 
     // Build resolved paths
@@ -645,7 +632,8 @@ enum HFCache {
     // stay conservative: wrongly emitting `spec-type = draft-mtp` for a
     // headless model makes llama-server fail to load it entirely.
     let hasEmbeddedHead =
-      GGUFMetadata.hasEmbeddedMTPHead(path: mainFilePath) ?? fileHasMTPHead(fileBaseName)
+      GGUFMetadata.hasEmbeddedMTPHead(path: mainFilePath)
+      ?? fileHasMTPHead(URL(fileURLWithPath: filename).lastPathComponent)
 
     let paths = ResolvedPaths(
       modelFile: mainFilePath,

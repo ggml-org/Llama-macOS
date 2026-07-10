@@ -10,7 +10,6 @@ extension Model {
   static func placeholderForDownload(
     modelId: String,
     repo: String,
-    quant: String,
     mainUrl: URL,
     additionalParts: [URL],
     mmprojUrl: URL?,
@@ -31,8 +30,7 @@ extension Model {
       additionalParts: additionalParts.isEmpty ? nil : additionalParts,
       mmprojUrl: mmprojUrl,
       mtpUrl: mtpUrl,
-      org: org,
-      quantization: quant
+      org: org
     )
   }
 }

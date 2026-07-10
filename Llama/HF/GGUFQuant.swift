@@ -1,6 +1,13 @@
 import Foundation
 
-/// Swift port of `parseGGUFQuantLabel` from
+/// Quant naming lives in two forms, and this type owns both plus the boundary
+/// between them:
+///
+/// - *label* — HF-style, keeps prefixes like Unsloth's `UD-` (`UD-Q4_K_XL`);
+///   what filenames contain and what deeplink `quant=` params carry.
+/// - *tag* — llama.cpp-canonical (`Q4_K_XL`); what model ids are built from.
+///
+/// `parseLabel` is a Swift port of `parseGGUFQuantLabel` from
 /// [huggingface.js/packages/tasks/src/gguf.ts](https://github.com/huggingface/huggingface.js/blob/main/packages/tasks/src/gguf.ts).
 ///
 /// We mirror HF's behavior byte-for-byte because the label round-trips between
@@ -10,7 +17,7 @@ import Foundation
 /// HF sends us would fail to match the very file HF intended. The only
 /// divergence is additive (bare `MXFP4`, see below) — a superset can't break
 /// labels HF emits, it only accepts more.
-enum GGUFQuantLabel {
+enum GGUFQuant {
 
   /// Canonical label alternatives, matching `GGMLFileQuantizationType`'s declaration
   /// order in huggingface.js. The order is load-bearing: regex alternation is
@@ -47,7 +54,7 @@ enum GGUFQuantLabel {
   /// nil if none present. The returned string is uppercased and includes any
   /// `UD-` prefix and trailing `_<SUFFIX>` — exactly what HF would put in the
   /// deeplink's `quant=` param.
-  static func parse(_ path: String) -> String? {
+  static func parseLabel(_ path: String) -> String? {
     let upper = path.uppercased()
     let range = NSRange(upper.startIndex..., in: upper)
     let matches = regex.matches(in: upper, range: range)
@@ -55,6 +62,27 @@ enum GGUFQuantLabel {
       let r = Range(last.range, in: upper)
     else { return nil }
     return String(upper[r])
+  }
+
+  /// The one path → quant-tag derivation for building model ids. Every id
+  /// construction site (the deeplink resolver and the post-install cache scan)
+  /// must go through this: the two paths have to produce byte-identical ids or
+  /// pending download rows never match their landed files and never get reaped.
+  ///
+  /// Chain: HF label grammar over the whole repo-relative path (catches subdir
+  /// prefixes and `UD-` labels) → `HFRepoParser.parseQuant` over the bare
+  /// filename (legacy labels outside HF's enum) → `requested` (an explicit
+  /// deeplink `quant=` param, if any) → `"unknown"`. The winner is
+  /// canonicalized to llama.cpp's tag shape. File-derived labels outrank
+  /// `requested` because the cache scan sees only the file — a requested label
+  /// that won here would produce an id the scan can't reproduce.
+  static func tag(forPath path: String, requested: String? = nil) -> String {
+    let filename = URL(fileURLWithPath: path).lastPathComponent
+    let label =
+      parseLabel(path)
+      ?? HFRepoParser.parseQuant(filename: filename)
+      ?? requested
+    return label.map(canonicalTag) ?? "unknown"
   }
 
   /// Convenience: true iff `a` and `b` parse to the same quant (case-insensitive).
@@ -72,10 +100,10 @@ enum GGUFQuantLabel {
   /// built ids with the HF-style label (which keeps prefixes like Unsloth's
   /// `UD-`), the server would silently rename the model and every request
   /// using our id — the webui chat link, external API clients — would 404.
-  /// `parse` stays HF-faithful for matching deeplink `quant=` params; this is
-  /// only for the identity we route on.
-  static func canonicalTag(_ tag: String) -> String {
-    let upper = tag.uppercased()
+  /// `parseLabel` stays HF-faithful for matching deeplink `quant=` params;
+  /// this is only for the identity we route on.
+  static func canonicalTag(_ label: String) -> String {
+    let upper = label.uppercased()
     if let sep = upper.lastIndex(where: { $0 == "-" || $0 == "." }) {
       let token = upper[upper.index(after: sep)...]
       // llama.cpp's regex requires a non-empty [A-Z0-9_]+ token after the

@@ -29,7 +29,7 @@ enum LlamaURL: Equatable {
   /// recognized verb under our registered scheme or that fails shallow
   /// validation (shape of `repo`). Deeper validation (quant label
   /// canonicalization, repo existence) happens downstream in `HFRepoResolver`
-  /// / `GGUFQuantLabel`.
+  /// / `GGUFQuant`.
   static func parse(_ url: URL) -> LlamaURL? {
     guard let scheme = url.scheme?.lowercased(), registeredSchemes.contains(scheme)
     else { return nil }
