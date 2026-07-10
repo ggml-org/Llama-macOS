@@ -36,8 +36,11 @@ enum ModelIdParser {
   /// so the suffix carries no information on screen. (The id keeps it.)
   private static let ignoredSegments: Set<String> = ["GGUF", "GGML"]
 
-  /// Parameter-count segment, e.g. "7B", "1.5b", "270M".
-  private static let paramsRe = /^\d+(\.\d+)?[BbMmKkTt]$/
+  /// Parameter-count segment, e.g. "7B", "1.5b", "270M". The optional
+  /// leading `E` covers Gemma's effective-params sizes ("E2B", "E4B") —
+  /// upstream's parser misses these (its regex requires a leading digit),
+  /// so this is a deliberate divergence in the direction of correctness.
+  private static let paramsRe = /^[Ee]?\d+(\.\d+)?[BbMmKkTt]$/
 
   /// Activated-parameter-count segment for MoE repos, e.g. "A3B", "a2.4b".
   private static let activatedParamsRe = /^[Aa]\d+(\.\d+)?[BbMmKkTt]$/
