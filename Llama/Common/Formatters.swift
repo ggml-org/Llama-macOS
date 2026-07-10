@@ -63,12 +63,25 @@ enum Format {
     return String(format: format, rounded) + unit
   }
 
-  /// Renders a metadata label (params, quant, tag) as a small pill chip
-  /// (dimmed text on a subtle rounded background) attached inline after the
-  /// model name. Drawn via an NSImage drawing handler, which runs at draw
+  /// Visual weight of a metadata chip. Both kinds share one fill and one
+  /// text color; they differ by corner radius alone: squared (params — the
+  /// headline fact; squared corners read denser and more label-like) vs
+  /// rounded (quant — the build qualifier, soft pill). Tags render as bare
+  /// dimmed text (in `modelName`, not through this enum). Fills over
+  /// outlines throughout: a 1px stroke is the sharpest edge on the row, so
+  /// an outlined chip reads *louder* than a filled one and inverts the
+  /// intended hierarchy.
+  enum ChipStyle {
+    case squared
+    case rounded
+  }
+
+  /// Renders a metadata label (params, quant) as a small filled chip attached
+  /// inline after the model name — squared or rounded corners per
+  /// `ChipStyle`. Drawn via an NSImage drawing handler, which runs at draw
   /// time, so the dynamic theme colors resolve against the current light/dark
   /// appearance.
-  private static func chip(_ text: String) -> NSAttributedString {
+  private static func chip(_ text: String, style: ChipStyle) -> NSAttributedString {
     let font = NSFont.systemFont(ofSize: 9, weight: .medium)
     let textAttributes: [NSAttributedString.Key: Any] = [
       .font: font,
@@ -79,7 +92,8 @@ enum Format {
     let chipSize = NSSize(width: ceil(textSize.width) + hPad * 2, height: 14)
 
     let image = NSImage(size: chipSize, flipped: false) { rect in
-      let pill = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+      let radius: CGFloat = style == .squared ? 4 : rect.height / 2
+      let pill = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
       Theme.Colors.subtleBackground.setFill()
       pill.fill()
       (text as NSString).draw(
@@ -209,14 +223,27 @@ extension Format {
     result.append(
       NSAttributedString(string: parsed.name, attributes: Theme.primaryAttributes(color: color)))
 
-    // Chip order matches the WebUI: params, quant, then leftover tags.
-    var chips: [String] = []
-    if let params = parsed.params { chips.append(params) }
-    if let quant = parsed.quant { chips.append(quant) }
-    chips.append(contentsOf: parsed.tags)
-    for text in chips {
+    // Chip order matches the WebUI (params, quant, then leftover tags); the
+    // kinds descend in visual weight — see `ChipStyle`.
+    if let params = parsed.params {
       result.append(NSAttributedString(string: " "))
-      result.append(chip(text))
+      result.append(chip(params, style: .squared))
+    }
+    if let quant = parsed.quant {
+      result.append(NSAttributedString(string: " "))
+      result.append(chip(quant, style: .rounded))
+    }
+    if !parsed.tags.isEmpty {
+      // Tags render as bare extra-dimmed text, no pill: they're name residue,
+      // so they get the least visual weight of the three chip kinds. Dimmer
+      // than chip text — at the same color they read as a mistake rather
+      // than a deliberate third tier.
+      let tagAttributes: [NSAttributedString.Key: Any] = [
+        .font: NSFont.systemFont(ofSize: 9, weight: .medium),
+        .foregroundColor: Theme.Colors.textTertiary,
+      ]
+      result.append(
+        NSAttributedString(string: "  " + parsed.tags.joined(separator: " "), attributes: tagAttributes))
     }
 
     if hasVision {

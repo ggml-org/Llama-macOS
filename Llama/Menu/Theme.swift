@@ -19,6 +19,13 @@ enum Theme {
       dark: NSColor.white.withAlphaComponent(0.45)
     )
 
+    // Tertiary text color -- dimmer than secondary; used for the least
+    // prominent metadata (e.g. leftover tag segments after the model name)
+    static let textTertiary = NSColor.dynamic(
+      light: NSColor.black.withAlphaComponent(0.32),
+      dark: NSColor.white.withAlphaComponent(0.32)
+    )
+
     // Tint color for inactive model icons -- balanced between primary and secondary text
     static let modelIconTint = NSColor.dynamic(
       light: NSColor.black.withAlphaComponent(0.65),
