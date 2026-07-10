@@ -274,14 +274,14 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let isCompatible = model.isCompatible()
     let textColor = isCompatible ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
 
-    // Quant renders as a dimmed suffix (the id's post-colon part), but only
-    // when it carries information — full-precision builds have nothing to say.
+    // Title is the parsed view of the id (short name + metadata chips); the
+    // tooltip carries the full raw id so it stays reachable from the row.
     titleLabel.attributedStringValue = Format.modelName(
-      idBase: model.idBase,
+      id: model.id,
       color: textColor,
-      quant: model.quantTag.isEmpty ? nil : model.quantTag,
       hasVision: model.hasVisionSupport
     )
+    titleLabel.toolTip = model.id
 
     let incompatibility = !isCompatible ? model.incompatibilitySummary() : nil
     // Subtitle swaps between size+ctx (for installed/available rows) and a

@@ -19,19 +19,15 @@ final class CatalogItemView: ItemView {
   /// belongs on line one next to the name (see `titleText`).
   private var subtitleText: String { suggestion.sizeLabel ?? "" }
 
-  /// Title: the model's id base (e.g. "gemma-3-4b-it-qat") — the same string
-  /// the installed row, the API, and the WebUI show, so the name a user sees
-  /// before installing is the name they'll use after. The quant chip follows
-  /// the same rule as installed rows (shown whenever there is one), so the
-  /// row looks identical before and after installing — no chip appearing out
-  /// of nowhere once the model lands in the installed section.
+  /// Title: the parsed view of the id the suggestion resolves to — the same
+  /// rendering the installed row uses, so the row looks identical before and
+  /// after installing: same name, same chips.
   private var titleText: NSAttributedString {
-    // Reuses the installed row's formatter so the base and the quant chip
-    // get identical treatment in both sections.
-    Format.modelName(
-      idBase: Model.idBase(orgSlashRepo: suggestion.repo),
-      color: Theme.Colors.textPrimary,
-      quant: suggestion.quant)
+    // Build the would-be id (repo + quant when known) and reuse the installed
+    // row's formatter so both sections get identical treatment.
+    let id = suggestion.quant.map { Model.makeId(orgSlashRepo: suggestion.repo, tag: $0) }
+      ?? suggestion.repo
+    return Format.modelName(id: id, color: Theme.Colors.textPrimary)
   }
 
   init(suggestion: Catalog.Suggestion, onInstall: @escaping (Catalog.Suggestion) -> Void) {
@@ -49,6 +45,8 @@ final class CatalogItemView: ItemView {
       color: .tertiaryLabelColor)
 
     titleLabel.attributedStringValue = titleText
+    // Raw repo as tooltip, matching the installed row's raw-id tooltip.
+    titleLabel.toolTip = suggestion.repo
     titleLabel.maximumNumberOfLines = 1
     titleLabel.lineBreakMode = .byTruncatingTail
 

@@ -63,17 +63,18 @@ enum Format {
     return String(format: format, rounded) + unit
   }
 
-  /// Renders a quant label as a small pill chip (dimmed text on a subtle
-  /// rounded background) attached inline after the model name. Drawn via an
-  /// NSImage drawing handler, which runs at draw time, so the dynamic theme
-  /// colors resolve against the current light/dark appearance.
-  private static func quantChip(_ quant: String) -> NSAttributedString {
+  /// Renders a metadata label (params, quant, tag) as a small pill chip
+  /// (dimmed text on a subtle rounded background) attached inline after the
+  /// model name. Drawn via an NSImage drawing handler, which runs at draw
+  /// time, so the dynamic theme colors resolve against the current light/dark
+  /// appearance.
+  private static func chip(_ text: String) -> NSAttributedString {
     let font = NSFont.systemFont(ofSize: 9, weight: .medium)
     let textAttributes: [NSAttributedString.Key: Any] = [
       .font: font,
       .foregroundColor: Theme.Colors.textSecondary,
     ]
-    let textSize = (quant as NSString).size(withAttributes: textAttributes)
+    let textSize = (text as NSString).size(withAttributes: textAttributes)
     let hPad: CGFloat = 5
     let chipSize = NSSize(width: ceil(textSize.width) + hPad * 2, height: 14)
 
@@ -81,7 +82,7 @@ enum Format {
       let pill = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
       Theme.Colors.subtleBackground.setFill()
       pill.fill()
-      (quant as NSString).draw(
+      (text as NSString).draw(
         at: NSPoint(x: hPad, y: (rect.height - textSize.height) / 2),
         withAttributes: textAttributes)
       return true
@@ -191,43 +192,31 @@ extension Format {
     return result
   }
 
-  /// Formats a model's display name — the id base, shown verbatim so the row
-  /// matches what API clients and the WebUI see. For non-native bases the
-  /// `{org}/` prefix renders in secondary color: the org is real
-  /// disambiguation, but the repo name is the part the eye should land on.
-  /// A non-nil `quant` appends the id's post-colon segment as a small chip —
-  /// same content as the full id, restyled so it reads as metadata — keeping
-  /// same-repo rows at different quants distinguishable.
+  /// Formats a model's row title: the parsed view of its id
+  /// (`ModelIdParser`), mirroring the WebUI's default rendering so the menu
+  /// and the WebUI's picker agree. The short name renders as text; params,
+  /// quant, and leftover repo segments render as small chips — metadata the
+  /// eye can skip, while every chip still comes straight from the id. The
+  /// raw id stays reachable via the row's tooltip (set by callers).
   static func modelName(
-    idBase: String,
+    id: String,
     color: NSColor,
-    quant: String? = nil,
     hasVision: Bool = false
   ) -> NSAttributedString {
+    let parsed = ModelIdParser.parse(id)
     let result = NSMutableAttributedString()
 
-    if let slashIdx = idBase.firstIndex(of: "/") {
-      let prefix = String(idBase[...slashIdx])  // includes the slash
-      let rest = String(idBase[idBase.index(after: slashIdx)...])
-      result.append(
-        NSAttributedString(
-          string: prefix,
-          attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
-      result.append(
-        NSAttributedString(string: rest, attributes: Theme.primaryAttributes(color: color)))
-    } else {
-      result.append(
-        NSAttributedString(string: idBase, attributes: Theme.primaryAttributes(color: color)))
-    }
+    result.append(
+      NSAttributedString(string: parsed.name, attributes: Theme.primaryAttributes(color: color)))
 
-    if let quant {
-      // The id's post-colon segment, rendered as a small chip instead of
-      // inline text: even dimmed, a text suffix made the title read heavy,
-      // while a chip visually files the quant as metadata. Shown verbatim
-      // (canonical uppercase), matching the id and the WebUI's badges — the
-      // chip's small size keeps the caps from grabbing attention.
+    // Chip order matches the WebUI: params, quant, then leftover tags.
+    var chips: [String] = []
+    if let params = parsed.params { chips.append(params) }
+    if let quant = parsed.quant { chips.append(quant) }
+    chips.append(contentsOf: parsed.tags)
+    for text in chips {
       result.append(NSAttributedString(string: " "))
-      result.append(quantChip(quant))
+      result.append(chip(text))
     }
 
     if hasVision {

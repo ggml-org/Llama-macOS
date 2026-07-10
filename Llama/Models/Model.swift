@@ -110,14 +110,6 @@ struct Model: Identifiable, Codable {
     return String(id[..<colonIdx])
   }
 
-  /// The post-colon portion of the id — the canonical quant tag (e.g.
-  /// "Q4_K_M", "MXFP4", "unknown"). Computed from `id` rather than stored so
-  /// the two can never disagree; `makeId` is the only writer of both.
-  var quantTag: String {
-    guard let colonIdx = id.lastIndex(of: ":") else { return "" }
-    return String(id[id.index(after: colonIdx)...])
-  }
-
   /// Display name — the id base. Kept as a semantic alias so call sites read
   /// as "the model's name" rather than "an id fragment".
   var displayName: String {
