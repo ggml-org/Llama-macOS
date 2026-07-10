@@ -63,24 +63,23 @@ enum Format {
     return String(format: format, rounded) + unit
   }
 
-  /// Visual weight of a metadata chip. Both kinds share one fill and one
-  /// text color; they differ by corner radius alone: squared (params — the
-  /// headline fact; squared corners read denser and more label-like) vs
-  /// rounded (quant — the build qualifier, soft pill). Tags render as bare
-  /// dimmed text (in `modelName`, not through this enum). Fills over
-  /// outlines throughout: a 1px stroke is the sharpest edge on the row, so
-  /// an outlined chip reads *louder* than a filled one and inverts the
-  /// intended hierarchy.
+  /// Visual weight of a metadata chip, descending: squared (params — the
+  /// headline fact; an outlined squared box, and a 1px stroke is the
+  /// sharpest edge on the row, so it reads loudest) vs rounded (quant — the
+  /// build qualifier; a soft filled pill that recedes behind the outline).
+  /// Tags render as bare dimmed text (in `modelName`, not through this
+  /// enum). A solid inverse params chip was also tried: fine on a few rows,
+  /// but 10+ rows compound into a heavy column of dark badges.
   enum ChipStyle {
     case squared
     case rounded
   }
 
-  /// Renders a metadata label (params, quant) as a small filled chip attached
-  /// inline after the model name — squared or rounded corners per
-  /// `ChipStyle`. Drawn via an NSImage drawing handler, which runs at draw
-  /// time, so the dynamic theme colors resolve against the current light/dark
-  /// appearance.
+  /// Renders a metadata label (params, quant) as a small chip attached
+  /// inline after the model name — outlined squared box or filled round
+  /// pill per `ChipStyle`. Drawn via an NSImage drawing handler, which runs
+  /// at draw time, so the dynamic theme colors resolve against the current
+  /// light/dark appearance.
   private static func chip(_ text: String, style: ChipStyle) -> NSAttributedString {
     let font = NSFont.systemFont(ofSize: 9, weight: .medium)
     let textAttributes: [NSAttributedString.Key: Any] = [
@@ -92,10 +91,20 @@ enum Format {
     let chipSize = NSSize(width: ceil(textSize.width) + hPad * 2, height: 14)
 
     let image = NSImage(size: chipSize, flipped: false) { rect in
-      let radius: CGFloat = style == .squared ? 4 : rect.height / 2
-      let pill = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-      Theme.Colors.subtleBackground.setFill()
-      pill.fill()
+      switch style {
+      case .squared:
+        // Outlined: inset by half the line width so the hairline isn't
+        // clipped by the image bounds.
+        let box = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4)
+        Theme.Colors.border.setStroke()
+        box.lineWidth = 1
+        box.stroke()
+      case .rounded:
+        let pill = NSBezierPath(
+          roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+        Theme.Colors.subtleBackground.setFill()
+        pill.fill()
+      }
       (text as NSString).draw(
         at: NSPoint(x: hPad, y: (rect.height - textSize.height) / 2),
         withAttributes: textAttributes)
