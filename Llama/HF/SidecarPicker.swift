@@ -10,11 +10,14 @@ import Foundation
 /// instead of being mirrored in both.
 enum SidecarPicker {
 
-  /// True for a vision-projector sidecar (`mmproj*.gguf`). Accepts full
-  /// repo-relative paths; only the basename is considered.
+  /// True for a vision-projector sidecar. The ggml-org convention is an
+  /// `mmproj` prefix (`mmproj-*.gguf`), but community repos also use it as a
+  /// suffix (e.g. `PaddleOCR-VL-1.6-GGUF-mmproj.gguf`), so match `mmproj`
+  /// anywhere in the basename. Accepts full repo-relative paths; only the
+  /// basename is considered.
   static func isMmproj(_ path: String) -> Bool {
     let name = (path as NSString).lastPathComponent.lowercased()
-    return name.hasPrefix("mmproj") && name.hasSuffix(".gguf")
+    return name.contains("mmproj") && name.hasSuffix(".gguf")
   }
 
   /// True for an MTP draft-head sidecar (`mtp-….gguf`) — the convention
