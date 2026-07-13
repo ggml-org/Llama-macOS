@@ -56,14 +56,16 @@ class ItemView: NSView {
     trackingArea = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
     addTrackingArea(trackingArea!)
 
-    // Manually check if mouse is already inside to restore highlight immediately
-    // (NSTrackingArea doesn't trigger mouseEntered if created while mouse is inside)
+    // Sync highlight to the actual mouse position. NSTrackingArea doesn't fire
+    // mouseEntered if the area is created while the mouse is already inside, and
+    // it doesn't fire mouseExited when the view moves out from under a stationary
+    // cursor (e.g. scrolling a tall menu) -- both cases land here instead, since
+    // scrolling re-invokes updateTrackingAreas. Setting both directions keeps at
+    // most one row highlighted while scrolling.
     if let window = window {
       let mouseLocation = window.mouseLocationOutsideOfEventStream
       let localPoint = convert(mouseLocation, from: nil)
-      if bounds.contains(localPoint) {
-        setHighlight(true)
-      }
+      setHighlight(bounds.contains(localPoint))
     }
   }
 
