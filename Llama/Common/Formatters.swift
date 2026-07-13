@@ -276,10 +276,13 @@ extension Format {
     }
 
     if hasVision {
+      // Tertiary, like the leftover tags: a capability hint, not part of the
+      // name — at the name's color it competes with the text.
       result.append(NSAttributedString(string: " "))
       result.append(
         Format.symbol(
-          "eyeglasses", pointSize: Theme.Fonts.primary.pointSize, color: color))
+          "eyeglasses", pointSize: Theme.Fonts.primary.pointSize,
+          color: Theme.Colors.textTertiary))
     }
 
     // Disable letter-spacing tightening before truncation (see Theme.noTighteningParagraphStyle).
