@@ -466,7 +466,19 @@ final class MenuController: NSObject, NSMenuDelegate {
       visibleModels += models.dropFirst(Self.installedCollapsedCount).filter(isLiveRow)
     }
 
-    buildInstalledRows(visibleModels).forEach { menu.addItem($0) }
+    // Rows whose tags-hidden title (name + params + quant) collides with
+    // another installed model's get their id's leftover tags shown as a
+    // tiebreaker -- e.g. two "gemma-3 4B Q4_0" installs where one is "it" and
+    // one is "it qat". Counted over the full list, not just visible rows, so
+    // titles don't change when the list collapses/expands.
+    var keyCounts = [String: Int]()
+    for model in models {
+      keyCounts[ModelIdParser.displayKey(model.id), default: 0] += 1
+    }
+    let collidingKeys = Set(keyCounts.filter { $0.value > 1 }.keys)
+
+    buildInstalledRows(visibleModels, collidingKeys: collidingKeys)
+      .forEach { menu.addItem($0) }
 
     let hiddenCount = models.count - visibleModels.count
     if collapsed && hiddenCount > 0 {
@@ -500,7 +512,9 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
   }
 
-  private func buildInstalledRows(_ models: [Model]) -> [NSMenuItem] {
+  private func buildInstalledRows(
+    _ models: [Model], collidingKeys: Set<String>
+  ) -> [NSMenuItem] {
     var items = [NSMenuItem]()
 
     for model in models {
@@ -514,7 +528,8 @@ final class MenuController: NSObject, NSMenuDelegate {
         isExpanded: isExpanded,
         onExpand: { [weak self] in
           self?.toggleExpansion(for: model.id)
-        }
+        },
+        showTags: collidingKeys.contains(ModelIdParser.displayKey(model.id))
       )
       items.append(NSMenuItem.viewItem(with: view))
 

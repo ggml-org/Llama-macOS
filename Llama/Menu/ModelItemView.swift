@@ -17,6 +17,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let isExpanded: Bool
   private let onExpand: (() -> Void)?
 
+  /// Whether the title shows the id's leftover tags ("it", "qat", ...).
+  /// Set by the menu builder only when another installed row would otherwise
+  /// render an identical title — see `Format.modelName`.
+  private let showTags: Bool
+
   // Labels
   private let titleLabel: NSTextField = {
     let label = Theme.primaryLabel()
@@ -57,7 +62,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   init(
     model: Model, server: LlamaServer, modelManager: ModelManager,
     actionHandler: ModelActionHandler,
-    isExpanded: Bool = false, onExpand: (() -> Void)? = nil
+    isExpanded: Bool = false, onExpand: (() -> Void)? = nil,
+    showTags: Bool = false
   ) {
     self.model = model
     self.server = server
@@ -65,6 +71,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     self.actionHandler = actionHandler
     self.isExpanded = isExpanded
     self.onExpand = onExpand
+    self.showTags = showTags
     super.init(frame: .zero)
 
     iconView.imageView.image =
@@ -279,7 +286,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     titleLabel.attributedStringValue = Format.modelName(
       id: model.id,
       color: textColor,
-      hasVision: model.hasVisionSupport
+      hasVision: model.hasVisionSupport,
+      showTags: showTags
     )
     titleLabel.toolTip = model.id
 

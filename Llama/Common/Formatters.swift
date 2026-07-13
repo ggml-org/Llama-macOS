@@ -217,14 +217,21 @@ extension Format {
 
   /// Formats a model's row title: the parsed view of its id
   /// (`ModelIdParser`), mirroring the WebUI's default rendering so the menu
-  /// and the WebUI's picker agree. The short name renders as text; params,
-  /// quant, and leftover repo segments render as small chips — metadata the
-  /// eye can skip, while every chip still comes straight from the id. The
-  /// raw id stays reachable via the row's tooltip (set by callers).
+  /// and the WebUI's picker agree. The short name renders as text; params
+  /// and quant render as small chips — metadata the eye can skip, while
+  /// every chip still comes straight from the id. The raw id stays
+  /// reachable via the row's tooltip (set by callers).
+  ///
+  /// `showTags` appends the leftover repo segments ("it", "qat", ...) as
+  /// extra-dimmed text. Off by default — the residue is almost always noise
+  /// (everything local is an instruct tune) — and turned on by callers only
+  /// when two rows in the same list would otherwise render identically, so
+  /// the residue is exactly the disambiguator.
   static func modelName(
     id: String,
     color: NSColor,
-    hasVision: Bool = false
+    hasVision: Bool = false,
+    showTags: Bool = false
   ) -> NSAttributedString {
     let parsed = ModelIdParser.parse(id)
     let result = NSMutableAttributedString()
@@ -242,7 +249,7 @@ extension Format {
       result.append(NSAttributedString(string: " "))
       result.append(chip(quant, style: .rounded))
     }
-    if !parsed.tags.isEmpty {
+    if showTags && !parsed.tags.isEmpty {
       // Tags render as bare extra-dimmed text, no pill: they're name residue,
       // so they get the least visual weight of the three chip kinds. Dimmer
       // than chip text — at the same color they read as a mistake rather

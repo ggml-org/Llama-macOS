@@ -45,6 +45,14 @@ enum ModelIdParser {
   /// Activated-parameter-count segment for MoE repos, e.g. "A3B", "a2.4b".
   private static let activatedParamsRe = /^[Aa]\d+(\.\d+)?[BbMmKkTt]$/
 
+  /// What a row visibly renders when tags are hidden: name + params + quant.
+  /// Two ids with equal keys would look identical in a list, so callers use
+  /// key collisions to decide when a row needs its tags shown after all.
+  static func displayKey(_ id: String) -> String {
+    let parsed = parse(id)
+    return [parsed.name, parsed.params ?? "", parsed.quant ?? ""].joined(separator: "|")
+  }
+
   static func parse(_ id: String) -> Parsed {
     // Split off the post-colon quant tag and the pre-slash org. Both always
     // exist in ids we build; catalog repos arrive without the colon.
