@@ -24,7 +24,8 @@ enum ModelIdParser {
     /// that name their activated params it's the combined form ("35B-A3B").
     let params: String?
     /// The id's post-colon quant tag, verbatim (e.g. "Q4_K_M"). Nil when the
-    /// id has no colon (catalog rows before a quant is known).
+    /// id has no colon (catalog rows before a quant is known) or the tag is
+    /// the "unknown" fallback (unlabeled files).
     let quant: String?
     /// Leftover repo segments after the params segment (e.g. "it", "qat",
     /// "instruct", "2512"). Empty when no params segment is found — the
@@ -59,7 +60,13 @@ enum ModelIdParser {
     var rest = id
     var quant: String?
     if let colonIdx = rest.lastIndex(of: ":") {
-      quant = String(rest[rest.index(after: colonIdx)...])
+      let tag = String(rest[rest.index(after: colonIdx)...])
+      // "unknown" is GGUFQuant's fallback for unlabeled files (the id needs
+      // *some* tag), not information — rendering it as a chip reads like an
+      // error, so display treats it as no quant.
+      if tag.caseInsensitiveCompare("unknown") != .orderedSame {
+        quant = tag
+      }
       rest = String(rest[..<colonIdx])
     }
     if let slashIdx = rest.firstIndex(of: "/") {
