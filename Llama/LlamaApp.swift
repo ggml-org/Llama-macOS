@@ -92,6 +92,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Filter out non-actionable network errors globally so they don't use up quota
         options.beforeSend = { event in
+          // Drop app-hang reports whose main thread is sitting in a modal alert.
+          // NSAlert.runModal() spins a nested run loop, which Sentry's hang
+          // detector can't tell from a freeze, so a user reading a dialog for
+          // >2s gets reported as a hang -- pure noise (hundreds of events from
+          // the download-failure alert alone). The V2 tracker that classifies
+          // these correctly is UIKit-only, so filter by stack frame instead.
+          if let exceptions = event.exceptions,
+            exceptions.contains(where: { $0.mechanism?.type == "AppHang" })
+          {
+            let frames =
+              exceptions.compactMap(\.stacktrace).flatMap(\.frames)
+              + (event.threads ?? []).compactMap(\.stacktrace).flatMap(\.frames)
+            if frames.contains(where: { $0.function?.contains("runModal") == true }) {
+              return nil
+            }
+          }
+
           if let error = event.error as NSError? {
             let ignoredCodes = [
               NSURLErrorCancelled,
