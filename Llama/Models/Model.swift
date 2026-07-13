@@ -156,16 +156,29 @@ struct Model: Identifiable, Codable {
     HFCache.repoDirName(from: downloadUrl)
   }
 
-  /// Sort key — by family, then by id for stability. Parameter counts and
-  /// full-precision rankings are no longer available without a curated
-  /// catalog, so id is the tie-breaker.
+  /// Sort key — mirrors the row's rendering: non-default orgs keep their
+  /// `org/` prefix (see `ModelIdParser.Parsed.displayOrg`), so prefixed rows
+  /// sort by the org and cluster together, and the list's left edge stays
+  /// alphabetical. Default-org models key on the bare family, matching their
+  /// bare rendering. (The name part is `family`, the historical sort key —
+  /// close to the parsed name a row shows, not character-identical.)
+  private var sortKey: String {
+    if let org = ModelIdParser.parse(id).displayOrg {
+      return "\(org)/\(family)"
+    }
+    return family
+  }
+
+  /// Sort order — by displayed name, then by id for stability. Parameter
+  /// counts and full-precision rankings are no longer available without a
+  /// curated catalog, so id is the tie-breaker.
   static func displayOrder(_ lhs: Model, _ rhs: Model) -> Bool {
-    // Family is compared case-insensitively so differently-cased families
+    // Keys are compared case-insensitively so differently-cased families
     // (e.g. "gemma-4", "embeddinggemma") sort alongside their capitalized
     // siblings rather than clustering at the end of the list. Ties (same
-    // family ignoring case) fall back to the id for a stable order.
-    let familyOrder = lhs.family.caseInsensitiveCompare(rhs.family)
-    if familyOrder != .orderedSame { return familyOrder == .orderedAscending }
+    // key ignoring case) fall back to the id for a stable order.
+    let keyOrder = lhs.sortKey.caseInsensitiveCompare(rhs.sortKey)
+    if keyOrder != .orderedSame { return keyOrder == .orderedAscending }
     return lhs.id < rhs.id
   }
 }

@@ -236,6 +236,19 @@ extension Format {
     let parsed = ModelIdParser.parse(id)
     let result = NSMutableAttributedString()
 
+    // Non-default orgs keep their `org/` prefix, dimmed: it's part of the
+    // identity the model was installed by (the verbatim HF id), and it's what
+    // tells two same-named repos from different orgs apart. Same font as the
+    // name — a name component, not metadata — but secondary color so the
+    // short name stays the visual anchor. Default-org (`ggml-org`) models
+    // render bare, matching how the catalog presents them.
+    if let org = parsed.displayOrg {
+      result.append(
+        NSAttributedString(
+          string: org + "/",
+          attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
+    }
+
     result.append(
       NSAttributedString(string: parsed.name, attributes: Theme.primaryAttributes(color: color)))
 

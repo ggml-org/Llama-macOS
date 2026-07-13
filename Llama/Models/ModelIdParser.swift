@@ -16,6 +16,9 @@ enum ModelIdParser {
 
   /// The parsed components of a model id, ready for rendering.
   struct Parsed {
+    /// The id's pre-slash org, verbatim (e.g. "unsloth"). Nil for ids with
+    /// no slash. Callers render `displayOrg`, not this.
+    let org: String?
     /// Repo-name segments before the params segment, rejoined with dashes
     /// (e.g. "gemma-3", "Devstral-Small-2"). Falls back to the whole repo
     /// name (minus GGUF/GGML segments) when no params segment is found.
@@ -31,7 +34,22 @@ enum ModelIdParser {
     /// "instruct", "2512"). Empty when no params segment is found — the
     /// leftovers stay in the name then, matching the WebUI.
     let tags: [String]
+
+    /// The org as a row renders it: nil for the default org (`ggml-org`),
+    /// the org verbatim for everything else. Hiding the default org keeps
+    /// the common case (catalog installs) reading as a bare friendly name,
+    /// while models pulled from other orgs keep the `org/` prefix they were
+    /// installed by. A pure function of the id — never of what else is
+    /// installed — so a row's rendering can't change when the library does.
+    var displayOrg: String? {
+      org == ModelIdParser.defaultOrg ? nil : org
+    }
   }
+
+  /// The org whose prefix is hidden in display: the app's canonical source —
+  /// the catalog and recommendations draw from it, so its models are the
+  /// unmarked common case. Every other org renders as part of the name.
+  static let defaultOrg = "ggml-org"
 
   /// Container-format segments dropped from display — every model is a GGUF,
   /// so the suffix carries no information on screen. (The id keeps it.)
@@ -46,18 +64,23 @@ enum ModelIdParser {
   /// Activated-parameter-count segment for MoE repos, e.g. "A3B", "a2.4b".
   private static let activatedParamsRe = /^[Aa]\d+(\.\d+)?[BbMmKkTt]$/
 
-  /// What a row visibly renders when tags are hidden: name + params + quant.
-  /// Two ids with equal keys would look identical in a list, so callers use
-  /// key collisions to decide when a row needs its tags shown after all.
+  /// What a row visibly renders when tags are hidden: org prefix + name +
+  /// params + quant. Two ids with equal keys would look identical in a list,
+  /// so callers use key collisions to decide when a row needs its tags shown
+  /// after all. The displayed org (not the raw one) is what's included, so
+  /// two same-named repos from different orgs don't count as colliding — the
+  /// `org/` prefix already tells them apart.
   static func displayKey(_ id: String) -> String {
     let parsed = parse(id)
-    return [parsed.name, parsed.params ?? "", parsed.quant ?? ""].joined(separator: "|")
+    return [parsed.displayOrg ?? "", parsed.name, parsed.params ?? "", parsed.quant ?? ""]
+      .joined(separator: "|")
   }
 
   static func parse(_ id: String) -> Parsed {
     // Split off the post-colon quant tag and the pre-slash org. Both always
     // exist in ids we build; catalog repos arrive without the colon.
     var rest = id
+    var org: String?
     var quant: String?
     if let colonIdx = rest.lastIndex(of: ":") {
       let tag = String(rest[rest.index(after: colonIdx)...])
@@ -70,6 +93,7 @@ enum ModelIdParser {
       rest = String(rest[..<colonIdx])
     }
     if let slashIdx = rest.firstIndex(of: "/") {
+      org = String(rest[..<slashIdx])
       rest = String(rest[rest.index(after: slashIdx)...])
     }
 
@@ -107,6 +131,6 @@ enum ModelIdParser {
       }
     }
 
-    return Parsed(name: name, params: params, quant: quant, tags: tags)
+    return Parsed(org: org, name: name, params: params, quant: quant, tags: tags)
   }
 }

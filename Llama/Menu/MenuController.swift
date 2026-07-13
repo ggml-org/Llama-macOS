@@ -466,7 +466,7 @@ final class MenuController: NSObject, NSMenuDelegate {
       visibleModels += models.dropFirst(Self.installedCollapsedCount).filter(isLiveRow)
     }
 
-    // Rows whose tags-hidden title (name + params + quant) collides with
+    // Rows whose tags-hidden title (org prefix + name + params + quant) collides with
     // another installed model's get their id's leftover tags shown as a
     // tiebreaker -- e.g. two "gemma-3 4B Q4_0" installs where one is "it" and
     // one is "it qat". Counted over the full list, not just visible rows, so
