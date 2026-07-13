@@ -27,7 +27,8 @@ final class CatalogItemView: ItemView {
     // row's formatter so both sections get identical treatment.
     let id = suggestion.quant.map { Model.makeId(orgSlashRepo: suggestion.repo, tag: $0) }
       ?? suggestion.repo
-    return Format.modelName(id: id, color: Theme.Colors.textPrimary)
+    return Format.modelName(
+      id: id, color: Theme.Colors.textPrimary, hasVision: suggestion.hasVision)
   }
 
   init(suggestion: Catalog.Suggestion, onInstall: @escaping (Catalog.Suggestion) -> Void) {

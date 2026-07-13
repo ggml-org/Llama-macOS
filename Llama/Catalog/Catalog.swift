@@ -47,6 +47,8 @@ enum Catalog {
   /// `name` is not decoded: rows are titled by the repo's id base, so the
   /// curated display name is the website's concern only.
   struct Size: Decodable {
+    /// Whether this size supports image input. Absent → false.
+    let vision: Bool?
     let builds: [Build]
   }
 
@@ -70,6 +72,7 @@ enum Catalog {
     let repo: String  // "{org}/{repo}" — the row title is its id base
     let quant: String?  // catalog quant label, e.g. "Q8_0"
     let sizeLabel: String?  // human size, e.g. "5.0 GB"
+    let hasVision: Bool  // catalog `vision` flag — shows the glasses marker
   }
 
   /// Fetches the catalog and returns one suggestion per fitting size of each
@@ -124,7 +127,8 @@ enum Catalog {
       }
       return Suggestion(
         brand: family.brand,
-        repo: best.repo, quant: best.quant, sizeLabel: best.size)
+        repo: best.repo, quant: best.quant, sizeLabel: best.size,
+        hasVision: size.vision == true)
     }
   }
 
