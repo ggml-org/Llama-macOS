@@ -19,7 +19,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   /// Web catalog the Discover "Browse models" link points at — more models live
   /// here. Matches the empty-state browse link.
-  private static let browseCatalogUrl = URL(string: "https://llama.app/")!
+  private static let browseCatalogUrl = URL(string: "https://llama.app/models")!
 
   /// Featured catalog suggestions for the Discover section. Fetched from the
   /// remote catalog on launch (and on menu-open if still empty); empty when the
