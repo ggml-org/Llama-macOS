@@ -234,10 +234,29 @@ enum HFRepoResolver {
     guard !allGgufs.isEmpty else { throw ResolveError.noGgufFiles(repo) }
 
     // 1. Explicit quant: match any sibling whose parsed label == requested.
+    // Labels come from the HF grammar first, falling back to the legacy
+    // last-dash-segment parser for names outside HF's enum (e.g. ggml-org's
+    // bare `Q4_K`, which `parseLabel` can't read at all).
     if let requested = requestedQuant {
-      let matches = allGgufs.filter { sib in
-        guard let label = GGUFQuant.parseLabel(sib.rfilename) else { return false }
+      func label(_ sib: Sibling) -> String? {
+        GGUFQuant.parseLabel(sib.rfilename)
+          ?? HFRepoParser.parseQuant(
+            filename: (sib.rfilename as NSString).lastPathComponent)
+      }
+      var matches = allGgufs.filter { sib in
+        guard let label = label(sib) else { return false }
         return GGUFQuant.matches(label, requested)
+      }
+      // Second pass: compare canonical tags, so a plain `quant=Q4_K_M` request
+      // still finds a repo that only ships a prefixed variant (`UD-Q4_K_M`).
+      // Exact label matches take priority so a repo carrying both the plain
+      // and the prefixed file resolves to the one literally asked for.
+      if matches.isEmpty {
+        let requestedTag = GGUFQuant.canonicalTag(requested)
+        matches = allGgufs.filter { sib in
+          guard let label = label(sib) else { return false }
+          return GGUFQuant.matches(GGUFQuant.canonicalTag(label), requestedTag)
+        }
       }
       guard let picked = largest(matches, siblings: siblings, repo: repo) else {
         throw ResolveError.quantNotFound(repo: repo, quant: requested)
