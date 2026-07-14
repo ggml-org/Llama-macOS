@@ -82,7 +82,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     Theme.configure(
       cancelImageView, symbol: "xmark.circle.fill", tooltip: "Cancel download",
       color: .tertiaryLabelColor)
-    Theme.configure(unloadButton, symbol: "stop.circle", tooltip: "Unload model")
+    Theme.configure(unloadButton, symbol: "eject", tooltip: "Unload model")
 
     unloadButton.target = self
     unloadButton.action = #selector(didClickUnload)
@@ -99,8 +99,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Configure hover buttons stack
     hoverButtonsStack.orientation = .horizontal
     hoverButtonsStack.spacing = 4
+    // Delete and unload share the trailing slot -- one or the other shows,
+    // depending on whether the model is loaded (see `updateActionButtons`).
     hoverButtonsStack.addArrangedSubview(copyIdButton)
     hoverButtonsStack.addArrangedSubview(deleteButton)
+    hoverButtonsStack.addArrangedSubview(unloadButton)
 
     // Start hidden
     cancelImageView.isHidden = true
@@ -136,7 +139,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // (hover-only, see `highlightDidChange`); progress and pause/play both live
     // in the ring around the leading icon (see `IconView`).
     let accessoryStack = NSStackView(views: [
-      cancelImageView, hoverButtonsStack, unloadButton,
+      cancelImageView, hoverButtonsStack,
     ])
     accessoryStack.orientation = .horizontal
     accessoryStack.alignment = .centerY
@@ -309,8 +312,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       )
     }
 
-    // Cancel X is hover-only, matching the copy/delete hover buttons on installed rows.
-    cancelImageView.isHidden = !(showAsDownloading && isHighlighted)
+    updateActionButtons()
 
     // While the row is styled as downloading, the leading icon swaps into its
     // downloading look: a progress ring around the rim with a pause/play glyph
@@ -320,8 +322,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // popping back to the chip background for a frame before the row disappears.
     iconView.downloadFraction = showAsDownloading ? (fraction ?? 0) : nil
     iconView.downloadPaused = isPaused
-
-    unloadButton.isHidden = !isActive
 
     iconView.inactiveTintColor =
       isCompatible ? Theme.Colors.modelIconTint : Theme.Colors.textSecondary
@@ -342,16 +342,22 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   }
 
   override func highlightDidChange(_ highlighted: Bool) {
-    // Show hover buttons only for installed models that aren't active/downloading
+    updateActionButtons()
+  }
+
+  // All row action buttons are hover-only. Installed rows get the hover stack
+  // (copy ID + delete, with delete swapped for unload while the model is loaded);
+  // downloading rows get the cancel X instead. Called from both `refresh()` (state
+  // changes while hovered) and `highlightDidChange` (hover enters/leaves).
+  private func updateActionButtons() {
     let isInstalled = modelManager.isInstalled(model)
     let isActive = server.isActive(model: model)
-    let isDownloading = modelManager.isDownloading(model)
-    let showHoverButtons = highlighted && isInstalled && !isActive && !isDownloading
-    hoverButtonsStack.isHidden = !showHoverButtons
 
-    // Cancel X is the downloading-row hover affordance (see `refresh()` for the
-    // same gate on state changes while hovered).
-    cancelImageView.isHidden = !(highlighted && showAsDownloading)
+    hoverButtonsStack.isHidden = !(isHighlighted && isInstalled && !showAsDownloading)
+    deleteButton.isHidden = isActive
+    unloadButton.isHidden = !isActive
+
+    cancelImageView.isHidden = !(isHighlighted && showAsDownloading)
   }
 
   override func viewDidChangeEffectiveAppearance() {
