@@ -20,49 +20,39 @@ Or download from [Releases](https://github.com/ggml-org/Llama-macOS/releases).
 
 ## How it works
 
-Llama runs a local server at `http://localhost:8080/v1` (port configurable in Settings).
+When you start Llama, it runs a local server at `http://localhost:8080/v1`.
 
-- **Install models** — from the recommended list or Hugging Face
-- **Connect any app** — chat UIs, editors, CLI tools, scripts
-- **Models load when requested** — and unload when idle
+If you have llama.cpp installed, Llama uses it. Otherwise, it installs a prebuilt binary for your Mac. Models you've already installed via llama.cpp show up in the app automatically. You can install any GGUF model from Hugging Face, and Llama also recommends models that fit your Mac's hardware.
+
+You can chat with any model in the built-in WebUI, connect other apps (coding agents, chat UIs, editors), or use the API directly. Models load when requested and unload when idle, so they don't take up memory when not in use.
 
 ## Features
 
-- **100% local** — Models run on your device; no data leaves your Mac
+- **100% local** — Models run on your Mac; no data ever leaves it
 - **Small footprint** — `4 MB` native macOS app
-- **Zero configuration** — models are auto-configured with optimal settings for your Mac
-- **Recommended for your Mac** — suggests models sized to fit your hardware; browse the full catalog at [llama.app](https://llama.app)
-- **Install links** — websites can trigger model installs via `llama://` links
-- **Standard storage** — models live in the Hugging Face cache (`~/.cache/huggingface/hub`), shared with `llama.cpp` and other HF-aware tools
+- **Zero configuration** — models are auto-configured for your Mac
+- **Model recommendations** — a built-in list of models your Mac can run, installable in one click
+- **Standard storage** — models live in the Hugging Face cache, shared with `llama.cpp` and other tools
 - **Built on llama.cpp** — from the GGML org, developed alongside llama.cpp
 
-## Works with
+## Example requests
 
-Llama works with any OpenAI-compatible client.
-
-- **Chat UIs** — Chatbox, Open WebUI, BoltAI ([instructions](https://github.com/ggml-org/Llama-macOS/discussions/40))
-- **Editors** — VS Code, Zed, Xcode ([instructions](https://github.com/ggml-org/Llama-macOS/discussions/43))
-- **Editor extensions** — Cline, Continue
-- **CLI tools** — OpenCode ([instructions](https://github.com/ggml-org/Llama-macOS/discussions/44)), Claude Code ([instructions](https://github.com/ggml-org/Llama-macOS/discussions/45))
-- **Custom scripts** — curl, AI SDK, etc.
-
-You can also use the built-in WebUI at http://localhost:8080 while Llama is running.
-
-## API examples
+List installed models:
 
 ```sh
-# list installed models
 curl http://localhost:8080/v1/models
 ```
 
+Send a message to a model:
+
 ```sh
-# chat with Gemma 3 4B (assuming it's installed)
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model": "ggml-org/gemma-3-4b-it-qat-GGUF:Q4_0", "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{
+    "model": "ggml-org/gpt-oss-20b-GGUF:MXFP4",
+    "messages": [{"role": "user", "content": "Hello"}]
+  }'
 ```
-
-Replace the model with any model ID from `http://localhost:8080/v1/models`.
 
 See complete API reference in the llama.cpp server [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
 
@@ -81,6 +71,3 @@ defaults write app.llama.Llama exposeToNetwork -string "100.x.x.x"
 defaults delete app.llama.Llama exposeToNetwork
 ```
 
-## Roadmap
-
-- [ ] Support for loading multiple models at the same time
