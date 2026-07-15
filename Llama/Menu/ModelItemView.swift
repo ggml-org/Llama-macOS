@@ -79,9 +79,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       ?? NSImage(systemSymbolName: "cube.fill", accessibilityDescription: "Model")
 
     // Configure action buttons
-    Theme.configure(
-      cancelImageView, symbol: "xmark.circle.fill", tooltip: "Cancel download",
-      color: .tertiaryLabelColor)
+    Theme.configure(cancelImageView, symbol: "xmark", tooltip: "Cancel download")
     Theme.configure(unloadButton, symbol: "eject", tooltip: "Unload model")
 
     unloadButton.target = self
