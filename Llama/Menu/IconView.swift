@@ -167,7 +167,7 @@ final class IconView: NSView {
     trackLayer.setStrokeColor(Theme.Colors.subtleBackground, in: self)
     progressLayer.setStrokeColor(Theme.Colors.textSecondary, in: self)
     pausePlayView.isHidden = !isDownloading
-    pausePlayView.contentTintColor = .tertiaryLabelColor
+    pausePlayView.contentTintColor = .secondaryLabelColor
     toolTip = isDownloading ? (downloadPaused ? "Resume download" : "Pause download") : nil
 
     // Spinner appears in the center and the glyph hides while loading;
