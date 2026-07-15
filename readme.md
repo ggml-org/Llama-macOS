@@ -20,7 +20,7 @@ Or download from [Releases](https://github.com/ggml-org/Llama-macOS/releases).
 
 ## How it works
 
-Llama runs a local server at `http://localhost:8080/v1`.
+Llama runs a local server at `http://localhost:8080/v1` (port configurable in Settings).
 
 - **Install models** — from the recommended list or Hugging Face
 - **Connect any app** — chat UIs, editors, CLI tools, scripts
@@ -32,6 +32,7 @@ Llama runs a local server at `http://localhost:8080/v1`.
 - **Small footprint** — `4 MB` native macOS app
 - **Zero configuration** — models are auto-configured with optimal settings for your Mac
 - **Recommended for your Mac** — suggests models sized to fit your hardware; browse the full catalog at [llama.app](https://llama.app)
+- **Install links** — websites can trigger model installs via `llama://` links
 - **Standard storage** — models live in the Hugging Face cache (`~/.cache/huggingface/hub`), shared with `llama.cpp` and other HF-aware tools
 - **Built on llama.cpp** — from the GGML org, developed alongside llama.cpp
 
@@ -58,10 +59,10 @@ curl http://localhost:8080/v1/models
 # chat with Gemma 3 4B (assuming it's installed)
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{"model": "gemma-3-4b", "messages": [{"role": "user", "content": "Hello"}]}'
+  -d '{"model": "ggml-org/gemma-3-4b-it-qat-GGUF:Q4_0", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-Replace `gemma-3-4b` with any model ID from `http://localhost:8080/v1/models`.
+Replace the model with any model ID from `http://localhost:8080/v1/models`.
 
 See complete API reference in the llama.cpp server [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
 
@@ -83,4 +84,3 @@ defaults delete app.llama.Llama exposeToNetwork
 ## Roadmap
 
 - [ ] Support for loading multiple models at the same time
-- [ ] Support for multiple configurations per model (e.g., multiple context lengths)
