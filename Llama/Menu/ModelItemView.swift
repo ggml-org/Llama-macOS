@@ -50,6 +50,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let unloadButton = NSButton()
 
   // Hover action buttons (shown on hover for installed models)
+  private let chatButton = NSButton()
   private let copyIdButton = NSButton()
   private let deleteButton = NSButton()
   private let hoverButtonsStack = NSStackView()
@@ -86,9 +87,12 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     unloadButton.action = #selector(didClickUnload)
 
     // Configure hover action buttons
+    Theme.configure(chatButton, symbol: "bubble.left", tooltip: "Chat with this model")
     Theme.configure(copyIdButton, symbol: "doc.on.doc", tooltip: "Copy model ID")
     Theme.configure(deleteButton, symbol: "trash", tooltip: "Delete model")
 
+    chatButton.target = self
+    chatButton.action = #selector(didClickChat)
     copyIdButton.target = self
     copyIdButton.action = #selector(didClickCopyId)
     deleteButton.target = self
@@ -97,8 +101,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Configure hover buttons stack
     hoverButtonsStack.orientation = .horizontal
     hoverButtonsStack.spacing = 4
-    // Delete and unload share the trailing slot -- one or the other shows,
-    // depending on whether the model is loaded (see `updateActionButtons`).
+    // Chat leads the stack -- it's the primary action on a model. Delete and
+    // unload share the trailing slot -- one or the other shows, depending on
+    // whether the model is loaded (see `updateActionButtons`).
+    hoverButtonsStack.addArrangedSubview(chatButton)
     hoverButtonsStack.addArrangedSubview(copyIdButton)
     hoverButtonsStack.addArrangedSubview(deleteButton)
     hoverButtonsStack.addArrangedSubview(unloadButton)
@@ -162,6 +168,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
     Layout.constrainToIconSize(unloadButton)
+    Layout.constrainToIconSize(chatButton)
     Layout.constrainToIconSize(copyIdButton)
     Layout.constrainToIconSize(deleteButton)
 
@@ -209,6 +216,28 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     actionHandler.performPrimaryAction(for: model)
   }
 
+  /// Webui URL for this model: the server root with the model preselected via
+  /// the `?model=` query param the webui reads. Uses the resolved host so a
+  /// custom network bind address (incl. 0.0.0.0 -> local IP) still works.
+  private var chatUrl: URL? {
+    var components = URLComponents()
+    components.scheme = "http"
+    components.host = LlamaServer.resolvedHost
+    components.port = LlamaServer.port
+    components.path = "/"
+    components.queryItems = [URLQueryItem(name: "model", value: model.id)]
+    return components.url
+  }
+
+  @objc private func didClickChat() {
+    // The server runs continuously in router mode (started at app launch), so we
+    // just open the webui -- no need to start or wait on anything. In router mode
+    // `serve` loads the model on demand from the `?model=` selection when the
+    // user sends their first message.
+    guard let url = chatUrl else { return }
+    openInBrowser(url)
+  }
+
   @objc private func didClickCopyId() {
     Clipboard.copy(model.id)
     Theme.updateCopyIcon(copyIdButton, showingConfirmation: true)
@@ -231,7 +260,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   ) -> Bool {
     let loc = event.locationInWindow
     let actionTargets: [NSView] = [
-      unloadButton, copyIdButton, deleteButton, cancelImageView,
+      unloadButton, chatButton, copyIdButton, deleteButton, cancelImageView,
     ]
     return !actionTargets.contains { view in
       !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
@@ -361,6 +390,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .tertiaryLabelColor
     unloadButton.contentTintColor = .tertiaryLabelColor
+    chatButton.contentTintColor = .tertiaryLabelColor
     copyIdButton.contentTintColor = .tertiaryLabelColor
     deleteButton.contentTintColor = .tertiaryLabelColor
   }

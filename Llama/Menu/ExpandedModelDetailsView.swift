@@ -117,14 +117,6 @@ final class ExpandedModelDetailsView: ItemView {
       mainStack.addArrangedSubview(picker)
     }
 
-    // "Chat with this model" link -- opens the webui with this model
-    // preselected. Sits below whatever the branch above added (picker or a
-    // status message), with a bit of extra breathing room above it.
-    if let last = mainStack.arrangedSubviews.last {
-      mainStack.setCustomSpacing(8, after: last)
-    }
-    mainStack.addArrangedSubview(makeChatLink())
-
     // Add indent wrapper to align with model text
     let indent = NSView()
     indent.translatesAutoresizingMaskIntoConstraints = false
@@ -141,47 +133,6 @@ final class ExpandedModelDetailsView: ItemView {
     // Pin to the standard menu width so a long label (e.g. the "Could not estimate
     // memory" fallback) can't widen the whole menu beyond what model rows use.
     widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
-  }
-
-  // MARK: - Chat Link
-
-  /// Builds the "Chat with this model" link. Styled like the menu's other
-  /// inline links (e.g. the header's WebUI link) and wired to open the webui.
-  private func makeChatLink() -> NSView {
-    let label = Theme.secondaryLabel()
-    label.attributedStringValue = NSAttributedString(
-      string: "Chat with this model",
-      attributes: [
-        .foregroundColor: NSColor.linkColor,
-        .font: Theme.Fonts.secondary,
-      ]
-    )
-    label.isSelectable = false
-    let click = NSClickGestureRecognizer(target: self, action: #selector(didClickChat))
-    label.addGestureRecognizer(click)
-    return label
-  }
-
-  /// Webui URL for this model: the server root with the model preselected via
-  /// the `?model=` query param the webui reads. Uses the resolved host so a
-  /// custom network bind address (incl. 0.0.0.0 -> local IP) still works.
-  private var chatUrl: URL? {
-    var components = URLComponents()
-    components.scheme = "http"
-    components.host = LlamaServer.resolvedHost
-    components.port = LlamaServer.port
-    components.path = "/"
-    components.queryItems = [URLQueryItem(name: "model", value: model.id)]
-    return components.url
-  }
-
-  @objc private func didClickChat() {
-    // The server runs continuously in router mode (started at app launch), so we
-    // just open the webui -- no need to start or wait on anything. In router mode
-    // `serve` loads the model on demand from the `?model=` selection when the
-    // user sends their first message.
-    guard let url = chatUrl else { return }
-    openInBrowser(url)
   }
 
   // MARK: - Tier Picker
