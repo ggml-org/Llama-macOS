@@ -108,7 +108,7 @@ private struct RestoreDefaultButton: View {
       Image(systemName: "arrow.counterclockwise")
         .foregroundStyle(.secondary)
     }
-    .buttonStyle(.plain)
+    .buttonStyle(PressableStyle())
     .help("Restore the default")
   }
 }
@@ -285,7 +285,7 @@ struct SettingsView: View {
           // Extend the tappable region across the full row, gaps included.
           .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle())
 
         if serverCommandExpanded {
           // The command itself: monospaced, wrapping, and selectable so a user
@@ -551,7 +551,7 @@ struct PillPicker<Option: Hashable>: View {
             )
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle())
       }
     }
     // Equal breathing room between the pills and the row edge on all sides
