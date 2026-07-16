@@ -155,6 +155,22 @@ extension Model {
     return tiers.sorted()
   }
 
+  /// All tiers the model itself supports (within its native context window),
+  /// regardless of whether this device has the memory to run them. The picker
+  /// shows these, disabling the ones not in `supportedContextTiers`, so the
+  /// user can see the model's full range rather than a silently truncated one.
+  var displayContextTiers: [ContextTier] {
+    if ctxBytesPer1kTokens <= 0 {
+      return [.k4]
+    }
+
+    var tiers = ContextTier.standardTiers.filter { $0.rawValue <= ctxWindow }
+    if ContextTier.k256.rawValue <= ctxWindow {
+      tiers.append(.k256)
+    }
+    return tiers.sorted()
+  }
+
   /// The largest standard tier that fits within the model's native context window.
   /// Independent of device RAM -- this is the model's spec ceiling.
   var nativeMaxTier: ContextTier? {

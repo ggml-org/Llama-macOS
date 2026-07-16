@@ -10,6 +10,8 @@ final class ExpandedModelDetailsView: ItemView {
 
   // Tiers backing the picker, in the order they appear (index = segment).
   private var tiers: [ContextTier] = []
+  // Tiers actually runnable on this device; the rest render disabled.
+  private var enabledTiers: Set<ContextTier> = []
   // One pill per tier, same order as `tiers`. Each is a label wrapped in a
   // padded container whose layer draws the selection background.
   private var segments: [(container: NSView, label: NSTextField)] = []
@@ -68,7 +70,11 @@ final class ExpandedModelDetailsView: ItemView {
       // controls when the app isn't frontmost (menu bar apps usually aren't,
       // so the segmented control's thumb rendered gray instead of
       // accent-colored).
-      tiers = model.supportedContextTiers
+      // Show every tier the model natively supports; the ones this device
+      // can't fit in memory render disabled so the model's full range is
+      // still visible.
+      tiers = model.displayContextTiers
+      enabledTiers = Set(model.supportedContextTiers)
       // Fall back to the first supported tier if no effective tier is resolved.
       let effectiveTier = model.effectiveCtxTier ?? tiers.first ?? .k4
       selectedIdx = tiers.firstIndex(of: effectiveTier) ?? 0
@@ -95,7 +101,13 @@ final class ExpandedModelDetailsView: ItemView {
         if idx > 0 {
           picker.addArrangedSubview(makeDivider())
         }
-        picker.addArrangedSubview(makeSegment(label: tier.shortLabel))
+        let segment = makeSegment(label: tier.shortLabel)
+        // Explain why a disabled tier can't be selected (memory constraint).
+        if !enabledTiers.contains(tier) {
+          segment.toolTip = model.incompatibilitySummary(
+            ctxWindowTokens: Double(tier.rawValue))
+        }
+        picker.addArrangedSubview(segment)
       }
       restyleSegments()
 
@@ -216,7 +228,14 @@ final class ExpandedModelDetailsView: ItemView {
     picker?.layer?.setBorderColor(Theme.Colors.separator, in: self)
     for (idx, segment) in segments.enumerated() {
       let selected = idx == selectedIdx
-      segment.label.textColor = selected ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
+      let enabled = enabledTiers.contains(tiers[idx])
+      // Disabled tiers use the faint tertiary gray; enabled-but-unselected
+      // ones use the darker icon tint (not textSecondary -- it's too close to
+      // tertiary for the available/unavailable distinction to read).
+      segment.label.textColor =
+        !enabled
+        ? Theme.Colors.textTertiary
+        : selected ? Theme.Colors.textPrimary : Theme.Colors.modelIconTint
       segment.container.layer?.setBackgroundColor(
         selected ? Theme.Colors.subtleBackground : .clear, in: self)
     }
@@ -243,6 +262,9 @@ final class ExpandedModelDetailsView: ItemView {
       let idx = segments.firstIndex(where: { $0.container == container })
     else { return }
     let tier = tiers[idx]
+
+    // Ignore clicks on tiers this device can't run.
+    guard enabledTiers.contains(tier) else { return }
 
     // Reflect the new selection in the picker right away. (The model row's
     // "N GB mem" metadata refreshes via the settings-change notification.)
