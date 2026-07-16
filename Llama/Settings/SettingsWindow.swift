@@ -128,6 +128,51 @@ struct SettingsView: View {
   // inflate the window height until a user opens it.
   @State private var serverCommandExpanded = false
 
+  /// Metadata footer -- the app's de-facto About: version info on the leading
+  /// edge, the open-source link on the trailing edge, echoing the form's
+  /// label-left / control-right grammar. Rendered as the form's last,
+  /// card-less section, so alignment and vertical rhythm come from the form's
+  /// own metrics rather than hand-tuned padding, and the elastic scroll moves
+  /// it together with the content.
+  private var footer: some View {
+    HStack {
+      HStack(spacing: 4) {
+        Text("Llama \(appVersion)")
+
+        // The engine version is read from the resolved binary at startup;
+        // omit the segment if none is installed (or it couldn't be read).
+        if let engine = LlamaInstallManager.shared.currentVersion {
+          Text("·")
+          Text("llama.cpp \(engine.tag)")
+        }
+      }
+
+      Spacer()
+
+      // A Button rather than a Link: on macOS, Link renders as a bare label
+      // with no pressed state, so it feels dead next to the window's other
+      // clickable controls. The button style below supplies the mouse-down dim.
+      Button {
+        NSWorkspace.shared.open(URL(string: "https://github.com/ggml-org/Llama-macOS")!)
+      } label: {
+        HStack(spacing: 5) {
+          // The octocat mark makes the link scannable without color.
+          Image(.gitHubMark)
+            .resizable()
+            .frame(width: 12, height: 12)
+
+          Text("Open source on GitHub")
+        }
+      }
+      .buttonStyle(PressableStyle())
+    }
+    // Same size as the row descriptions -- the footer is peer metadata, not
+    // fine print. The link inherits the secondary style too: accent blue
+    // would make the footer the loudest thing in the window.
+    .font(.system(size: 11))
+    .foregroundStyle(.secondary)
+  }
+
   var body: some View {
     Form {
       // Launch at login section
@@ -300,6 +345,14 @@ struct SettingsView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
       }
+
+      // The metadata footer, as a section with no card: clearing the row
+      // background leaves just the caption line, spaced and aligned by the
+      // form like any other section.
+      Section {
+        footer
+          .listRowBackground(Color.clear)
+      }
     }
     .formStyle(.grouped)
     .frame(width: 680)
@@ -307,6 +360,11 @@ struct SettingsView: View {
     // `.fixedSize()` would also fix the width to ideal, which forces
     // `maxWidth`-capped controls to their full cap instead of hugging.)
     .fixedSize(horizontal: false, vertical: true)
+  }
+
+  /// The app's marketing version from the bundle, e.g. `1.4.2`.
+  private var appVersion: String {
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
   }
 
   /// The shell command that starts the server, built from the current
