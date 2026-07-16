@@ -283,14 +283,13 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let textColor = isCompatible ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
 
     // Title is the parsed view of the id (short name + metadata chips); the
-    // tooltip carries the full raw id so it stays reachable from the row.
+    // full raw id stays reachable via the copy button.
     titleLabel.attributedStringValue = Format.modelName(
       id: model.id,
       color: textColor,
       hasVision: model.hasVisionSupport,
       showTags: showTags
     )
-    titleLabel.toolTip = model.id
 
     let incompatibility = !isCompatible ? model.incompatibilitySummary() : nil
     // Subtitle swaps between size+ctx (for installed/available rows) and a

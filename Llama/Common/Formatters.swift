@@ -220,7 +220,7 @@ extension Format {
   /// and the WebUI's picker agree. The short name renders as text; params
   /// and quant render as small chips — metadata the eye can skip, while
   /// every chip still comes straight from the id. The raw id stays
-  /// reachable via the row's tooltip (set by callers).
+  /// reachable via the row's copy button.
   ///
   /// `showTags` appends the leftover repo segments ("it", "qat", ...) as
   /// extra-dimmed text. Off by default — the residue is almost always noise
