@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import os.log
 
 /// Observable owner of the app-managed CLI install. Holds the install `state` so
@@ -9,6 +10,7 @@ import os.log
 /// `~/.llama-app` / `~/.local/bin`, needs no privilege escalation, and is part
 /// of the app's "it just works" setup -- but it's never opaque, hence the state.
 @MainActor
+@Observable
 final class LlamaInstallManager {
   static let shared = LlamaInstallManager()
 
