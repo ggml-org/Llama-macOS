@@ -158,6 +158,11 @@ class LlamaServer {
   struct LaunchSpec {
     let executablePath: String
     let arguments: [String]
+    /// How many trailing elements of `arguments` came from the user's
+    /// `extraServerArgs` default. Purely presentational: `displayCommand`
+    /// renders them on their own commented line so a reader can tell custom
+    /// arguments from app-managed ones.
+    let extraArgCount: Int
     /// Only the env vars *we* set -- not the full inherited environment.
     let env: [(key: String, value: String)]
 
@@ -168,18 +173,21 @@ class LlamaServer {
     /// shown literally and shell-quoted where needed, so the block stays
     /// paste-and-run correct and shows exactly what runs.
     var displayCommand: String {
-      // Group arguments so a `--flag` carries its following value(s) on one
-      // line; bare positional args (like `serve`) stand alone.
+      // Group the app-managed arguments so a `--flag` carries its following
+      // value(s) on one line; bare positional args (like `serve`) stand alone.
+      // User-supplied extra args (the trailing `extraArgCount` elements) are
+      // handled separately below.
+      let managed = arguments.dropLast(extraArgCount)
       var lines: [String] = []
-      var idx = arguments.startIndex
-      while idx < arguments.endIndex {
-        let arg = arguments[idx]
-        let next = arguments.index(after: idx)
-        if arg.hasPrefix("-"), next < arguments.endIndex,
-          !arguments[next].hasPrefix("-")
+      var idx = managed.startIndex
+      while idx < managed.endIndex {
+        let arg = managed[idx]
+        let next = managed.index(after: idx)
+        if arg.hasPrefix("-"), next < managed.endIndex,
+          !managed[next].hasPrefix("-")
         {
-          lines.append("\(arg) \(Self.quote(arguments[next]))")
-          idx = arguments.index(after: next)
+          lines.append("\(arg) \(Self.quote(managed[next]))")
+          idx = managed.index(after: next)
         } else {
           lines.append(Self.quote(arg))
           idx = next
@@ -193,6 +201,16 @@ class LlamaServer {
       while let head = lines.first, !head.hasPrefix("-") {
         firstLine += " " + head
         lines.removeFirst()
+      }
+
+      // User-supplied extra args: all on one line, tagged with a comment so a
+      // reader can tell them apart from the app's own flags. Appended after
+      // the positional-absorption loop above so the loop can't swallow them,
+      // and safe only because this is the *last* line -- a `#` comment would
+      // swallow a trailing `\` continuation on any earlier line.
+      if extraArgCount > 0 {
+        let extra = arguments.suffix(extraArgCount).map(Self.quote).joined(separator: " ")
+        lines.append("\(extra)  # custom arguments")
       }
 
       // Env vars as standalone `export` statements -- each flush-left on its
@@ -277,7 +295,15 @@ class LlamaServer {
     // Bare toggles (no value) last, so they don't split the value flags above.
     arguments.append(contentsOf: ["--jinja", "--spec-default"])
 
-    return LaunchSpec(executablePath: llamaPath, arguments: arguments, env: env)
+    // User-supplied extra args (the `extraServerArgs` default) go at the very
+    // end, so where llama-server honors the later occurrence they can
+    // override the app's own flags. Passed verbatim -- no validation; a bad
+    // flag surfaces as a launch failure like any other server error.
+    let extraArgs = UserSettings.extraServerArgList
+    arguments.append(contentsOf: extraArgs)
+
+    return LaunchSpec(
+      executablePath: llamaPath, arguments: arguments, extraArgCount: extraArgs.count, env: env)
   }
 
   /// Reclaims `port` by killing any stray `llama serve` still listening on it.

@@ -372,9 +372,19 @@ struct SettingsView: View {
       let tokens = tokenize(String(line.dropFirst(indent.count)))
       // `prevWasFlag` marks that the previous token was a `--flag`, so this
       // token is its value and colors as a value rather than by its own shape.
+      // `inComment` latches at a `#` token: it and everything after it on the
+      // line (the "# custom arguments" tag) dims as a comment.
       var prevWasFlag = false
+      var inComment = false
       for (tokenIdx, token) in tokens.enumerated() {
         if tokenIdx > 0 { result.append(AttributedString(" ")) }
+        if inComment || token.hasPrefix("#") {
+          inComment = true
+          var attr = AttributedString(token)
+          attr.foregroundColor = .secondary
+          result.append(attr)
+          continue
+        }
         result.append(highlight(token, isFirstOnLine: tokenIdx == 0, isFlagValue: prevWasFlag))
         prevWasFlag = token.hasPrefix("--")
       }

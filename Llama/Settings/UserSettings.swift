@@ -34,6 +34,7 @@ enum UserSettings {
     static let serverPort = "serverPort"
     static let sleepIdleTime = "sleepIdleTime"
     static let selectedCtxTiers = "selectedCtxTiers"
+    static let extraServerArgs = "extraServerArgs"
     static let hfCacheDirectory = "hfCacheDirectory"
     static let hfToken = "hfToken"
   }
@@ -122,6 +123,25 @@ enum UserSettings {
       defaults.set(newValue.rawValue, forKey: Keys.sleepIdleTime)
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
     }
+  }
+
+  // MARK: - Extra Server Arguments
+
+  /// Extra `llama serve` CLI arguments -- an unadvertised escape hatch for
+  /// server flags the app doesn't expose (e.g. a CORS proxy flag, `--api-key`,
+  /// KV-cache quantization). Set via defaults; there's deliberately no UI yet:
+  ///   `defaults write app.llama.Llama extraServerArgs -string "--api-key secret"`
+  ///   `defaults delete app.llama.Llama extraServerArgs` → none
+  /// Tokenized by splitting on whitespace, so `--flag value` works naturally;
+  /// no shell is involved in launching the server, so there's no quoting layer
+  /// -- each token is passed verbatim as its own argv element. Takes effect on
+  /// the next server start (no change notification for external defaults
+  /// writes). Security note: this must never become settable from a deeplink
+  /// or any other externally-triggerable path, or a webpage could inject
+  /// server arguments via the URL scheme.
+  static var extraServerArgList: [String] {
+    guard let raw = defaults.string(forKey: Keys.extraServerArgs) else { return [] }
+    return raw.split(whereSeparator: \.isWhitespace).map(String.init)
   }
 
   // MARK: - Context Tier Preferences
