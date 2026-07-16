@@ -50,6 +50,23 @@ enum Theme {
       dark: NSColor.white.withAlphaComponent(0.15)
     )
 
+    // Track of the segmented pill picker -- tuned to match the bezel fill of
+    // the native small buttons in the neighboring settings rows (measured:
+    // in dark mode the bezel is ~7.5% white over the row background;
+    // semantic colors like controlColor render far stronger)
+    static let pillTrack = NSColor.dynamic(
+      light: NSColor.black.withAlphaComponent(0.05),
+      dark: NSColor.white.withAlphaComponent(0.075)
+    )
+
+    // Selected-pill thumb in the segmented pill picker -- must read lighter
+    // than the picker's track in both appearances (controlBackgroundColor
+    // fails at this in dark mode, where it's darker than the track)
+    static let pillThumb = NSColor.dynamic(
+      light: NSColor.white,
+      dark: NSColor.white.withAlphaComponent(0.25)
+    )
+
     // Success/checkmark color -- darker in light mode for better contrast
     static let success = NSColor.dynamic(
       light: NSColor(red: 0.2, green: 0.55, blue: 0.2, alpha: 1.0),

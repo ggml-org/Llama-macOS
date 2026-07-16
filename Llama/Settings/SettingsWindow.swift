@@ -536,9 +536,8 @@ struct PillPicker<Option: Hashable>: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(
-              // Thumb-like solid fill -- the subtle gray used in the menu
-              // picker wouldn't read against the row's own background
-              selected ? Color(nsColor: .controlBackgroundColor) : .clear,
+              // Thumb-like fill, lighter than the track in both appearances
+              selected ? Color(nsColor: Theme.Colors.pillThumb) : .clear,
               in: RoundedRectangle(cornerRadius: 4)
             )
             .contentShape(Rectangle())
@@ -549,7 +548,7 @@ struct PillPicker<Option: Hashable>: View {
     // Equal breathing room between the pills and the row edge on all sides
     .padding(.horizontal, 2)
     .padding(.vertical, 2)
-    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+    .background(Color(nsColor: Theme.Colors.pillTrack), in: RoundedRectangle(cornerRadius: 6))
   }
 
   /// Hairline divider; hidden ones keep their layout slot (clear color) so
