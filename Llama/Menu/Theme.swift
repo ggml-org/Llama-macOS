@@ -52,10 +52,10 @@ enum Theme {
 
     // Track of the segmented pill picker -- tuned to match the bezel fill of
     // the native small buttons in the neighboring settings rows (measured:
-    // in dark mode the bezel is ~7.5% white over the row background;
+    // ~8% black in light / ~7.5% white in dark over the row background;
     // semantic colors like controlColor render far stronger)
     static let pillTrack = NSColor.dynamic(
-      light: NSColor.black.withAlphaComponent(0.05),
+      light: NSColor.black.withAlphaComponent(0.08),
       dark: NSColor.white.withAlphaComponent(0.075)
     )
 

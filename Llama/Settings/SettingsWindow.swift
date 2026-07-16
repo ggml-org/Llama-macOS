@@ -528,11 +528,10 @@ struct PillPicker<Option: Hashable>: View {
         } label: {
           Text(option.label)
             .font(.callout)
-            .foregroundStyle(
-              selected
-                ? Color(nsColor: Theme.Colors.textPrimary)
-                : Color(nsColor: Theme.Colors.textSecondary)
-            )
+            // All segments use primary text -- dimming the unselected ones
+            // reads as disabled; the thumb alone marks the selection (matches
+            // native segmented controls)
+            .foregroundStyle(Color(nsColor: Theme.Colors.textPrimary))
             .padding(.horizontal, 6)
             .padding(.vertical, 1)
             .background(
@@ -546,8 +545,8 @@ struct PillPicker<Option: Hashable>: View {
       }
     }
     // Equal breathing room between the pills and the row edge on all sides
-    .padding(.horizontal, 2)
-    .padding(.vertical, 2)
+    .padding(.horizontal, 3)
+    .padding(.vertical, 3)
     .background(Color(nsColor: Theme.Colors.pillTrack), in: RoundedRectangle(cornerRadius: 6))
   }
 
