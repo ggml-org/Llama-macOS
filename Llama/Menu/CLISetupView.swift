@@ -28,16 +28,17 @@ final class CLISetupView: ItemView {
       views = [title, description]
 
     case .failed(let message):
-      let title = Theme.primaryLabel("Couldn’t set up llama")
-      let description = wrappingLabel(message)
-      views = [title, description, actionLink("→ Retry")]
+      let title = Theme.primaryLabel("Couldn’t download engine")
+      let description = wrappingLabel(
+        "Llama needs to download llama.cpp once, but the download failed. " + message)
+      views = [title, description, actionLink("Retry")]
 
     case .unmanagedTooOld(let version):
       let title = Theme.primaryLabel("Update llama.cpp")
       let description = wrappingLabel(
         "Your llama.cpp (\(version.tag)) is older than the recommended "
           + "\(LlamaBinaries.floorVersion.tag). Update it with “brew upgrade llama.cpp”.")
-      views = [title, description, actionLink("→ Re-check")]
+      views = [title, description, actionLink("Re-check")]
 
     case .idle:
       // Not rendered when idle; guard anyway so the view is never blank-but-present.
@@ -54,7 +55,7 @@ final class CLISetupView: ItemView {
     stack.pinToSuperview()
   }
 
-  /// A tappable link row (e.g. "→ Retry") that re-runs the CLI readiness check.
+  /// A tappable link row (e.g. "Retry") that re-runs the CLI readiness check.
   private func actionLink(_ title: String) -> NSTextField {
     let link = Theme.secondaryLabel()
     link.attributedStringValue = NSAttributedString(
