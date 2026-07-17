@@ -17,7 +17,8 @@ import os.log
 /// row's quant is never a choice we made: a below-top quant means the top one
 /// wouldn't run on this machine, nothing more. Which sizes exist and which
 /// families are featured is the website's curation; the app only filters by
-/// what fits.
+/// what fits (plus an optional per-family memory cap, also declared by the
+/// catalog).
 ///
 /// The full browsing experience stays on the web; the app only ever reads the
 /// `featured` slice.
@@ -57,6 +58,11 @@ enum Catalog {
     let brand: String
     /// Whether the catalog flags this family for in-app highlighting. Absent → false.
     let featured: Bool?
+    /// Memory cap for featuring: on Macs with more RAM than this, the family is
+    /// not suggested even though it would fit. Lets the catalog mark a family as
+    /// a low-memory pick (e.g. Gemma 3 on 8 GB Macs) without the app hardcoding
+    /// curation. Absent → no cap.
+    let maxMemGb: UInt64?
     let sizes: [Size]
   }
 
@@ -97,6 +103,11 @@ enum Catalog {
     return
       families
       .filter { $0.featured == true }
+      // Honor the catalog's per-family memory cap: skip families marked as
+      // low-memory picks on machines with more RAM than their cap.
+      .filter { family in
+        family.maxMemGb.map { systemMemoryMb <= $0 * 1024 } ?? true
+      }
       .flatMap { picks(for: $0, budgetMb: budgetMb) }
   }
 
