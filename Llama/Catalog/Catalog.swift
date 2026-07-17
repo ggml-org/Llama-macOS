@@ -17,8 +17,8 @@ import os.log
 /// row's quant is never a choice we made: a below-top quant means the top one
 /// wouldn't run on this machine, nothing more. Which sizes exist and which
 /// families are featured is the website's curation; the app only filters by
-/// what fits (plus an optional per-family memory cap, also declared by the
-/// catalog).
+/// what fits (plus optional per-family and per-size memory caps, also declared
+/// by the catalog).
 ///
 /// The full browsing experience stays on the web; the app only ever reads the
 /// `featured` slice.
@@ -50,6 +50,10 @@ enum Catalog {
   struct Size: Decodable {
     /// Whether this size supports image input. Absent → false.
     let vision: Bool?
+    /// Memory cap for featuring, like `Family.maxMemGb` but for one size: on
+    /// Macs with more RAM than this, the size is not suggested (e.g. the small
+    /// Gemma 4 E-series on 32 GB+ Macs). Absent → the family's cap alone applies.
+    let maxMemGb: UInt64?
     let builds: [Build]
   }
 
@@ -108,7 +112,7 @@ enum Catalog {
       .filter { family in
         family.maxMemGb.map { systemMemoryMb <= $0 * 1024 } ?? true
       }
-      .flatMap { picks(for: $0, budgetMb: budgetMb) }
+      .flatMap { picks(for: $0, budgetMb: budgetMb, systemMemoryMb: systemMemoryMb) }
   }
 
   // MARK: - Selection
@@ -124,8 +128,13 @@ enum Catalog {
   /// are dropped rather than shown as uninstallable rows; a family where
   /// nothing fits contributes no rows. If the whole featured set is too big,
   /// the section is empty and the menu falls back to the "Browse models" link.
-  private static func picks(for family: Family, budgetMb: Double) -> [Suggestion] {
-    family.sizes.compactMap { size in
+  private static func picks(for family: Family, budgetMb: Double, systemMemoryMb: UInt64)
+    -> [Suggestion]
+  {
+    family.sizes.compactMap { size -> Suggestion? in
+      // Honor the catalog's per-size memory cap, like the family-level one:
+      // skip sizes marked as low-memory picks on machines above their cap.
+      guard size.maxMemGb.map({ systemMemoryMb <= $0 * 1024 }) ?? true else { return nil }
       // A build fits when its estimated weight memory is within budget. Unknown
       // sizes parse to 0 bytes and are treated as fitting (don't hide),
       // matching the resolver's posture.
