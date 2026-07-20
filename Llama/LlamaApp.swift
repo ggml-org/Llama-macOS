@@ -29,6 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private let logger = Logger(subsystem: Logging.subsystem, category: "AppDelegate")
   private var menuController: MenuController?
   private var settingsWindowController: SettingsWindowController?
+  private var globalInputController: GlobalInputController?
   private var updatesObserver: NSObjectProtocol?
   private var recheckCLIObserver: NSObjectProtocol?
 
@@ -156,6 +157,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // Initialize settings window controller (listens for LBShowSettings notifications)
     settingsWindowController = SettingsWindowController.shared
+
+    // Register the global-input hotkey (⌥Space) and its capture panel -- a
+    // system-wide quick-capture that dispatches a prompt to the web UI. Ships
+    // dormant behind a defaults flag for team testing (see globalInputEnabled).
+    if UserSettings.globalInputEnabled {
+      globalInputController = GlobalInputController()
+    }
 
     // Ensure a usable llama binary exists, then start the server in Router Mode.
     ensureCLIThenStartServer()

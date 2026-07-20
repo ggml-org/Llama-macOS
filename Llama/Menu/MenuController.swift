@@ -353,6 +353,12 @@ final class MenuController: NSObject, NSMenuDelegate {
       self?.showHint(msg)
     }
 
+    // A background flow wants the menu open (e.g. the global-input panel routing
+    // to onboarding when no models are installed).
+    observe(.LBOpenMenu) { [weak self] _ in
+      self?.openMenu()
+    }
+
     // Download failed - show alert
     observe(.LBModelDownloadDidFail) { [weak self] note in
       self?.handleDownloadFailure(notification: note)

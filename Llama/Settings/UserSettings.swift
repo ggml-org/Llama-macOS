@@ -37,6 +37,8 @@ enum UserSettings {
     static let extraServerArgs = "extraServerArgs"
     static let hfCacheDirectory = "hfCacheDirectory"
     static let hfToken = "hfToken"
+    static let lastUsedModelId = "lastUsedModelId"
+    static let globalInputEnabled = "globalInputEnabled"
   }
 
   private static let defaults = UserDefaults.standard
@@ -49,6 +51,29 @@ enum UserSettings {
     set {
       defaults.set(newValue, forKey: Keys.hasSeenWelcome)
     }
+  }
+
+  /// The `id` of the last model the user deliberately ran. Persisted so the
+  /// global-input capture panel has a sticky target even when nothing is loaded
+  /// (e.g. right after launch). `nil` until the first model is loaded, or if the
+  /// remembered model has since been deleted (callers must re-validate against
+  /// the installed set).
+  static var lastUsedModelId: String? {
+    get {
+      defaults.string(forKey: Keys.lastUsedModelId)
+    }
+    set {
+      defaults.set(newValue, forKey: Keys.lastUsedModelId)
+    }
+  }
+
+  /// Whether the global-input capture panel (⌥Space) is enabled. Off unless
+  /// explicitly set, so the feature ships dormant for team testing before it's
+  /// advertised:
+  ///   `defaults write app.llama.Llama globalInputEnabled -bool true`
+  /// Read once at launch (registering the hotkey), so a change needs a relaunch.
+  static var globalInputEnabled: Bool {
+    defaults.bool(forKey: Keys.globalInputEnabled)
   }
 
   /// Whether we've applied the one-time launch-at-login default (enabled on

@@ -22,4 +22,7 @@ extension Notification.Name {
   // Posted by the menu's setup banner to re-run the CLI readiness check --
   // retry a failed install, or re-check after the user ran `brew upgrade`.
   static let LBRecheckCLI = Notification.Name("LBRecheckCLI")
+  // Posted to pop open the status-bar menu (e.g. the global-input panel routing
+  // to onboarding when no models are installed).
+  static let LBOpenMenu = Notification.Name("LBOpenMenu")
 }

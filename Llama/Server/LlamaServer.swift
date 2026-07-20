@@ -533,6 +533,11 @@ class LlamaServer {
       start()
     }
 
+    // Remember this as the user's last deliberately-run model, so the
+    // global-input capture panel has a sticky target even when nothing is
+    // loaded later.
+    UserSettings.lastUsedModelId = model.id
+
     // Optimistically set status to loading for immediate UI feedback. This also
     // makes the model the derived `activeModelId`. Polling updates to .loaded
     // once the server confirms.
