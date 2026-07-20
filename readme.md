@@ -30,7 +30,7 @@ You can chat with any model in the built-in WebUI, connect other apps (coding ag
 
 - **100% local** — Models run on your Mac; no data ever leaves it
 - **Small footprint** — `4 MB` native macOS app
-- **Zero configuration** — models are auto-configured for your Mac
+- **Zero configuration** — models are auto-configured with optimal settings for your Mac
 - **Model recommendations** — a built-in list of models your Mac can run, installable in one click
 - **Standard storage** — models live in the Hugging Face cache, shared with `llama.cpp` and other tools
 - **Built on llama.cpp** — from the GGML org, developed alongside llama.cpp
