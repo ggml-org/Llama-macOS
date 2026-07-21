@@ -76,6 +76,10 @@ class LlamaServer {
   private var outputPipe: Pipe?
   private var errorPipe: Pipe?
   private var activeProcess: Process?
+  /// Bumped by every `start()`/`stop()`. `start()` runs its port-freeing
+  /// pre-flight off the main actor, then compares this token before launching so
+  /// a newer `start()`/`stop()` issued meanwhile wins (the older pre-flight bails).
+  private var startGeneration = 0
   private var healthCheckTask: Task<Void, Error>?
   private let logger = Logger(subsystem: Logging.subsystem, category: "LlamaServer")
   private let api = LlamaServerAPI()
@@ -365,30 +369,68 @@ class LlamaServer {
     return blocker
   }
 
-  /// Launches llama-server in Router Mode
+  /// Launches llama-server in Router Mode.
+  ///
+  /// The port-freeing pre-flight -- reaping any process we still track and
+  /// scanning/killing a stale orphan holding the port (`lsof`/`ps`) -- can each
+  /// block for seconds when the machine is under load. Doing it synchronously on
+  /// the main actor froze the UI (LLAMABARN-8M/8S), so we run it off the main
+  /// actor and hop back to launch.
   func start() {
-    stop()
+    // Fast, non-blocking teardown of the previous run, on the main actor.
+    // Setting .idle first tells the outgoing process's termination handler this
+    // is an intentional stop (so it won't flip us to an error state); clearing
+    // activeProcess hands the actual (blocking) reap to the detached task below.
+    state = .idle
+    modelStatuses = [:]
+    stopStatusPolling()
+    cleanUpPipes()
+    let previous = activeProcess
+    activeProcess = nil
 
-    // Reclaim the port from any orphaned `llama serve` a prior crashed session
-    // left holding it -- otherwise this launch can't bind and would exit. If some
-    // *other* process holds the port (one we won't kill), don't launch into a
-    // silent bind failure -- surface a clear conflict instead. The extra
-    // `isPortAvailable` re-check guards against the process having exited between
-    // the scan and now (a stale blocker), so we only error on a real conflict.
-    if let blocker = Self.reclaimPort(), !Self.isPortAvailable(Self.port) {
-      logger.error("port \(Self.port) is held by \(blocker, privacy: .public); not launching server")
-      state = .error(.portInUse(port: Self.port, by: blocker))
-      return
+    state = .loading
+    startGeneration += 1
+    let generation = startGeneration
+
+    Task {
+      // Off the main actor: reap the previous process and reclaim the port from
+      // any orphaned `llama serve` a prior crashed session left holding it --
+      // otherwise this launch can't bind and would exit. Both can block for
+      // seconds under load, so they must not run on the main actor.
+      let blocker = await Task.detached {
+        Self.terminateAndWait(previous)
+        return Self.reclaimPort()
+      }.value
+
+      // Back on the main actor. Bail if a newer start()/stop() superseded us
+      // while we were off the main actor.
+      guard generation == startGeneration, state == .loading else { return }
+
+      // If some *other* process (one we won't kill) still holds the port, don't
+      // launch into a silent bind failure -- surface a clear conflict instead.
+      // The `isPortAvailable` re-check guards against the blocker having exited
+      // since the scan (a stale blocker), so we only error on a real conflict.
+      if let blocker, !Self.isPortAvailable(Self.port) {
+        logger.error(
+          "port \(Self.port) is held by \(blocker, privacy: .public); not launching server")
+        state = .error(.portInUse(port: Self.port, by: blocker))
+        return
+      }
+
+      launchServerProcess()
     }
+  }
 
+  /// Builds the launch spec and starts the llama-server process. Main-actor only,
+  /// run after `start()`'s off-main pre-flight has freed the port. Fast: nothing
+  /// here blocks (`process.run()` returns immediately).
+  private func launchServerProcess() {
     // Resolve the launch spec up front; a missing install surfaces as an error.
     guard let spec = Self.buildLaunchSpec() else {
       logger.error("llama binary not found")
       state = .error(.invalidPath("llama"))
       return
     }
-
-    state = .loading
 
     // Ensure the empty-cache dir referenced by LLAMA_CACHE exists.
     try? FileManager.default.createDirectory(
@@ -452,6 +494,10 @@ class LlamaServer {
     // server never leaves a model showing as loaded in the menu.
     modelStatuses = [:]
 
+    // Supersede any in-flight start() pre-flight (e.g. quitting mid-launch), so
+    // it doesn't hop back and launch a server we've just asked to stop.
+    startGeneration += 1
+
     cleanUpResources()
   }
 
@@ -475,23 +521,30 @@ class LlamaServer {
     stopStatusPolling()
   }
 
-  /// Gracefully terminates the currently running process
+  /// Gracefully terminates the currently running process. Main-actor path used
+  /// by `stop()` (app termination); `start()` reaps its previous process via
+  /// `terminateAndWait` off the main actor instead.
   private func stopActiveProcess() {
-    guard let process = activeProcess else { return }
+    let process = activeProcess
+    activeProcess = nil
+    Self.terminateAndWait(process)
+  }
 
-    if process.isRunning {
-      process.terminate()
+  /// Terminates `process` and blocks until it exits, escalating to SIGKILL after
+  /// 2s if it ignores SIGTERM. `nonisolated` so `start()` can run it off the main
+  /// actor -- the wait can take up to 2s and must not block the UI (LLAMABARN-8S).
+  nonisolated private static func terminateAndWait(_ process: Process?) {
+    guard let process, process.isRunning else { return }
 
-      DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
-        if process.isRunning {
-          kill(process.processIdentifier, SIGKILL)
-        }
+    process.terminate()
+
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
+      if process.isRunning {
+        kill(process.processIdentifier, SIGKILL)
       }
-
-      process.waitUntilExit()
     }
 
-    activeProcess = nil
+    process.waitUntilExit()
   }
 
   // MARK: - State Helper Methods
