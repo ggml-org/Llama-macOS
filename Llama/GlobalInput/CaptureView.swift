@@ -35,8 +35,10 @@ struct CaptureView: View {
 
   private static let fieldHeight: CGFloat = 64
   private static let footerHeight: CGFloat = 34
-  private static let filterHeight: CGFloat = 42
   private static let rowHeight: CGFloat = 34
+  private static let filterHeight = rowHeight  // filter field matches a model row
+  private static let rowSpacing: CGFloat = 1   // gap between rows in the list
+  private static let selectorPadding: CGFloat = 8
   private static let maxRows = 6        // list scrolls beyond this
   private static let cardGap: CGFloat = 8  // transparent gap between the two cards
 
@@ -70,8 +72,11 @@ struct CaptureView: View {
       // model chip. Stays put when the selector opens below it.
       VStack(spacing: 0) {
         HStack(spacing: 12) {
-          Image(systemName: "sparkle")
-            .font(.system(size: 18))
+          Image("MenuIcon")
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 20, height: 20)
             .foregroundStyle(.secondary)
           TextField("Ask Llama\u{2026}", text: $prompt)
             .textFieldStyle(.plain)
@@ -93,10 +98,11 @@ struct CaptureView: View {
 
       // Selector card -- a separate panel below the input, shown while picking.
       if picking {
-        VStack(spacing: 0) {
+        VStack(spacing: Self.selectorPadding) {
           filterField
           modelList
         }
+        .padding(Self.selectorPadding)
         .modifier(CardStyle())
       }
     }
@@ -146,9 +152,6 @@ struct CaptureView: View {
 
   private var filterField: some View {
     HStack(spacing: 10) {
-      Image(systemName: "magnifyingglass")
-        .font(.system(size: 13))
-        .foregroundStyle(.tint)
       TextField("Filter models\u{2026}", text: $filter)
         .textFieldStyle(.plain)
         .font(.system(size: 15))
@@ -156,14 +159,14 @@ struct CaptureView: View {
         .onSubmit { choose(highlight) }
       keycap("esc")
     }
-    .padding(.horizontal, 18)
+    .padding(.horizontal, 8)
     .frame(height: Self.filterHeight)
   }
 
   private var modelList: some View {
     ScrollViewReader { proxy in
       ScrollView {
-        VStack(spacing: 1) {
+        VStack(spacing: Self.rowSpacing) {
           ForEach(Array(filtered.enumerated()), id: \.element.id) { idx, model in
             // No current-model marker here -- it's already shown in the input
             // card's chip above.
@@ -173,12 +176,11 @@ struct CaptureView: View {
                 .lineLimit(1)
               Spacer()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 8)
             .frame(height: Self.rowHeight)
             .background(
               RoundedRectangle(cornerRadius: 7)
                 .fill(idx == highlight ? AnyShapeStyle(.tint.opacity(0.16)) : AnyShapeStyle(.clear))
-                .padding(.horizontal, 6)
             )
             .contentShape(Rectangle())
             .onTapGesture { choose(idx) }
@@ -191,10 +193,11 @@ struct CaptureView: View {
               .frame(height: Self.rowHeight)
           }
         }
-        .padding(.bottom, 4)
       }
       .frame(height: listHeight)
-      .onChange(of: highlight) { proxy.scrollTo(highlight, anchor: .center) }
+      // nil anchor scrolls only when the row is off-screen (just enough to reveal
+      // it), instead of re-centering on every move.
+      .onChange(of: highlight) { proxy.scrollTo(highlight, anchor: nil) }
     }
   }
 
@@ -217,16 +220,20 @@ struct CaptureView: View {
 
   // MARK: - Layout
 
+  /// Height of the scroll region itself -- an exact number of rows, no half-row
+  /// peeking.
   private var listHeight: CGFloat {
     let rows = max(1, min(filtered.count, Self.maxRows))
-    return CGFloat(rows) * Self.rowHeight + 4
+    return CGFloat(rows) * Self.rowHeight + CGFloat(rows - 1) * Self.rowSpacing
   }
 
   private func reportHeight() {
     // The input card is immutable: field + chip whenever models are installed.
     let inputCard = Self.fieldHeight + (models.isEmpty ? 0 : Self.footerHeight)
     if picking {
-      onHeightChange(inputCard + Self.cardGap + Self.filterHeight + listHeight)
+      let selectorCard =
+        Self.filterHeight + listHeight + 3 * Self.selectorPadding
+      onHeightChange(inputCard + Self.cardGap + selectorCard)
     } else {
       onHeightChange(inputCard)
     }
