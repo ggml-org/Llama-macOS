@@ -114,10 +114,6 @@ struct CaptureView: View {
       if picking {
         VStack(spacing: Self.selectorPadding) {
           filterField
-          // Inset to line up with the row/filter content, which sits behind an
-          // extra 8pt of horizontal padding inside each item.
-          Divider()
-            .padding(.horizontal, 8)
           modelList
         }
         .padding(Self.selectorPadding)
