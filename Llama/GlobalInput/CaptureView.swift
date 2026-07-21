@@ -47,6 +47,7 @@ struct CaptureView: View {
   private static let footerHeight: CGFloat = 34
   private static let rowHeight: CGFloat = 34
   private static let filterHeight = rowHeight  // filter field matches a model row
+  private static let dividerHeight: CGFloat = 1  // hairline between filter and list
   private static let rowSpacing: CGFloat = 1   // gap between rows in the list
   private static let selectorPadding: CGFloat = 8
   private static let maxRows = 6        // list scrolls beyond this
@@ -110,6 +111,10 @@ struct CaptureView: View {
       if picking {
         VStack(spacing: Self.selectorPadding) {
           filterField
+          // Inset to line up with the row/filter content, which sits behind an
+          // extra 8pt of horizontal padding inside each item.
+          Divider()
+            .padding(.horizontal, 8)
           modelList
         }
         .padding(Self.selectorPadding)
@@ -162,7 +167,7 @@ struct CaptureView: View {
   private var filterField: some View {
     HStack(spacing: 10) {
       TextField("Filter models\u{2026}", text: $filter)
-        .textFieldStyle(.plain)
+        .textFieldStyle(.plain)  
         .font(.system(size: 15))
         .focused($focus, equals: .filter)
         .onSubmit { choose(highlight) }
@@ -267,8 +272,11 @@ struct CaptureView: View {
     // The input card is immutable: field + chip whenever models are installed.
     let inputCard = Self.fieldHeight + (models.isEmpty ? 0 : Self.footerHeight)
     if picking {
+      // filter + divider + list, three inter-item gaps plus the outer padding
+      // (4 * selectorPadding: one gap on each side of the divider, plus top and
+      // bottom padding).
       let selectorCard =
-        Self.filterHeight + listHeight + 3 * Self.selectorPadding
+        Self.filterHeight + Self.dividerHeight + listHeight + 4 * Self.selectorPadding
       onHeightChange(inputCard + Self.cardGap + selectorCard)
     } else {
       onHeightChange(inputCard)
