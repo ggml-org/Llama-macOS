@@ -117,6 +117,6 @@ final class DeeplinkHandler {
     alert.messageText = title
     if let body { alert.informativeText = body }
     alert.addButton(withTitle: "OK")
-    alert.runModal()
+    ModalPresentation.run { alert.runModal() }
   }
 }

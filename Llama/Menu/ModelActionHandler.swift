@@ -63,7 +63,7 @@ final class ModelActionHandler {
         alert.informativeText = recoverySuggestion
       }
       alert.addButton(withTitle: "OK")
-      alert.runModal()
+      ModalPresentation.run { alert.runModal() }
     }
   }
 }

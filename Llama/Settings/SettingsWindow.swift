@@ -533,7 +533,7 @@ struct SettingsView: View {
     // Start in the current cache directory
     panel.directoryURL = hfCacheDir
 
-    if panel.runModal() == .OK, let url = panel.url {
+    if ModalPresentation.run({ panel.runModal() }) == .OK, let url = panel.url {
       UserSettings.hfCacheDirectory = url
       // Re-read for the canonical representation (the panel's URL may
       // differ in trailing slash / symlink resolution)

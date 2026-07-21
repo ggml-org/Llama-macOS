@@ -412,7 +412,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     alert.messageText = "Download Failed"
     alert.informativeText = "Could not download \(model.displayName).\n\n\(error)"
     alert.addButton(withTitle: "OK")
-    alert.runModal()
+    ModalPresentation.run { alert.runModal() }
   }
 
   private func refresh() {
