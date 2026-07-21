@@ -38,8 +38,20 @@ final class GlobalInputController {
   private func present() {
     // Rebuild content each time so the model chip reflects the current installed
     // set and resolved default (both can change between invocations).
-    let models = ModelManager.shared.downloadedModels.map {
-      CaptureModel(id: $0.id, name: $0.displayName)
+    // Pretty names, same parsed rendering as the menu's rows; tags shown only
+    // when two rows would otherwise render identically (same rule as the menu).
+    let downloaded = ModelManager.shared.downloadedModels
+    var keyCounts = [String: Int]()
+    for model in downloaded {
+      keyCounts[ModelIdParser.displayKey(model.id), default: 0] += 1
+    }
+    let models = downloaded.map { model -> CaptureModel in
+      let parsed = ModelIdParser.parse(model.id)
+      var name = (parsed.displayOrg.map { $0 + "/" } ?? "") + parsed.name
+      if keyCounts[ModelIdParser.displayKey(model.id), default: 0] > 1, !parsed.tags.isEmpty {
+        name += " " + parsed.tags.joined(separator: " ")
+      }
+      return CaptureModel(id: model.id, name: name, params: parsed.params, quant: parsed.quant)
     }
     let defaultId = resolveModelId()
     let startIndex = models.firstIndex { $0.id == defaultId } ?? 0

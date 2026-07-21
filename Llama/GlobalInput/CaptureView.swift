@@ -1,9 +1,19 @@
 import SwiftUI
 
-/// A model the capture panel can target, in display order.
+/// A model the capture panel can target, in display order. Carries the parsed
+/// display pieces (`ModelIdParser`) separately so params and quant can render
+/// as chips, like the menu's rows.
 struct CaptureModel: Identifiable, Equatable {
   let id: String        // server model id, passed to the WebUI as `?model=`
-  let name: String      // human-readable label for the chip / list
+  let name: String      // short display name (org prefix + parsed name [+ tags])
+  let params: String?   // parameter-count chip, e.g. "4B"
+  let quant: String?    // quant chip, e.g. "Q4_K_M"
+
+  /// What the picker's filter matches: everything the row visibly shows,
+  /// chips included, so typing "q4" still narrows the list.
+  var filterText: String {
+    [name, params, quant].compactMap { $0 }.joined(separator: " ")
+  }
 }
 
 /// The Spotlight-style capture field shown inside the floating panel.
@@ -63,7 +73,7 @@ struct CaptureView: View {
   /// Models matching the current filter, in display order.
   private var filtered: [CaptureModel] {
     guard !filter.isEmpty else { return models }
-    return models.filter { $0.name.localizedCaseInsensitiveContains(filter) }
+    return models.filter { $0.filterText.localizedCaseInsensitiveContains(filter) }
   }
 
   var body: some View {
@@ -137,8 +147,7 @@ struct CaptureView: View {
 
   private func footerChip(_ model: CaptureModel) -> some View {
     HStack(spacing: 8) {
-      Text(model.name)
-        .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+      modelLabel(model, font: .system(size: 12.5, weight: .medium, design: .monospaced))
       Spacer()
       Text("switch model")
         .font(.system(size: 11))
@@ -171,9 +180,7 @@ struct CaptureView: View {
             // No current-model marker here -- it's already shown in the input
             // card's chip above.
             HStack(spacing: 8) {
-              Text(model.name)
-                .font(.system(size: 13, design: .monospaced))
-                .lineLimit(1)
+              modelLabel(model, font: .system(size: 13, design: .monospaced))
               Spacer()
             }
             .padding(.horizontal, 8)
@@ -199,6 +206,35 @@ struct CaptureView: View {
       // it), instead of re-centering on every move.
       .onChange(of: highlight) { proxy.scrollTo(highlight, anchor: nil) }
     }
+  }
+
+  /// Name plus metadata chips, mirroring the menu's row rendering: outlined
+  /// squared box for params, filled pill for quant (see `Format.ChipStyle`).
+  /// Only the name takes the caller's font -- chips are fixed-size metadata
+  /// the eye can skip.
+  private func modelLabel(_ model: CaptureModel, font: Font) -> some View {
+    HStack(spacing: 6) {
+      Text(model.name)
+        .font(font)
+        .lineLimit(1)
+      if let params = model.params { chip(params, filled: false) }
+      if let quant = model.quant { chip(quant, filled: true) }
+    }
+  }
+
+  private func chip(_ text: String, filled: Bool) -> some View {
+    Text(text)
+      .font(.system(size: 9, weight: .medium))
+      .foregroundStyle(.secondary)
+      .padding(.horizontal, 5)
+      .frame(height: 14)
+      .background {
+        if filled {
+          Capsule().fill(.quaternary)
+        } else {
+          RoundedRectangle(cornerRadius: 4).strokeBorder(.quaternary)
+        }
+      }
   }
 
   private func keycap(_ label: String) -> some View {
