@@ -95,7 +95,10 @@ struct CaptureView: View {
             .focused($focus, equals: .prompt)
             .onSubmit(submitPrompt)
         }
-        .padding(.horizontal, 20)
+        // Leading 16 lines the icon column up with the model-content column
+        // (footer chip + selector rows both inset 16); trailing keeps 20.
+        .padding(.leading, 16)
+        .padding(.trailing, 20)
         .frame(height: Self.fieldHeight)
 
         // The chip stays put whether or not the menu is open -- the input card's
