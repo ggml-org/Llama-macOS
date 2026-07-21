@@ -25,6 +25,12 @@ final class GlobalInputController {
     }
   }
 
+  /// Show the panel, unconditionally. Used by the DEBUG auto-open to bring up
+  /// the capture panel on launch (see LlamaApp).
+  func show() {
+    present()
+  }
+
   /// Show the panel if hidden, hide it if already visible (pressing the hotkey
   /// again is a natural dismiss).
   private func toggle() {

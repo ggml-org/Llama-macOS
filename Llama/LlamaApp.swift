@@ -184,9 +184,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     #if DEBUG
-      // Auto-open menu in debug builds to save a click
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-        self?.menuController?.openMenu()
+      // Auto-open a UI in debug builds to save a click. Prefer the global-input
+      // capture panel when it's enabled (so panel edits show up immediately on
+      // build); otherwise fall back to the menu.
+      if let globalInput = globalInputController {
+        // The panel snapshots the installed models when shown, so hold off until
+        // the initial scan has populated the list -- opening before then shows an
+        // empty panel. Open now if the list is already ready, otherwise on the
+        // first list-change notification (a one-shot observer).
+        let openPanel = { globalInput.show() }
+        if !ModelManager.shared.downloadedModels.isEmpty {
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: openPanel)
+        } else {
+          var token: NSObjectProtocol?
+          token = NotificationCenter.default.addObserver(
+            forName: .LBModelDownloadedListDidChange, object: nil, queue: .main
+          ) { _ in
+            if let token { NotificationCenter.default.removeObserver(token) }
+            openPanel()
+          }
+        }
+      } else {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+          self?.menuController?.openMenu()
+        }
       }
     #endif
 
