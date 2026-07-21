@@ -187,8 +187,9 @@ final class GlobalInputController {
     }
     // 3. No history and nothing loaded (fresh install / cleared prefs): fall
     //    back to the smallest installed model -- fastest to load and respond,
-    //    the safest default for a quick capture. `first` is a defensive
-    //    fallback; `installed` is non-empty here.
-    return installed.min(by: { $0.fileSize < $1.fileSize })?.id ?? installed[0].id
+    //    the safest default for a quick capture. The `?? ""` only bites when no
+    //    models are installed at all; the empty id simply matches no row, so the
+    //    panel opens on its first entry.
+    return installed.min(by: { $0.fileSize < $1.fileSize })?.id ?? ""
   }
 }
