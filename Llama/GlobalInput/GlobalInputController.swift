@@ -51,7 +51,7 @@ final class GlobalInputController {
     for model in downloaded {
       keyCounts[ModelIdParser.displayKey(model.id), default: 0] += 1
     }
-    let models = downloaded.map { model -> CaptureModel in
+    var models = downloaded.map { model -> CaptureModel in
       let parsed = ModelIdParser.parse(model.id)
       var name = (parsed.displayOrg.map { $0 + "/" } ?? "") + parsed.name
       if keyCounts[ModelIdParser.displayKey(model.id), default: 0] > 1, !parsed.tags.isEmpty {
@@ -60,6 +60,16 @@ final class GlobalInputController {
       return CaptureModel(id: model.id, name: name, params: parsed.params, quant: parsed.quant)
     }
     let defaultId = resolveModelId()
+    // Order the selector most-recently-used first, so the model you'll most
+    // likely pick (typically the current one) sits under the cursor when the
+    // selector opens. Ties -- including every never-run model, which all read 0
+    // -- keep their installed order via the enumerated offset, since Swift's
+    // `sort` isn't stable.
+    models = models.enumerated().sorted { a, b in
+      let da = UserSettings.modelLastUsed(for: a.element.id)
+      let db = UserSettings.modelLastUsed(for: b.element.id)
+      return da == db ? a.offset < b.offset : da > db
+    }.map(\.element)
     let startIndex = models.firstIndex { $0.id == defaultId } ?? 0
 
     let panel = panel ?? makePanel()
@@ -152,6 +162,13 @@ final class GlobalInputController {
       NotificationCenter.default.post(name: .LBOpenMenu, object: nil)
       return
     }
+
+    // Launching a prompt at a model is a deliberate use -- record it as
+    // last-used (which also stamps the recency timestamp that orders the
+    // selector), just like loading a model from the menu does. Without this,
+    // capturing to a model never updates recency, since the panel dispatches to
+    // the WebUI by URL rather than going through LlamaServer.loadModel.
+    UserSettings.lastUsedModelId = model.id
 
     let host = LlamaServer.resolvedHost
     var components = URLComponents()

@@ -37,7 +37,7 @@ enum UserSettings {
     static let extraServerArgs = "extraServerArgs"
     static let hfCacheDirectory = "hfCacheDirectory"
     static let hfToken = "hfToken"
-    static let lastUsedModelId = "lastUsedModelId"
+    static let modelLastUsedDates = "modelLastUsedDates"
     static let globalInputEnabled = "globalInputEnabled"
   }
 
@@ -53,18 +53,40 @@ enum UserSettings {
     }
   }
 
-  /// The `id` of the last model the user deliberately ran. Persisted so the
-  /// global-input capture panel has a sticky target even when nothing is loaded
-  /// (e.g. right after launch). `nil` until the first model is loaded, or if the
-  /// remembered model has since been deleted (callers must re-validate against
-  /// the installed set).
-  static var lastUsedModelId: String? {
+  /// Per-model last-use timestamps (seconds since the reference date), keyed by
+  /// model id. The single source of truth for recency: the sticky default is
+  /// the newest entry, and the capture selector sorts by these values. Grows by
+  /// one entry per model ever run; stale entries for deleted models are inert
+  /// (callers re-validate ids against the installed set).
+  private static var modelLastUsedDates: [String: Double] {
     get {
-      defaults.string(forKey: Keys.lastUsedModelId)
+      defaults.dictionary(forKey: Keys.modelLastUsedDates) as? [String: Double] ?? [:]
     }
     set {
-      defaults.set(newValue, forKey: Keys.lastUsedModelId)
+      defaults.set(newValue, forKey: Keys.modelLastUsedDates)
     }
+  }
+
+  /// The `id` of the last model the user deliberately ran (the newest entry in
+  /// `modelLastUsedDates`), so the global-input capture panel has a sticky
+  /// target even when nothing is loaded (e.g. right after launch). `nil` until
+  /// the first model is run. Setting it stamps that model's use as "now";
+  /// setting `nil` is a no-op.
+  static var lastUsedModelId: String? {
+    get {
+      modelLastUsedDates.max { $0.value < $1.value }?.key
+    }
+    set {
+      guard let id = newValue else { return }
+      modelLastUsedDates[id] = Date().timeIntervalSinceReferenceDate
+    }
+  }
+
+  /// When the given model was last deliberately run, as seconds since the
+  /// reference date; `0` for a model that's never been run. Used to sort the
+  /// capture selector by recency.
+  static func modelLastUsed(for id: String) -> Double {
+    modelLastUsedDates[id] ?? 0
   }
 
   /// Whether the global-input capture panel (⌥Space) is enabled. Off unless
