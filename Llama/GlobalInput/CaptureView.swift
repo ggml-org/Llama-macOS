@@ -162,12 +162,15 @@ struct CaptureView: View {
     }
     .padding(.horizontal, 16)
     .frame(height: Self.footerHeight)
+    // Clicking the chip opens the model selector, same as ⌘K.
+    .contentShape(Rectangle())
+    .onTapGesture(perform: openPicker)
   }
 
   private var filterField: some View {
     HStack(spacing: 10) {
       TextField("Filter models\u{2026}", text: $filter)
-        .textFieldStyle(.plain)  
+        .textFieldStyle(.plain)
         .font(.system(size: 15))
         .focused($focus, equals: .filter)
         .onSubmit { choose(highlight) }
