@@ -13,9 +13,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private unowned let modelManager: ModelManager
   private let actionHandler: ModelActionHandler
 
-  // Internal state for expansion
-  private let isExpanded: Bool
-  private let onExpand: (() -> Void)?
+  private let onOpen: (() -> Void)?
 
   /// Whether the title shows the id's leftover tags ("it", "qat", ...).
   /// Set by the menu builder only when another installed row would otherwise
@@ -63,15 +61,14 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   init(
     model: Model, server: LlamaServer, modelManager: ModelManager,
     actionHandler: ModelActionHandler,
-    isExpanded: Bool = false, onExpand: (() -> Void)? = nil,
+    onOpen: (() -> Void)? = nil,
     showTags: Bool = false
   ) {
     self.model = model
     self.server = server
     self.modelManager = modelManager
     self.actionHandler = actionHandler
-    self.isExpanded = isExpanded
-    self.onExpand = onExpand
+    self.onOpen = onOpen
     self.showTags = showTags
     super.init(frame: .zero)
 
@@ -199,7 +196,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
 
     if isInstalled {
-      onExpand?()
+      onOpen?()
     } else {
       actionHandler.performPrimaryAction(for: model)
       refresh()

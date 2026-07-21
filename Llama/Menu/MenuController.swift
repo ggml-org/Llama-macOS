@@ -11,7 +11,9 @@ final class MenuController: NSObject, NSMenuDelegate {
   private var actionHandler: ModelActionHandler!
 
   // Section State
-  private var expandedModelIds: Set<String> = []
+  /// The installed model whose detail page is currently replacing the list.
+  /// Reset when the menu closes, so every fresh open starts at the model list.
+  private var selectedModelId: String?
 
   /// Whether the Installed list is showing all rows vs. the collapsed first few.
   /// Reset on menu close so each open starts collapsed.
@@ -231,8 +233,8 @@ final class MenuController: NSObject, NSMenuDelegate {
     guard menu === statusItem.menu else { return }
     isMenuOpen = false
 
-    // Reset section collapse state
-    expandedModelIds.removeAll()
+    // Reset navigation and section collapse state
+    selectedModelId = nil
     isInstalledListExpanded = false
   }
 
@@ -265,6 +267,20 @@ final class MenuController: NSObject, NSMenuDelegate {
     // filter, the empty-state decision, and the membership snapshot below.
     let managed = modelManager.managedModels
     let suggestions = visibleDiscoverSuggestions(managed: managed)
+
+    // A selected model replaces the list body, like navigating to a page inside
+    // the menu. If it disappeared while this page was open (for example after
+    // deletion), fall through to the list instead.
+    if let selectedModelId,
+      let model = managed.first(where: { $0.id == selectedModelId })
+    {
+      addModelPage(to: menu, model: model, models: managed)
+      addFooter(to: menu)
+      renderedManagedIds = Set(managed.map(\.id))
+      return
+    } else {
+      selectedModelId = nil
+    }
 
     // Always render the Installed section — with rows, or the empty placeholder
     // slot when nothing's installed — so it anchors the menu instead of vanishing
@@ -524,31 +540,44 @@ final class MenuController: NSObject, NSMenuDelegate {
     var items = [NSMenuItem]()
 
     for model in models {
-      let isExpanded = expandedModelIds.contains(model.id)
-
       let view = ModelItemView(
         model: model,
         server: server,
         modelManager: modelManager,
         actionHandler: actionHandler,
-        isExpanded: isExpanded,
-        onExpand: { [weak self] in
-          self?.toggleExpansion(for: model.id)
+        onOpen: { [weak self] in
+          self?.openModelPage(model.id)
         },
         showTags: collidingKeys.contains(ModelIdParser.displayKey(model.id))
       )
       items.append(NSMenuItem.viewItem(with: view))
-
-      if isExpanded {
-        // Single container for all expanded details
-        let detailsView = ExpandedModelDetailsView(
-          model: model,
-          server: server
-        )
-        items.append(NSMenuItem.viewItem(with: detailsView))
-      }
     }
     return items
+  }
+
+  /// Replaces the list body with one model's page. The summary row keeps the
+  /// familiar identity and hover actions; settings below it have the full page
+  /// width instead of reading as an inline drawer.
+  private func addModelPage(to menu: NSMenu, model: Model, models: [Model]) {
+    let back = TextItemView(text: "All models", style: .back) { [weak self] in
+      self?.selectedModelId = nil
+      self?.rebuildMenuIfPossible()
+    }
+    menu.addItem(NSMenuItem.viewItem(with: back, minHeight: 28))
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
+
+    let displayKey = ModelIdParser.displayKey(model.id)
+    let showTags = models.filter { ModelIdParser.displayKey($0.id) == displayKey }.count > 1
+    let summary = ModelItemView(
+      model: model,
+      server: server,
+      modelManager: modelManager,
+      actionHandler: actionHandler,
+      showTags: showTags
+    )
+    menu.addItem(NSMenuItem.viewItem(with: summary))
+    menu.addItem(NSMenuItem.viewItem(with: ExpandedModelDetailsView(
+      model: model, server: server, indented: false)))
   }
 
   // MARK: - Discover Section
@@ -597,12 +626,8 @@ final class MenuController: NSObject, NSMenuDelegate {
     DeeplinkHandler.shared.install(repo: suggestion.repo, quant: suggestion.quant, announce: false)
   }
 
-  private func toggleExpansion(for modelId: String) {
-    if expandedModelIds.contains(modelId) {
-      expandedModelIds.remove(modelId)
-    } else {
-      expandedModelIds.insert(modelId)
-    }
+  private func openModelPage(_ modelId: String) {
+    selectedModelId = modelId
     rebuildMenuIfPossible()
   }
 

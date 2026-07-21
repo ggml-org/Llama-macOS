@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 
-/// Container view for expanded model details.
+/// Container view for model details.
 /// Shows a compact row of context tier pills. Selecting a tier updates user
 /// preferences and reloads the server if running.
 final class ExpandedModelDetailsView: ItemView {
@@ -25,12 +25,13 @@ final class ExpandedModelDetailsView: ItemView {
 
   init(
     model: Model,
-    server: LlamaServer
+    server: LlamaServer,
+    indented: Bool = true
   ) {
     self.model = model
     self.server = server
     super.init(frame: .zero)
-    setupLayout()
+    setupLayout(indented: indented)
   }
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -38,7 +39,7 @@ final class ExpandedModelDetailsView: ItemView {
   // Disable hover highlight since this is an info container
   override var highlightEnabled: Bool { false }
 
-  private func setupLayout() {
+  private func setupLayout(indented: Bool) {
     // Main vertical stack for indented rows
     let mainStack = NSStackView()
     mainStack.orientation = .vertical
@@ -117,18 +118,21 @@ final class ExpandedModelDetailsView: ItemView {
       mainStack.addArrangedSubview(picker)
     }
 
-    // Add indent wrapper to align with model text
-    let indent = NSView()
-    indent.translatesAutoresizingMaskIntoConstraints = false
-    indent.widthAnchor.constraint(equalToConstant: Layout.expandedIndent).isActive = true
+    if indented {
+      let indent = NSView()
+      indent.translatesAutoresizingMaskIntoConstraints = false
+      indent.widthAnchor.constraint(equalToConstant: Layout.expandedIndent).isActive = true
 
-    let indentedRow = NSStackView(views: [indent, mainStack])
-    indentedRow.orientation = .horizontal
-    indentedRow.alignment = .top
-    indentedRow.spacing = 0
-
-    contentView.addSubview(indentedRow)
-    indentedRow.pinToSuperview(top: 2, leading: 0, trailing: 0, bottom: 2)
+      let indentedRow = NSStackView(views: [indent, mainStack])
+      indentedRow.orientation = .horizontal
+      indentedRow.alignment = .top
+      indentedRow.spacing = 0
+      contentView.addSubview(indentedRow)
+      indentedRow.pinToSuperview(top: 2, leading: 0, trailing: 0, bottom: 2)
+    } else {
+      contentView.addSubview(mainStack)
+      mainStack.pinToSuperview(top: 4, leading: 0, trailing: 0, bottom: 6)
+    }
 
     // Pin to the standard menu width so a long label (e.g. the "Could not estimate
     // memory" fallback) can't widen the whole menu beyond what model rows use.
