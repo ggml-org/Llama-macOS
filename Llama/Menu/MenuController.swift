@@ -424,6 +424,8 @@ final class MenuController: NSObject, NSMenuDelegate {
         view.refresh()
       } else if let view = item.view as? ModelItemView {
         view.refresh()
+      } else if let view = item.view as? ModelPageHeaderView {
+        view.refresh()
       }
     }
   }
@@ -555,9 +557,8 @@ final class MenuController: NSObject, NSMenuDelegate {
     return items
   }
 
-  /// Replaces the list body with one model's page. The summary row keeps the
-  /// familiar identity and hover actions; settings below it have the full page
-  /// width instead of reading as an inline drawer.
+  /// Replaces the list body with one model's page. A static header establishes
+  /// identity and exposes page-level actions; settings below use the full width.
   private func addModelPage(to menu: NSMenu, model: Model, models: [Model]) {
     let back = TextItemView(text: "All models", style: .back) { [weak self] in
       self?.selectedModelId = nil
@@ -568,14 +569,13 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     let displayKey = ModelIdParser.displayKey(model.id)
     let showTags = models.filter { ModelIdParser.displayKey($0.id) == displayKey }.count > 1
-    let summary = ModelItemView(
+    let header = ModelPageHeaderView(
       model: model,
       server: server,
-      modelManager: modelManager,
       actionHandler: actionHandler,
       showTags: showTags
     )
-    menu.addItem(NSMenuItem.viewItem(with: summary))
+    menu.addItem(NSMenuItem.viewItem(with: header))
     menu.addItem(NSMenuItem.viewItem(with: ExpandedModelDetailsView(
       model: model, server: server, indented: false)))
   }

@@ -399,15 +399,10 @@ class LlamaServer {
     // Chain onto any in-flight pre-flight so their `reclaimPort()` scans run
     // strictly one at a time. `reclaimPort()` SIGKILLs *any* `llama` on the port,
     // so if a superseded (older) scan ran concurrently it could kill the server a
-    // newer pre-flight had just launched. Serializing -- plus the generation
-    // check below, before the scan -- means an outdated pre-flight bails without
-    // ever reclaiming.
+    // newer pre-flight had just launched.
     let prior = startTask
     startTask = Task {
       await prior?.value
-
-      // Already superseded before our turn -- skip the (slow) port work entirely.
-      guard generation == startGeneration else { return }
 
       // Off the main actor: reap the previous process and reclaim the port from
       // any orphaned `llama serve` a prior crashed session left holding it --
