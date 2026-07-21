@@ -80,6 +80,10 @@ class LlamaServer {
   /// pre-flight off the main actor, then compares this token before launching so
   /// a newer `start()`/`stop()` issued meanwhile wins (the older pre-flight bails).
   private var startGeneration = 0
+  /// The most recent `start()` pre-flight. Each new pre-flight chains onto this
+  /// one so their `reclaimPort()` scans never overlap -- otherwise a superseded
+  /// pre-flight's scan could kill the server a newer pre-flight just launched.
+  private var startTask: Task<Void, Never>?
   private var healthCheckTask: Task<Void, Error>?
   private let logger = Logger(subsystem: Logging.subsystem, category: "LlamaServer")
   private let api = LlamaServerAPI()
@@ -392,7 +396,19 @@ class LlamaServer {
     startGeneration += 1
     let generation = startGeneration
 
-    Task {
+    // Chain onto any in-flight pre-flight so their `reclaimPort()` scans run
+    // strictly one at a time. `reclaimPort()` SIGKILLs *any* `llama` on the port,
+    // so if a superseded (older) scan ran concurrently it could kill the server a
+    // newer pre-flight had just launched. Serializing -- plus the generation
+    // check below, before the scan -- means an outdated pre-flight bails without
+    // ever reclaiming.
+    let prior = startTask
+    startTask = Task {
+      await prior?.value
+
+      // Already superseded before our turn -- skip the (slow) port work entirely.
+      guard generation == startGeneration else { return }
+
       // Off the main actor: reap the previous process and reclaim the port from
       // any orphaned `llama serve` a prior crashed session left holding it --
       // otherwise this launch can't bind and would exit. Both can block for
