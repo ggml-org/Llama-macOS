@@ -160,8 +160,7 @@ extension Format {
   }
 
   /// Formats model metadata text.
-  /// Format: "3.1 GB  ∣  4k ctx  ∣  4.2 GB mem" (file size + effective context
-  /// tier + projected memory usage at that tier)
+  /// Format: "3.1 GB  ∣  4k ctx" (file size + effective context tier)
   /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
   /// For sideloaded models awaiting their MemProfile: "3.1 GB  ∣  estimating..."
   static func modelMetadata(
@@ -199,16 +198,9 @@ extension Format {
         result.append(NSAttributedString(string: "4k ctx", attributes: secondaryAttributes))
       } else if let tier = model.effectiveCtxTier {
         // Show only the device-fit tier (e.g. "4k ctx"). The model's native max
-        // is available by expanding the row, so repeating it on every line here
-        // is low-signal noise.
+        // and projected memory usage are available on the model page, so the
+        // collapsed row stays focused on the current choice.
         result.append(NSAttributedString(string: tier.label, attributes: secondaryAttributes))
-
-        // Projected memory usage at the selected tier (e.g. "3.3 GB mem") --
-        // distinguishes runtime footprint from the on-disk size at the front.
-        let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
-        result.append(NSAttributedString(string: "  ∣  ", attributes: secondaryAttributes))
-        result.append(NSAttributedString(string: memory(mb: ramMb), attributes: secondaryAttributes))
-        result.append(NSAttributedString(string: " mem", attributes: secondaryAttributes))
       }
     }
 

@@ -18,6 +18,10 @@ final class ExpandedModelDetailsView: ItemView {
   // Hairline dividers between adjacent pills; divider[i] sits between
   // segments i and i+1. Hidden when adjacent to the selected pill.
   private var dividers: [NSView] = []
+  // The projected runtime footprint for the selected tier. It lives beside the
+  // context heading because memory is useful while choosing a tier, but too
+  // detailed for every collapsed model row.
+  private let memoryLabel = Theme.secondaryLabel()
   // Index of the currently selected tier in `tiers`.
   private var selectedIdx = 0
   // The pill row container -- outlined to give the picker a defined shape.
@@ -62,11 +66,9 @@ final class ExpandedModelDetailsView: ItemView {
       failedLabel.lineBreakMode = .byTruncatingTail
       mainStack.addArrangedSubview(failedLabel)
     } else {
-      // A "Context length" header with the tier pills below. The memory usage
-      // for the selected tier lives on the model row's metadata line ("3.3 GB
-      // mem"), which refreshes via LBUserSettingsDidChange when a tier is
-      // picked -- so the expanded details stay two compact lines. Pills are
-      // custom-drawn instead of NSSegmentedControl: lighter visually, and
+      // A "Context length" header with the selected tier's projected memory
+      // usage beside it, then the tier pills below. Pills are custom-drawn
+      // instead of NSSegmentedControl: lighter visually, and
       // immune to the inactive-window graying AppKit applies to standard
       // controls when the app isn't frontmost (menu bar apps usually aren't,
       // so the segmented control's thumb rendered gray instead of
@@ -114,7 +116,14 @@ final class ExpandedModelDetailsView: ItemView {
 
       let header = Theme.secondaryLabel("Context length")
       header.textColor = Theme.Colors.modelIconTint
-      mainStack.addArrangedSubview(header)
+      memoryLabel.textColor = Theme.Colors.textSecondary
+      updateMemoryLabel()
+
+      let headerRow = NSStackView(views: [header, memoryLabel])
+      headerRow.orientation = .horizontal
+      headerRow.alignment = .firstBaseline
+      headerRow.spacing = 4
+      mainStack.addArrangedSubview(headerRow)
       mainStack.addArrangedSubview(picker)
     }
 
@@ -203,6 +212,18 @@ final class ExpandedModelDetailsView: ItemView {
     }
   }
 
+  /// Keeps the projected footprint synchronized with the tier selected in the
+  /// picker. The estimate includes model weights and context memory.
+  private func updateMemoryLabel() {
+    guard tiers.indices.contains(selectedIdx) else {
+      memoryLabel.stringValue = ""
+      return
+    }
+    let tier = tiers[selectedIdx]
+    let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
+    memoryLabel.stringValue = "· \(Format.memory(mb: ramMb)) memory"
+  }
+
   // Layer colors are resolved CGColors, so re-resolve them when the system
   // appearance flips between light and dark.
   override func viewDidChangeEffectiveAppearance() {
@@ -221,10 +242,10 @@ final class ExpandedModelDetailsView: ItemView {
     // Ignore clicks on tiers this device can't run.
     guard enabledTiers.contains(tier) else { return }
 
-    // Reflect the new selection in the picker right away. (The model row's
-    // "N GB mem" metadata refreshes via the settings-change notification.)
+    // Reflect the new selection and its projected footprint right away.
     selectedIdx = idx
     restyleSegments()
+    updateMemoryLabel()
 
     // Skip the rest if this is already the active tier.
     guard tier != model.effectiveCtxTier else { return }
