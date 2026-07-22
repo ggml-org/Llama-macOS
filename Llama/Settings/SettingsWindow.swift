@@ -215,7 +215,7 @@ struct SettingsView: View {
       Section {
         SettingRow(
           title: "Agent mode",
-          description: "Lets models use tools that act on this Mac. Trusted use only."
+          description: "Lets models read and edit files and run commands on this Mac. Use with caution."
         ) {
           // The setting is written inside the binding (not `.onChange`) so the
           // defaults value is current before SwiftUI recomputes the body --
