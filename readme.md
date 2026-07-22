@@ -71,3 +71,12 @@ defaults write app.llama.Llama exposeToNetwork -string "100.x.x.x"
 defaults delete app.llama.Llama exposeToNetwork
 ```
 
+**Custom server arguments** — Extra CLI arguments appended to the `llama serve` command, for server flags the app doesn't expose (e.g. `--api-key`). They come after the app's own flags, so where the server honors the later occurrence they can override the app's settings. Takes effect on the next server start.
+
+```sh
+# append custom arguments to the server command
+defaults write app.llama.Llama extraServerArgs -string "--api-key secret"
+
+# remove (default)
+defaults delete app.llama.Llama extraServerArgs
+```
