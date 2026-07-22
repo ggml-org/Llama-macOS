@@ -196,13 +196,18 @@ struct SettingsView: View {
           title: "Unload when idle",
           description: "Auto-unloads model when not in use."
         ) {
+          // The setting is written inside the binding (not `.onChange`) so the
+          // defaults value is current before SwiftUI recomputes the body --
+          // otherwise the server-command preview renders one change behind.
           PillPicker(
             options: UserSettings.SleepIdleTime.allCases.map { ($0, $0.displayName) },
-            selection: $sleepIdleTime
+            selection: Binding(
+              get: { sleepIdleTime },
+              set: { newValue in
+                UserSettings.sleepIdleTime = newValue
+                sleepIdleTime = newValue
+              })
           )
-          .onChange(of: sleepIdleTime) { _, newValue in
-            UserSettings.sleepIdleTime = newValue
-          }
         }
       }
 
