@@ -303,6 +303,13 @@ class LlamaServer {
     // Bare toggles (no value) last, so they don't split the value flags above.
     arguments.append(contentsOf: ["--jinja", "--spec-default"])
 
+    // Agent mode: enables the server's built-in tools and the UI's CORS/MCP
+    // proxy. Opt-in via Settings; off by default because it lets models act
+    // on the local machine.
+    if UserSettings.agentMode {
+      arguments.append("--agent")
+    }
+
     // User-supplied extra args (the `extraServerArgs` default) go at the very
     // end, so where llama-server honors the later occurrence they can
     // override the app's own flags. Passed verbatim -- no validation; a bad

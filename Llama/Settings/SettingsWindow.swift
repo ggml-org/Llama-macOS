@@ -117,6 +117,7 @@ private struct RestoreDefaultButton: View {
 struct SettingsView: View {
   @State private var launchAtLogin = LaunchAtLogin.isEnabled
   @State private var sleepIdleTime = UserSettings.sleepIdleTime
+  @State private var agentMode = UserSettings.agentMode
   @State private var hfCacheDir = UserSettings.hfCacheDirectory
   @State private var hfToken = UserSettings.hfToken ?? ""
   @State private var showingHFTokenSheet = false
@@ -202,6 +203,30 @@ struct SettingsView: View {
           .onChange(of: sleepIdleTime) { _, newValue in
             UserSettings.sleepIdleTime = newValue
           }
+        }
+      }
+
+      // Agent mode section
+      Section {
+        SettingRow(
+          title: "Agent mode",
+          description: "Lets models use tools that act on this Mac. Trusted use only."
+        ) {
+          // The setting is written inside the binding (not `.onChange`) so the
+          // defaults value is current before SwiftUI recomputes the body --
+          // otherwise the server-command preview renders one toggle behind.
+          // The setter posts the settings-change notification, which restarts
+          // the server with/without `--agent`.
+          Toggle(
+            "",
+            isOn: Binding(
+              get: { agentMode },
+              set: { newValue in
+                UserSettings.agentMode = newValue
+                agentMode = newValue
+              })
+          )
+          .labelsHidden()
         }
       }
 
@@ -373,7 +398,7 @@ struct SettingsView: View {
   /// changes -- the actual spec is sourced from `LlamaServer` so it stays in
   /// lockstep with what `start()` runs.
   private var serverCommand: String {
-    _ = (serverPort, sleepIdleTime, hfCacheDir)  // establish SwiftUI dependencies
+    _ = (serverPort, sleepIdleTime, hfCacheDir, agentMode)  // establish SwiftUI dependencies
     return LlamaServer.buildLaunchSpec()?.displayCommand ?? "llama not installed"
   }
 

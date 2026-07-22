@@ -35,6 +35,7 @@ enum UserSettings {
     static let sleepIdleTime = "sleepIdleTime"
     static let selectedCtxTiers = "selectedCtxTiers"
     static let extraServerArgs = "extraServerArgs"
+    static let agentMode = "agentMode"
     static let hfCacheDirectory = "hfCacheDirectory"
     static let hfToken = "hfToken"
     static let modelLastUsedDates = "modelLastUsedDates"
@@ -168,6 +169,26 @@ enum UserSettings {
     set {
       guard defaults.integer(forKey: Keys.sleepIdleTime) != newValue.rawValue else { return }
       defaults.set(newValue.rawValue, forKey: Keys.sleepIdleTime)
+      NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+    }
+  }
+
+  // MARK: - Agent Mode
+
+  /// Whether to pass `--agent` to `llama serve`, enabling the server's
+  /// built-in tools (shell, filesystem, ...) and the UI's CORS/MCP proxy.
+  /// This gives models running on the server the ability to act on the local
+  /// machine, so it's strictly opt-in and off by default. The upstream flag's
+  /// own help text warns against enabling it in untrusted environments --
+  /// which notably includes serving on the network (`networkBindAddress`);
+  /// the settings UI surfaces that caveat.
+  static var agentMode: Bool {
+    get {
+      defaults.bool(forKey: Keys.agentMode)
+    }
+    set {
+      guard newValue != agentMode else { return }
+      defaults.set(newValue, forKey: Keys.agentMode)
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
     }
   }
