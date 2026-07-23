@@ -98,8 +98,12 @@ final class ExpandedModelDetailsView: ItemView {
           picker.addArrangedSubview(makeDivider())
         }
         let segment = makeSegment(tier: tier)
-        // Explain why a disabled tier can't be selected (memory constraint).
-        if !enabledTiers.contains(tier) {
+        if enabledTiers.contains(tier) {
+          // Spell out what the two lines mean for anyone the legend doesn't reach.
+          segment.toolTip =
+            "\(tier.shortLabel) context uses \(costLabel(for: tier)) of memory"
+        } else {
+          // Explain why a disabled tier can't be selected (memory constraint).
           segment.toolTip = model.incompatibilitySummary(
             ctxWindowTokens: Double(tier.rawValue))
         }
@@ -107,8 +111,24 @@ final class ExpandedModelDetailsView: ItemView {
       }
       restyleSegments()
 
-      let header = Theme.secondaryLabel("Context length")
-      header.textColor = Theme.Colors.modelIconTint
+      // The header doubles as a legend for each segment's two lines: "Context
+      // length" in the tier labels' tint, "memory use" dimmer like the cost
+      // sublabels, so the word-to-line pairing carries the meaning without a
+      // separate caption.
+      let header = Theme.secondaryLabel()
+      let headerText = NSMutableAttributedString(
+        string: "Context length",
+        attributes: [
+          .font: Theme.Fonts.secondary,
+          .foregroundColor: Theme.Colors.modelIconTint,
+        ])
+      headerText.append(NSAttributedString(
+        string: " · memory use",
+        attributes: [
+          .font: Theme.Fonts.secondary,
+          .foregroundColor: Theme.Colors.textTertiary,
+        ]))
+      header.attributedStringValue = headerText
       mainStack.addArrangedSubview(header)
       mainStack.addArrangedSubview(picker)
       // The picker spans the full content width, with segments sharing it
