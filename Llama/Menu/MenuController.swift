@@ -587,8 +587,10 @@ final class MenuController: NSObject, NSMenuDelegate {
       self?.selectedModelId = nil
       self?.rebuildMenuIfPossible()
     }
+    // No separator below the back link: it and the identity header are both
+    // page chrome, and a divider would cut navigation apart from the page it
+    // belongs to. Whitespace does the grouping.
     menu.addItem(NSMenuItem.viewItem(with: back, minHeight: 28))
-    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
 
     let displayKey = ModelIdParser.displayKey(model.id)
     let showTags = models.filter { ModelIdParser.displayKey($0.id) == displayKey }.count > 1
