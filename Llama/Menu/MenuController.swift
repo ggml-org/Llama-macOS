@@ -583,7 +583,7 @@ final class MenuController: NSObject, NSMenuDelegate {
   /// Replaces the list body with one model's page. A static header establishes
   /// identity and exposes page-level actions; settings below use the full width.
   private func addModelPage(to menu: NSMenu, model: Model, models: [Model]) {
-    let back = TextItemView(text: "All models", style: .back) { [weak self] in
+    let back = TextItemView(text: "Models", style: .back) { [weak self] in
       self?.selectedModelId = nil
       self?.rebuildMenuIfPossible()
     }
