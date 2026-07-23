@@ -268,6 +268,30 @@ final class MenuController: NSObject, NSMenuDelegate {
     let managed = modelManager.managedModels
     let suggestions = visibleDiscoverSuggestions(managed: managed)
 
+    // Rows whose tags-hidden title (org prefix + name + params + quant) collides
+    // with another installed model's get their id's leftover tags shown as a
+    // tiebreaker -- e.g. two "gemma-3 4B Q4_0" installs where one is "it" and
+    // one is "it qat". Counted over the full list, not just visible rows, so
+    // titles don't change when the list collapses/expands.
+    var keyCounts = [String: Int]()
+    for model in managed {
+      keyCounts[ModelIdParser.displayKey(model.id), default: 0] += 1
+    }
+    let collidingKeys = Set(keyCounts.filter { $0.value > 1 }.keys)
+
+    // Size the menu to the installed titles before any views are built (every
+    // row captures Layout.menuWidth at init). Catalog models fit the base width;
+    // org-prefixed ids from power users widen the menu, up to a cap.
+    Layout.fitMenuWidth(
+      toTitles: managed.map { model in
+        Format.modelName(
+          id: model.id,
+          color: Theme.Colors.textPrimary,
+          hasVision: model.hasVisionSupport,
+          showTags: collidingKeys.contains(ModelIdParser.displayKey(model.id))
+        )
+      })
+
     // A selected model replaces the list body, like navigating to a page inside
     // the menu. If it disappeared while this page was open (for example after
     // deletion), fall through to the list instead.
@@ -285,7 +309,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // Always render the Installed section — with rows, or the empty placeholder
     // slot when nothing's installed — so it anchors the menu instead of vanishing
     // and leaving Recommended as a floating first section.
-    addInstalledSection(to: menu, models: managed)
+    addInstalledSection(to: menu, models: managed, collidingKeys: collidingKeys)
     addDiscoverSection(to: menu, suggestions: suggestions)
 
     // The Browse models row lives outside the Recommended section: it's the permanent
@@ -456,7 +480,9 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // MARK: - Installed Section
 
-  private func addInstalledSection(to menu: NSMenu, models: [Model]) {
+  private func addInstalledSection(
+    to menu: NSMenu, models: [Model], collidingKeys: Set<String>
+  ) {
     // Empty: render the header (no /models link — the server isn't running and
     // there's nothing to list) plus a terse placeholder, so the section still
     // anchors the menu. The decision to render at all lives in rebuildMenu.
@@ -489,17 +515,6 @@ final class MenuController: NSObject, NSMenuDelegate {
       visibleModels = Array(models.prefix(Self.installedCollapsedCount))
       visibleModels += models.dropFirst(Self.installedCollapsedCount).filter(isLiveRow)
     }
-
-    // Rows whose tags-hidden title (org prefix + name + params + quant) collides with
-    // another installed model's get their id's leftover tags shown as a
-    // tiebreaker -- e.g. two "gemma-3 4B Q4_0" installs where one is "it" and
-    // one is "it qat". Counted over the full list, not just visible rows, so
-    // titles don't change when the list collapses/expands.
-    var keyCounts = [String: Int]()
-    for model in models {
-      keyCounts[ModelIdParser.displayKey(model.id), default: 0] += 1
-    }
-    let collidingKeys = Set(keyCounts.filter { $0.value > 1 }.keys)
 
     buildInstalledRows(visibleModels, collidingKeys: collidingKeys)
       .forEach { menu.addItem($0) }

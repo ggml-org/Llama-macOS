@@ -2,8 +2,39 @@ import AppKit
 
 /// Shared UI layout constants and helpers for NSMenu custom rows.
 enum Layout {
-  /// Standard menu width for all items.
-  static let menuWidth: CGFloat = 300
+  /// Standard menu width for all items. Normally `baseMenuWidth`; widened (up to
+  /// `maxMenuWidth`) by `fitMenuWidth` when an installed model's title wouldn't
+  /// fit otherwise. Row views capture this at init, so it must be set before a
+  /// menu build creates any views (see `MenuController.rebuildMenu`).
+  static private(set) var menuWidth: CGFloat = baseMenuWidth
+  /// Default menu width — enough for every catalog model (no org prefix).
+  private static let baseMenuWidth: CGFloat = 300
+  /// Hard cap on widening: long org-prefixed ids truncate past this rather than
+  /// stretch the menu indefinitely.
+  private static let maxMenuWidth: CGFloat = 400
+
+  /// Sets `menuWidth` so the widest given row title fits, clamped to
+  /// [`baseMenuWidth`, `maxMenuWidth`]. Called with the installed models'
+  /// rendered titles on every menu rebuild; with none installed (or all short)
+  /// it resets to the base width.
+  static func fitMenuWidth(toTitles titles: [NSAttributedString]) {
+    // Measure through an actual label rather than NSAttributedString.size():
+    // the string measure under-reports what NSTextField needs (cell padding,
+    // attachment layout), so rows sized by it still truncate.
+    let label = Theme.primaryLabel()
+    let maxTitleWidth =
+      titles.map { title -> CGFloat in
+        label.attributedStringValue = title
+        return ceil(label.intrinsicContentSize.width)
+      }.max() ?? 0
+    // Chrome around the title in a model row: outer + inner padding on both
+    // sides, the leading icon and its 6pt spacing to the text, plus the root
+    // stack's two 6pt gaps around the flexible spacer (present even when the
+    // trailing accessories are hidden) — see ModelItemView.setupLayout.
+    let rowChrome =
+      (outerHorizontalPadding + innerHorizontalPadding) * 2 + iconViewSize + 6 + 12
+    menuWidth = min(max(maxTitleWidth + rowChrome, baseMenuWidth), maxMenuWidth)
+  }
   /// Distance from menu edge to background view (used in all menu items).
   static let outerHorizontalPadding: CGFloat = 5
   /// Distance from background edge to content (used in all menu items).
