@@ -73,6 +73,20 @@ class LlamaServer {
     return "localhost"
   }
 
+  /// A ready-to-paste curl request against this server's OpenAI-compatible
+  /// chat endpoint, addressed to the given model. Multi-line so it stays
+  /// readable when pasted into a terminal or script.
+  static func curlCommand(modelId: String) -> String {
+    """
+    curl http://\(resolvedHost):\(port)/v1/chat/completions \\
+      -H "Content-Type: application/json" \\
+      -d '{
+        "model": "\(modelId)",
+        "messages": [{"role": "user", "content": "Hello!"}]
+      }'
+    """
+  }
+
   /// Webui URL with the given model preselected via the `?model=` query param
   /// the webui reads. Uses the resolved host so a custom network bind address
   /// (incl. 0.0.0.0 -> local IP) still works.

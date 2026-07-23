@@ -620,6 +620,14 @@ final class MenuController: NSObject, NSMenuDelegate {
       copyRow?.flashConfirmation()
     }
     menu.addItem(NSMenuItem.viewItem(with: copyRow))
+    // A one-paste proof the API works end to end (server, port, model id) --
+    // the model page is where someone wiring up the API lands first.
+    let curlRow = ActionItemView(title: "Copy curl command", symbol: "terminal") {}
+    curlRow.onAction = { [weak curlRow] in
+      Clipboard.copy(LlamaServer.curlCommand(modelId: model.id))
+      curlRow?.flashConfirmation()
+    }
+    menu.addItem(NSMenuItem.viewItem(with: curlRow))
     if server.isActive(model: model) {
       menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
         title: "Unload", symbol: "eject"
