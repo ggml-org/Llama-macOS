@@ -7,6 +7,11 @@ import Foundation
 /// - Installed: circular icon (inactive) + label
 /// - Loading: circular icon (active, spinner)
 /// - Running: circular icon (active)
+///
+/// Installed rows are pure navigation -- clicking opens the model's page,
+/// which owns all actions (Chat, Copy ID, Unload, Delete). The only in-row
+/// control is the hover-only cancel X on downloading rows, since a download
+/// in flight has no page to host it.
 final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let model: Model
   private unowned let server: LlamaServer
@@ -33,7 +38,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   }()
   private let subtitleLabel: NSTextField = {
     let label = Theme.secondaryLabel()
-    // Single line with ellipsis truncation when hover buttons overlap
+    // Single line with ellipsis truncation when the title column is too narrow
     label.maximumNumberOfLines = 1
     label.lineBreakMode = .byTruncatingTail
     label.cell?.truncatesLastVisibleLine = true
@@ -42,16 +47,9 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     return label
   }()
 
-  // Icon and action buttons
+  // Icon and the downloading rows' hover-only cancel control
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
-  private let unloadButton = NSButton()
-
-  // Hover action buttons (shown on hover for installed models)
-  private let chatButton = NSButton()
-  private let copyIdButton = NSButton()
-  private let deleteButton = NSButton()
-  private let hoverButtonsStack = NSStackView()
 
   /// Whether the row is currently styled as downloading (in flight, paused, or in the
   /// brief post-cancel window). Set by `refresh()`; read back both to detect the
@@ -76,40 +74,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       model.brandLogoAsset.flatMap { NSImage(named: $0) }
       ?? NSImage(systemSymbolName: "cube.fill", accessibilityDescription: "Model")
 
-    // Configure action buttons
     Theme.configure(cancelImageView, symbol: "xmark", tooltip: "Cancel download")
-    Theme.configure(unloadButton, symbol: "eject", tooltip: "Unload model")
-
-    unloadButton.target = self
-    unloadButton.action = #selector(didClickUnload)
-
-    // Configure hover action buttons
-    Theme.configure(chatButton, symbol: "bubble.left", tooltip: "Chat with this model")
-    Theme.configure(copyIdButton, symbol: "doc.on.doc", tooltip: "Copy model ID")
-    Theme.configure(deleteButton, symbol: "trash", tooltip: "Delete model")
-
-    chatButton.target = self
-    chatButton.action = #selector(didClickChat)
-    copyIdButton.target = self
-    copyIdButton.action = #selector(didClickCopyId)
-    deleteButton.target = self
-    deleteButton.action = #selector(didClickDelete)
-
-    // Configure hover buttons stack
-    hoverButtonsStack.orientation = .horizontal
-    hoverButtonsStack.spacing = 4
-    // Chat leads the stack -- it's the primary action on a model. Delete and
-    // unload share the trailing slot -- one or the other shows, depending on
-    // whether the model is loaded (see `updateActionButtons`).
-    hoverButtonsStack.addArrangedSubview(chatButton)
-    hoverButtonsStack.addArrangedSubview(copyIdButton)
-    hoverButtonsStack.addArrangedSubview(deleteButton)
-    hoverButtonsStack.addArrangedSubview(unloadButton)
-
-    // Start hidden
     cancelImageView.isHidden = true
-    unloadButton.isHidden = true
-    hoverButtonsStack.isHidden = true
 
     setupLayout()
     setupGestures()
@@ -136,18 +102,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // Accessory stack — the cancel X is the only downloading-row accessory
-    // (hover-only, see `highlightDidChange`); progress and pause/play both live
-    // in the ring around the leading icon (see `IconView`).
-    let accessoryStack = NSStackView(views: [
-      cancelImageView, hoverButtonsStack,
-    ])
-    accessoryStack.orientation = .horizontal
-    accessoryStack.alignment = .centerY
-    accessoryStack.spacing = 6
-
-    // Root stack
-    let rootStack = NSStackView(views: [leading, spacer, accessoryStack])
+    // The cancel X is the only trailing accessory (hover-only, downloading rows;
+    // see `highlightDidChange`); progress and pause/play both live in the ring
+    // around the leading icon (see `IconView`).
+    let rootStack = NSStackView(views: [leading, spacer, cancelImageView])
     rootStack.orientation = .horizontal
     rootStack.alignment = .centerY
     rootStack.spacing = 6
@@ -164,14 +122,10 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
-    Layout.constrainToIconSize(unloadButton)
-    Layout.constrainToIconSize(chatButton)
-    Layout.constrainToIconSize(copyIdButton)
-    Layout.constrainToIconSize(deleteButton)
 
     titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
     titleLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-    // Allow subtitle to compress and truncate when hover buttons appear
+    // Allow subtitle to compress and truncate when the cancel X appears
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -209,46 +163,13 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     actionHandler.cancelDownload(for: model)
   }
 
-  @objc private func didClickUnload() {
-    actionHandler.performPrimaryAction(for: model)
-  }
-
-  @objc private func didClickChat() {
-    // The server runs continuously in router mode (started at app launch), so we
-    // just open the webui -- no need to start or wait on anything. In router mode
-    // `serve` loads the model on demand from the `?model=` selection when the
-    // user sends their first message.
-    guard let url = LlamaServer.webuiUrl(modelId: model.id) else { return }
-    openInBrowser(url)
-  }
-
-  @objc private func didClickCopyId() {
-    Clipboard.copy(model.id)
-    Theme.updateCopyIcon(copyIdButton, showingConfirmation: true)
-
-    // Restore copy icon after delay
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-      guard let self else { return }
-      Theme.updateCopyIcon(self.copyIdButton, showingConfirmation: false)
-    }
-  }
-
-  @objc private func didClickDelete() {
-    actionHandler.delete(model: model)
-  }
-
-  // Prevent row toggle when clicking action buttons. Each listed view owns its own
-  // click gesture — excluding it here stops the row-body gesture from also firing.
+  // Prevent row toggle when clicking the cancel X. It owns its own click
+  // gesture — excluding it here stops the row-body gesture from also firing.
   func gestureRecognizer(
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
-    let loc = event.locationInWindow
-    let actionTargets: [NSView] = [
-      unloadButton, chatButton, copyIdButton, deleteButton, cancelImageView,
-    ]
-    return !actionTargets.contains { view in
-      !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
-    }
+    !(!cancelImageView.isHidden
+      && cancelImageView.bounds.contains(cancelImageView.convert(event.locationInWindow, from: nil)))
   }
 
   func refresh() {
@@ -296,7 +217,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     let textColor = isCompatible ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
 
     // Title is the parsed view of the id (short name + metadata chips); the
-    // full raw id stays reachable via the copy button.
+    // full raw id stays reachable via the page's copy action.
     titleLabel.attributedStringValue = Format.modelName(
       id: model.id,
       color: textColor,
@@ -322,7 +243,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       )
     }
 
-    updateActionButtons()
+    updateCancelButton()
 
     // While the row is styled as downloading, the leading icon swaps into its
     // downloading look: a progress ring around the rim with a pause/play glyph
@@ -352,30 +273,17 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   }
 
   override func highlightDidChange(_ highlighted: Bool) {
-    updateActionButtons()
+    updateCancelButton()
   }
 
-  // All row action buttons are hover-only. Installed rows get the hover stack
-  // (copy ID + delete, with delete swapped for unload while the model is loaded);
-  // downloading rows get the cancel X instead. Called from both `refresh()` (state
-  // changes while hovered) and `highlightDidChange` (hover enters/leaves).
-  private func updateActionButtons() {
-    let isInstalled = modelManager.isInstalled(model)
-    let isActive = server.isActive(model: model)
-
-    hoverButtonsStack.isHidden = !(isHighlighted && isInstalled && !showAsDownloading)
-    deleteButton.isHidden = isActive
-    unloadButton.isHidden = !isActive
-
+  // The cancel X is hover-only on downloading rows. Called from both `refresh()`
+  // (state changes while hovered) and `highlightDidChange` (hover enters/leaves).
+  private func updateCancelButton() {
     cancelImageView.isHidden = !(isHighlighted && showAsDownloading)
   }
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .tertiaryLabelColor
-    unloadButton.contentTintColor = .tertiaryLabelColor
-    chatButton.contentTintColor = .tertiaryLabelColor
-    copyIdButton.contentTintColor = .tertiaryLabelColor
-    deleteButton.contentTintColor = .tertiaryLabelColor
   }
 }
