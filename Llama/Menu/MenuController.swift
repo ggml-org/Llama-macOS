@@ -592,7 +592,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     )
     menu.addItem(NSMenuItem.viewItem(with: header))
     menu.addItem(NSMenuItem.viewItem(with: ExpandedModelDetailsView(
-      model: model, server: server, indented: false)))
+      model: model, server: server)))
   }
 
   // MARK: - Discover Section

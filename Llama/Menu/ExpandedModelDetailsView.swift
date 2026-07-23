@@ -1,9 +1,11 @@
 import AppKit
 import Foundation
 
-/// Container view for model details.
-/// Shows a compact row of context tier pills. Selecting a tier updates user
-/// preferences and reloads the server if running.
+/// Context length section of a model page.
+/// Shows a full-width segmented picker where every segment pairs a tier label
+/// with that tier's projected memory cost, so the context-length -> memory
+/// relationship is visible at a glance without per-tier rows. Selecting a
+/// tier updates user preferences and reloads the server if running.
 final class ExpandedModelDetailsView: ItemView {
   private let model: Model
   private unowned let server: LlamaServer
@@ -12,30 +14,26 @@ final class ExpandedModelDetailsView: ItemView {
   private var tiers: [ContextTier] = []
   // Tiers actually runnable on this device; the rest render disabled.
   private var enabledTiers: Set<ContextTier> = []
-  // One pill per tier, same order as `tiers`. Each is a label wrapped in a
-  // padded container whose layer draws the selection background.
-  private var segments: [(container: NSView, label: NSTextField)] = []
-  // Hairline dividers between adjacent pills; divider[i] sits between
-  // segments i and i+1. Hidden when adjacent to the selected pill.
+  // One segment per tier, same order as `tiers`. Each is a two-line stack
+  // (tier label over memory cost) in a padded container whose layer draws the
+  // selection background.
+  private var segments: [(container: NSView, name: NSTextField, cost: NSTextField)] = []
+  // Hairline dividers between adjacent segments; divider[i] sits between
+  // segments i and i+1. Hidden when adjacent to the selected segment.
   private var dividers: [NSView] = []
-  // The projected runtime footprint for the selected tier. It lives beside the
-  // context heading because memory is useful while choosing a tier, but too
-  // detailed for every collapsed model row.
-  private let memoryLabel = Theme.secondaryLabel()
   // Index of the currently selected tier in `tiers`.
   private var selectedIdx = 0
-  // The pill row container -- outlined to give the picker a defined shape.
+  // The segment row container -- outlined to give the picker a defined shape.
   private var picker: NSStackView?
 
   init(
     model: Model,
-    server: LlamaServer,
-    indented: Bool = true
+    server: LlamaServer
   ) {
     self.model = model
     self.server = server
     super.init(frame: .zero)
-    setupLayout(indented: indented)
+    setupLayout()
   }
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -43,8 +41,7 @@ final class ExpandedModelDetailsView: ItemView {
   // Disable hover highlight since this is an info container
   override var highlightEnabled: Bool { false }
 
-  private func setupLayout(indented: Bool) {
-    // Main vertical stack for indented rows
+  private func setupLayout() {
     let mainStack = NSStackView()
     mainStack.orientation = .vertical
     mainStack.alignment = .leading
@@ -66,13 +63,12 @@ final class ExpandedModelDetailsView: ItemView {
       failedLabel.lineBreakMode = .byTruncatingTail
       mainStack.addArrangedSubview(failedLabel)
     } else {
-      // A "Context length" header with the selected tier's projected memory
-      // usage beside it, then the tier pills below. Pills are custom-drawn
-      // instead of NSSegmentedControl: lighter visually, and
-      // immune to the inactive-window graying AppKit applies to standard
-      // controls when the app isn't frontmost (menu bar apps usually aren't,
-      // so the segmented control's thumb rendered gray instead of
-      // accent-colored).
+      // A "Context length" header, then the two-line segments below (tier
+      // label over its projected memory cost, so each segment self-describes
+      // the context -> memory tradeoff). Segments are custom-drawn instead
+      // of NSSegmentedControl: lighter visually, and immune to the
+      // inactive-window graying AppKit applies to standard controls when the
+      // app isn't frontmost (menu bar apps usually aren't).
       // Show every tier the model natively supports; the ones this device
       // can't fit in memory render disabled so the model's full range is
       // still visible.
@@ -84,27 +80,24 @@ final class ExpandedModelDetailsView: ItemView {
 
       let picker = NSStackView()
       picker.orientation = .horizontal
-      // 1px gap on either side of each divider so the selected pill's
+      // 1px gap on either side of each divider so the selected segment's
       // background reaches almost to the neighboring dividers.
       picker.spacing = 1
+      picker.distribution = .fillEqually
       // Subtle outline around the whole row to give the picker a defined shape.
       picker.wantsLayer = true
       picker.layer?.borderWidth = 1
       picker.layer?.cornerRadius = 6
-      // 2px insets all around so the selected pill's background keeps the
+      // 2px insets all around so the selected segment's background keeps the
       // same breathing room from the outline at the ends as it does
       // vertically.
       picker.edgeInsets = NSEdgeInsets(top: 2, left: 2, bottom: 2, right: 2)
-      // Hug the pills tightly -- otherwise the stack stretches to the menu
-      // width and the outline trails off past the last pill.
-      picker.setHuggingPriority(.required, for: .horizontal)
-      picker.setContentHuggingPriority(.required, for: .horizontal)
       self.picker = picker
       for (idx, tier) in tiers.enumerated() {
         if idx > 0 {
           picker.addArrangedSubview(makeDivider())
         }
-        let segment = makeSegment(label: tier.shortLabel)
+        let segment = makeSegment(tier: tier)
         // Explain why a disabled tier can't be selected (memory constraint).
         if !enabledTiers.contains(tier) {
           segment.toolTip = model.incompatibilitySummary(
@@ -116,32 +109,24 @@ final class ExpandedModelDetailsView: ItemView {
 
       let header = Theme.secondaryLabel("Context length")
       header.textColor = Theme.Colors.modelIconTint
-      memoryLabel.textColor = Theme.Colors.textSecondary
-      updateMemoryLabel()
-
-      let headerRow = NSStackView(views: [header, memoryLabel])
-      headerRow.orientation = .horizontal
-      headerRow.alignment = .firstBaseline
-      headerRow.spacing = 4
-      mainStack.addArrangedSubview(headerRow)
+      mainStack.addArrangedSubview(header)
       mainStack.addArrangedSubview(picker)
+      // The picker spans the full content width, with segments sharing it
+      // equally (fillEqually above) so the costs read as a table column.
+      picker.widthAnchor.constraint(equalToConstant: Layout.contentWidth).isActive = true
+
+      // One caption explaining every dimmed segment, in place of per-segment
+      // tooltips as the primary explanation (tooltips remain for the numbers).
+      if enabledTiers.count < tiers.count {
+        let caption = Theme.tertiaryLabel("Dimmed sizes need more memory than this Mac has")
+        caption.maximumNumberOfLines = 1
+        caption.lineBreakMode = .byTruncatingTail
+        mainStack.addArrangedSubview(caption)
+      }
     }
 
-    if indented {
-      let indent = NSView()
-      indent.translatesAutoresizingMaskIntoConstraints = false
-      indent.widthAnchor.constraint(equalToConstant: Layout.expandedIndent).isActive = true
-
-      let indentedRow = NSStackView(views: [indent, mainStack])
-      indentedRow.orientation = .horizontal
-      indentedRow.alignment = .top
-      indentedRow.spacing = 0
-      contentView.addSubview(indentedRow)
-      indentedRow.pinToSuperview(top: 2, leading: 0, trailing: 0, bottom: 2)
-    } else {
-      contentView.addSubview(mainStack)
-      mainStack.pinToSuperview(top: 4, leading: 0, trailing: 0, bottom: 6)
-    }
+    contentView.addSubview(mainStack)
+    mainStack.pinToSuperview(top: 4, leading: 0, trailing: 0, bottom: 6)
 
     // Pin to the standard menu width so a long label (e.g. the "Could not estimate
     // memory" fallback) can't widen the whole menu beyond what model rows use.
@@ -150,43 +135,64 @@ final class ExpandedModelDetailsView: ItemView {
 
   // MARK: - Tier Picker
 
-  /// Creates one clickable pill for the picker: a label with a little padding
-  /// in a rounded-corner container that draws the selection background.
-  private func makeSegment(label text: String) -> NSView {
-    let label = Theme.secondaryLabel(text)
+  /// The segment sublabel: this tier's projected memory. One decimal under
+  /// 10 GB, whole numbers above -- the decimal stops being meaningful and the
+  /// narrow form keeps 7-tier pickers within the menu width.
+  private func costLabel(for tier: ContextTier) -> String {
+    let mb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
+    let gb = Double(mb) / 1024.0
+    let number = gb < 10 ? String(format: "%.1f", gb) : String(format: "%.0f", gb.rounded())
+    return number + " GB"
+  }
+
+  /// Creates one clickable segment: the tier label over its memory cost,
+  /// centered in a rounded-corner container that draws the selection
+  /// background.
+  private func makeSegment(tier: ContextTier) -> NSView {
+    let name = Theme.secondaryLabel(tier.shortLabel)
+    let cost = Theme.secondaryLabel(costLabel(for: tier))
+    // A step smaller than the tier label so the cost reads as its sublabel.
+    cost.font = NSFont.systemFont(ofSize: 9)
+
+    let column = NSStackView(views: [name, cost])
+    column.orientation = .vertical
+    column.alignment = .centerX
+    column.spacing = 0
+
     let container = NSView()
     container.wantsLayer = true
     container.layer?.cornerRadius = 4
     container.translatesAutoresizingMaskIntoConstraints = false
-    label.translatesAutoresizingMaskIntoConstraints = false
-    container.addSubview(label)
+    column.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(column)
     NSLayoutConstraint.activate([
-      label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 6),
-      label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -6),
-      label.topAnchor.constraint(equalTo: container.topAnchor, constant: 1),
-      label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -1),
+      column.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+      // Keep the two-line column from widening a segment past its equal share.
+      column.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor),
+      column.topAnchor.constraint(equalTo: container.topAnchor, constant: 2),
+      column.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -2),
     ])
 
     let click = NSClickGestureRecognizer(target: self, action: #selector(didClickSegment(_:)))
     container.addGestureRecognizer(click)
-    segments.append((container, label))
+    segments.append((container, name, cost))
     return container
   }
 
   /// Creates a hairline divider that visually splits the gap between two
-  /// unselected pills (the gap otherwise reads as double the edge padding).
+  /// unselected segments (the gap otherwise reads as double the edge padding).
   private func makeDivider() -> NSView {
     let divider = NSView()
     divider.wantsLayer = true
     divider.translatesAutoresizingMaskIntoConstraints = false
     divider.widthAnchor.constraint(equalToConstant: 1).isActive = true
-    divider.heightAnchor.constraint(equalToConstant: 8).isActive = true
+    divider.heightAnchor.constraint(equalToConstant: 16).isActive = true
     dividers.append(divider)
     return divider
   }
 
-  /// Applies selected/unselected styling to every pill: the selected tier gets
-  /// a subtle background and primary text, the rest plain secondary text.
+  /// Applies selected/unselected styling to every segment: the selected tier
+  /// gets a subtle background and primary text, the rest plain secondary text.
   /// Also recolors the dividers, hiding those adjacent to the selection.
   private func restyleSegments() {
     picker?.layer?.setBorderColor(Theme.Colors.separator, in: self)
@@ -196,32 +202,26 @@ final class ExpandedModelDetailsView: ItemView {
       // Disabled tiers use the faint tertiary gray; enabled-but-unselected
       // ones use the darker icon tint (not textSecondary -- it's too close to
       // tertiary for the available/unavailable distinction to read).
-      segment.label.textColor =
+      segment.name.textColor =
         !enabled
         ? Theme.Colors.textTertiary
         : selected ? Theme.Colors.textPrimary : Theme.Colors.modelIconTint
+      // The cost line always sits one visual step below its tier label so the
+      // tier stays the anchor of each segment.
+      segment.cost.textColor =
+        !enabled
+        ? Theme.Colors.textTertiary
+        : selected ? Theme.Colors.textSecondary : Theme.Colors.textTertiary
       segment.container.layer?.setBackgroundColor(
         selected ? Theme.Colors.subtleBackground : .clear, in: self)
     }
     // Hide (via clear color, to keep layout stable) the dividers touching the
-    // selected pill -- its background already delimits those gaps.
+    // selected segment -- its background already delimits those gaps.
     for (idx, divider) in dividers.enumerated() {
       let adjacentToSelection = idx == selectedIdx || idx + 1 == selectedIdx
       divider.layer?.setBackgroundColor(
         adjacentToSelection ? .clear : Theme.Colors.separator, in: self)
     }
-  }
-
-  /// Keeps the projected footprint synchronized with the tier selected in the
-  /// picker. The estimate includes model weights and context memory.
-  private func updateMemoryLabel() {
-    guard tiers.indices.contains(selectedIdx) else {
-      memoryLabel.stringValue = ""
-      return
-    }
-    let tier = tiers[selectedIdx]
-    let ramMb = model.runtimeMemoryUsageMb(ctxWindowTokens: Double(tier.rawValue))
-    memoryLabel.stringValue = "· \(Format.memory(mb: ramMb)) memory"
   }
 
   // Layer colors are resolved CGColors, so re-resolve them when the system
@@ -242,10 +242,9 @@ final class ExpandedModelDetailsView: ItemView {
     // Ignore clicks on tiers this device can't run.
     guard enabledTiers.contains(tier) else { return }
 
-    // Reflect the new selection and its projected footprint right away.
+    // Reflect the new selection right away.
     selectedIdx = idx
     restyleSegments()
-    updateMemoryLabel()
 
     // Skip the rest if this is already the active tier.
     guard tier != model.effectiveCtxTier else { return }
