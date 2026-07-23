@@ -13,6 +13,7 @@ final class ModelPageHeaderView: ItemView {
 
   private let iconView = IconView()
   private let titleLabel = Theme.primaryLabel()
+  private let subtitleLabel = Theme.secondaryLabel()
 
   init(
     model: Model,
@@ -38,6 +39,12 @@ final class ModelPageHeaderView: ItemView {
     titleLabel.cell?.truncatesLastVisibleLine = true
     titleLabel.allowsDefaultTighteningForTruncation = false
 
+    // Disk footprint, dropped from the list row's subtitle when the page
+    // header went identity-only. (Context length is deliberately absent --
+    // the picker below owns that story, including memory cost.)
+    subtitleLabel.stringValue = "\(model.totalSize) on disk"
+    subtitleLabel.textColor = Theme.Colors.textSecondary
+
     setupLayout()
     refresh()
   }
@@ -48,7 +55,13 @@ final class ModelPageHeaderView: ItemView {
   override var highlightEnabled: Bool { false }
 
   private func setupLayout() {
-    let identityRow = NSStackView(views: [iconView, titleLabel])
+    // Two-line text column mirroring the list rows: title over metadata.
+    let textColumn = NSStackView(views: [titleLabel, subtitleLabel])
+    textColumn.orientation = .vertical
+    textColumn.alignment = .leading
+    textColumn.spacing = Layout.textLineSpacing
+
+    let identityRow = NSStackView(views: [iconView, textColumn])
     identityRow.orientation = .horizontal
     identityRow.alignment = .centerY
     identityRow.spacing = 6
