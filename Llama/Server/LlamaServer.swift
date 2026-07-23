@@ -73,6 +73,19 @@ class LlamaServer {
     return "localhost"
   }
 
+  /// Webui URL with the given model preselected via the `?model=` query param
+  /// the webui reads. Uses the resolved host so a custom network bind address
+  /// (incl. 0.0.0.0 -> local IP) still works.
+  static func webuiUrl(modelId: String) -> URL? {
+    var components = URLComponents()
+    components.scheme = "http"
+    components.host = resolvedHost
+    components.port = port
+    components.path = "/"
+    components.queryItems = [URLQueryItem(name: "model", value: modelId)]
+    return components.url
+  }
+
   private var outputPipe: Pipe?
   private var errorPipe: Pipe?
   private var activeProcess: Process?

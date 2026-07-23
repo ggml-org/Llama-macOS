@@ -359,8 +359,16 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // Observe server and download changes while the menu is open.
   private func setupObservers() {
-    // Server started/stopped - update icon and views
-    observe(.LBServerStateDidChange)
+    // Server started/stopped - update icon and views. While a model page is
+    // open, rebuild instead: its Unload row exists only while that model is
+    // loaded, and a plain refresh can't add/remove rows.
+    observe(.LBServerStateDidChange) { [weak self] _ in
+      guard let self else { return }
+      if self.selectedModelId != nil {
+        self.rebuildMenuIfPossible()
+      }
+      self.refresh()
+    }
 
     // CLI install state changed (setting up… / failed) - rebuild to show/hide
     // the setup banner.
@@ -587,12 +595,43 @@ final class MenuController: NSObject, NSMenuDelegate {
     let header = ModelPageHeaderView(
       model: model,
       server: server,
-      actionHandler: actionHandler,
       showTags: showTags
     )
     menu.addItem(NSMenuItem.viewItem(with: header))
     menu.addItem(NSMenuItem.viewItem(with: ExpandedModelDetailsView(
       model: model, server: server)))
+
+    // Page actions as labeled menu rows -- bezel buttons read as dialog chrome
+    // inside a menu and gray out whenever the app isn't frontmost. Chat leads
+    // (the primary action on a model); Unload appears only while the model is
+    // loaded (a server-state rebuild keeps it current); Delete closes the set,
+    // tinted destructive.
+    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
+    let chatRow = ActionItemView(title: "Chat", symbol: "bubble.left") {}
+    chatRow.onAction = { [weak chatRow] in
+      // Opened through the row so the menu dismisses with the navigation.
+      guard let url = LlamaServer.webuiUrl(modelId: model.id) else { return }
+      chatRow?.openInBrowser(url)
+    }
+    menu.addItem(NSMenuItem.viewItem(with: chatRow))
+    let copyRow = ActionItemView(title: "Copy model ID", symbol: "doc.on.doc") {}
+    copyRow.onAction = { [weak copyRow] in
+      Clipboard.copy(model.id)
+      copyRow?.flashConfirmation()
+    }
+    menu.addItem(NSMenuItem.viewItem(with: copyRow))
+    if server.isActive(model: model) {
+      menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
+        title: "Unload", symbol: "eject"
+      ) { [weak self] in
+        self?.actionHandler.performPrimaryAction(for: model)
+      }))
+    }
+    menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
+      title: "Delete", symbol: "trash", destructive: true
+    ) { [weak self] in
+      self?.actionHandler.delete(model: model)
+    }))
   }
 
   // MARK: - Discover Section

@@ -213,25 +213,12 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     actionHandler.performPrimaryAction(for: model)
   }
 
-  /// Webui URL for this model: the server root with the model preselected via
-  /// the `?model=` query param the webui reads. Uses the resolved host so a
-  /// custom network bind address (incl. 0.0.0.0 -> local IP) still works.
-  private var chatUrl: URL? {
-    var components = URLComponents()
-    components.scheme = "http"
-    components.host = LlamaServer.resolvedHost
-    components.port = LlamaServer.port
-    components.path = "/"
-    components.queryItems = [URLQueryItem(name: "model", value: model.id)]
-    return components.url
-  }
-
   @objc private func didClickChat() {
     // The server runs continuously in router mode (started at app launch), so we
     // just open the webui -- no need to start or wait on anything. In router mode
     // `serve` loads the model on demand from the `?model=` selection when the
     // user sends their first message.
-    guard let url = chatUrl else { return }
+    guard let url = LlamaServer.webuiUrl(modelId: model.id) else { return }
     openInBrowser(url)
   }
 
