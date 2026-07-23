@@ -439,7 +439,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// actually changed — the single "model list changed, tell the server" path.
   func syncServer() {
     if updateModelsFile() {
-      LlamaServer.shared.reload()
+      LlamaServer.shared.syncModelList()
     }
   }
 

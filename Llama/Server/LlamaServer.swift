@@ -532,6 +532,29 @@ class LlamaServer {
     start()
   }
 
+  /// Applies a models.ini change to a running server without a restart, via the
+  /// router's in-place reload (`/models?reload=1`). The server reconciles
+  /// surgically -- only models whose entry changed or disappeared are unloaded --
+  /// so installing/removing an unrelated model no longer drops the resident
+  /// model or kills an in-flight generation. Falls back to a full restart when
+  /// the server isn't running yet (still loading, or in error) or the request
+  /// fails.
+  func syncModelList() {
+    // Same skip as reload(): an idle server picks up models.ini on next start.
+    guard state != .idle else { return }
+    guard isRunning else {
+      reload()
+      return
+    }
+    logger.info("Reloading server model list in place")
+    Task {
+      if !(await api.reloadModels()) {
+        // Request failed (server wedged?) -- restart to get back to a good state.
+        await MainActor.run { self.reload() }
+      }
+    }
+  }
+
   /// Cleans up all background resources tied to the server process
   private func cleanUpResources() {
     stopActiveProcess()

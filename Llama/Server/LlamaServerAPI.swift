@@ -28,6 +28,14 @@ struct LlamaServerAPI {
     await post(endpoint: "models/unload", body: ["model": id])
   }
 
+  /// Asks the router server to re-read models.ini and reconcile its model list
+  /// in place (`GET /models?reload=1`). The server only unloads models whose
+  /// entry was removed or changed -- untouched models stay resident.
+  /// Returns true if the server acknowledged the request.
+  func reloadModels() async -> Bool {
+    await get(endpoint: "models?reload=1") != nil
+  }
+
   /// Fetches the current status of all models.
   /// Returns a dictionary mapping model IDs to their load state.
   /// Unknown or missing states are treated as `.unloaded`.
