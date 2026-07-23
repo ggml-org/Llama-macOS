@@ -40,6 +40,7 @@ enum UserSettings {
     static let hfToken = "hfToken"
     static let modelLastUsedDates = "modelLastUsedDates"
     static let globalInputEnabled = "globalInputEnabled"
+    static let globalInputShortcut = "globalInputShortcut"
   }
 
   private static let defaults = UserDefaults.standard
@@ -90,13 +91,45 @@ enum UserSettings {
     modelLastUsedDates[id] ?? 0
   }
 
-  /// Whether the global-input capture panel (⌥Space) is enabled. Off unless
+  /// Whether the global-input capture panel (default ⌥Space) is enabled. Off unless
   /// explicitly set, so the feature ships dormant for team testing before it's
   /// advertised:
   ///   `defaults write app.llama.Llama globalInputEnabled -bool true`
   /// Read once at launch (registering the hotkey), so a change needs a relaunch.
   static var globalInputEnabled: Bool {
     defaults.bool(forKey: Keys.globalInputEnabled)
+  }
+
+  /// The key combo that opens the global-input capture panel. Defaults to
+  /// ⌥Space; stored (only when customized) as a `[keyCode, modifiers]` dict of
+  /// the same Carbon values `GlobalHotkey.Combo` carries. The setter posts
+  /// `LBGlobalInputShortcutDidChange` so the controller re-registers the
+  /// hotkey immediately -- no relaunch needed (unlike `globalInputEnabled`).
+  static var globalInputShortcut: GlobalHotkey.Combo {
+    get {
+      guard let dict = defaults.dictionary(forKey: Keys.globalInputShortcut),
+        let keyCode = dict["keyCode"] as? Int,
+        let modifiers = dict["modifiers"] as? Int
+      else { return .optionSpace }
+      return GlobalHotkey.Combo(keyCode: keyCode, modifiers: modifiers)
+    }
+    set {
+      guard newValue != globalInputShortcut else { return }
+      if newValue == .optionSpace {
+        defaults.removeObject(forKey: Keys.globalInputShortcut)
+      } else {
+        defaults.set(
+          ["keyCode": newValue.keyCode, "modifiers": newValue.modifiers],
+          forKey: Keys.globalInputShortcut)
+      }
+      NotificationCenter.default.post(name: .LBGlobalInputShortcutDidChange, object: nil)
+    }
+  }
+
+  /// Whether a non-default global-input shortcut is stored (drives the
+  /// settings row's restore-default affordance).
+  static var hasCustomGlobalInputShortcut: Bool {
+    defaults.dictionary(forKey: Keys.globalInputShortcut) != nil
   }
 
   /// Whether we've applied the one-time launch-at-login default (enabled on

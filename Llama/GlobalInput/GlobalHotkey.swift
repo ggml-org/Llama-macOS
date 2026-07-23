@@ -15,7 +15,7 @@ import Carbon.HIToolbox
 final class GlobalHotkey {
   /// A key + modifier combo. `keyCode` is a virtual key code (`kVK_*`);
   /// `modifiers` is a Carbon modifier mask (`cmdKey`, `optionKey`, ...).
-  struct Combo {
+  struct Combo: Equatable {
     let keyCode: Int
     let modifiers: Int
 

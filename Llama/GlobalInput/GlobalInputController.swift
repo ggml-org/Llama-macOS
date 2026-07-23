@@ -5,23 +5,41 @@ import os.log
 /// Owns the global-input feature: the system-wide hotkey, the floating capture
 /// panel, and the dispatch of a captured prompt to the web UI.
 ///
-/// Prototype scope: fixed hotkey (⌥Space), single panel reused across
-/// invocations, opens the web UI on submit. Hold a strong reference (AppDelegate
-/// does) for the hotkey to stay registered.
+/// Prototype scope: user-configurable hotkey (default ⌥Space), single panel
+/// reused across invocations, opens the web UI on submit. Hold a strong
+/// reference (AppDelegate does) for the hotkey to stay registered.
 @MainActor
 final class GlobalInputController {
   private let logger = Logger(subsystem: Logging.subsystem, category: "GlobalInput")
   private var hotkey: GlobalHotkey?
   private var panel: CapturePanel?
+  private var shortcutObserver: NSObjectProtocol?
 
   init() {
-    // Registration can fail if the combo is already claimed; log and continue
-    // (the feature is just inert rather than crashing the app).
-    hotkey = GlobalHotkey(combo: .optionSpace) { [weak self] in
+    registerHotkey()
+    // Re-register live when the shortcut is changed in Settings.
+    shortcutObserver = NotificationCenter.default.addObserver(
+      forName: .LBGlobalInputShortcutDidChange, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.registerHotkey() }
+    }
+  }
+
+  /// (Re)register the hotkey from the current setting. Registration can fail
+  /// if the combo is already claimed by another app; log and continue (the
+  /// feature is just inert rather than crashing the app).
+  private func registerHotkey() {
+    // Drop the old registration first so a re-record of the same combo can't
+    // collide with our own still-live hotkey.
+    hotkey = nil
+    let combo = UserSettings.globalInputShortcut
+    hotkey = GlobalHotkey(combo: combo) { [weak self] in
       Task { @MainActor in self?.toggle() }
     }
     if hotkey == nil {
-      logger.error("Failed to register global hotkey (⌥Space) -- may be in use")
+      logger.error(
+        "Failed to register global hotkey (\(combo.displayString, privacy: .public)) -- may be in use"
+      )
     }
   }
 
