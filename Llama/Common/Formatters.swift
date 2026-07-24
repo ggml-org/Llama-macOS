@@ -80,22 +80,38 @@ enum Format {
   /// pill per `ChipStyle`. Drawn via an NSImage drawing handler, which runs
   /// at draw time, so the dynamic theme colors resolve against the current
   /// light/dark appearance.
-  private static func chip(_ text: String, style: ChipStyle) -> NSAttributedString {
-    let font = NSFont.systemFont(ofSize: 9, weight: .medium)
+  /// How much larger the caller's name font is than the 13pt list baseline.
+  /// Metadata badges (chips, tags) multiply their tuned-for-13pt sizes by this
+  /// so they stay proportional when a caller renders the name larger — e.g. the
+  /// 15pt model-page title.
+  private static func metadataScale(forNameFont font: NSFont) -> CGFloat {
+    font.pointSize / Theme.Fonts.primary.pointSize
+  }
+
+  private static func chip(
+    _ text: String, style: ChipStyle, nameFont: NSFont
+  ) -> NSAttributedString {
+    // Chip metrics were tuned against the 13pt list font (9pt text, 14pt tall,
+    // 5pt padding); scale them by the name font so the chips stay proportional.
+    let scale = metadataScale(forNameFont: nameFont)
+    let font = NSFont.systemFont(ofSize: 9 * scale, weight: .medium)
     let textAttributes: [NSAttributedString.Key: Any] = [
       .font: font,
       .foregroundColor: Theme.Colors.textSecondary,
     ]
     let textSize = (text as NSString).size(withAttributes: textAttributes)
-    let hPad: CGFloat = 5
-    let chipSize = NSSize(width: ceil(textSize.width) + hPad * 2, height: 14)
+    let hPad: CGFloat = 5 * scale
+    let chipHeight = (14 * scale).rounded()
+    let chipSize = NSSize(width: ceil(textSize.width) + hPad * 2, height: chipHeight)
 
     let image = NSImage(size: chipSize, flipped: false) { rect in
       switch style {
       case .squared:
         // Outlined: inset by half the line width so the hairline isn't
         // clipped by the image bounds.
-        let box = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4)
+        let radius = 4 * scale
+        let box = NSBezierPath(
+          roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
         Theme.Colors.border.setStroke()
         box.lineWidth = 1
         box.stroke()
@@ -105,17 +121,30 @@ enum Format {
         Theme.Colors.subtleBackground.setFill()
         pill.fill()
       }
+      // Center the text's line box in the chip. Chip text is all caps/digits, so
+      // its ink can't split a device pixel evenly -- one side always keeps the
+      // leftover pixel. At list size that pixel lands above the glyphs (looks
+      // right); when scaled up for the model-page title the parity flips and it
+      // lands below (reading as too-high text). A half-device-pixel (0.25pt @2x)
+      // downward bias flips it back above, but only for the scaled-up chip -- the
+      // list chip already lands correctly, so biasing it would push its text too
+      // high. This is snap direction, not true centering: the continuous
+      // position is already centered; only the pixel grid isn't.
+      let snapBias: CGFloat = scale > 1 ? -0.25 : 0
       (text as NSString).draw(
-        at: NSPoint(x: hPad, y: (rect.height - textSize.height) / 2),
+        at: NSPoint(x: hPad, y: (rect.height - textSize.height) / 2 + snapBias),
         withAttributes: textAttributes)
       return true
     }
 
     let attachment = NSTextAttachment()
     attachment.image = image
-    // Nudge the chip down so it centers against the 13pt primary text's
-    // x-height rather than sitting on the baseline.
-    attachment.bounds = NSRect(x: 0, y: -2.5, width: chipSize.width, height: chipSize.height)
+    // Nudge the chip down so it centers against the name's x-height rather than
+    // sitting on the baseline. The -2.5 was tuned for the 13pt list text; scaling
+    // it keeps the chip centered as the name enlarges (and leaves the list chip
+    // exactly where it was).
+    let nudge = -2.5 * scale
+    attachment.bounds = NSRect(x: 0, y: nudge, width: chipSize.width, height: chipSize.height)
     return NSAttributedString(attachment: attachment)
   }
 
@@ -229,8 +258,8 @@ extension Format {
     let parsed = ModelIdParser.parse(id)
     let result = NSMutableAttributedString()
     // The name (and org prefix) take the caller's font -- the model page
-    // title renders larger than list rows. Chips and tags keep their fixed
-    // sizes; they're metadata badges, not text that scales with the name.
+    // title renders larger than list rows. Chips and tags scale off that font
+    // too, so the metadata badges stay proportional to the name.
     let nameAttributes: (NSColor) -> [NSAttributedString.Key: Any] = { color in
       [.font: font, .foregroundColor: color]
     }
@@ -255,19 +284,20 @@ extension Format {
     // kinds descend in visual weight — see `ChipStyle`.
     if let params = parsed.params {
       result.append(NSAttributedString(string: " "))
-      result.append(chip(params, style: .squared))
+      result.append(chip(params, style: .squared, nameFont: font))
     }
     if let quant = parsed.quant {
       result.append(NSAttributedString(string: " "))
-      result.append(chip(quant, style: .rounded))
+      result.append(chip(quant, style: .rounded, nameFont: font))
     }
     if showTags && !parsed.tags.isEmpty {
       // Tags render as bare extra-dimmed text, no pill: they're name residue,
       // so they get the least visual weight of the three chip kinds. Dimmer
       // than chip text — at the same color they read as a mistake rather
       // than a deliberate third tier.
+      let tagScale = metadataScale(forNameFont: font)
       let tagAttributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.systemFont(ofSize: 9, weight: .medium),
+        .font: NSFont.systemFont(ofSize: 9 * tagScale, weight: .medium),
         .foregroundColor: Theme.Colors.textTertiary,
       ]
       result.append(
