@@ -243,9 +243,23 @@ final class MenuController: NSObject, NSMenuDelegate {
   private func rebuildMenu(_ menu: NSMenu) {
     menu.removeAllItems()
 
-    let view = HeaderView(server: server)
-    menu.addItem(NSMenuItem.viewItem(with: view))
-    menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
+    // Resolve the selected model up front: it decides whether this is the model
+    // page or the list, which in turn governs whether the server-status header
+    // shows (the page swaps out the header too, not just the body). A selection
+    // pointing at a model that's since disappeared (e.g. deleted) falls back to
+    // the list. `managedModels` sorts/concats three lists, so snapshot it once —
+    // the rest of the rebuild reuses it.
+    let managed = modelManager.managedModels
+    let pageModel = selectedModelId.flatMap { id in managed.first { $0.id == id } }
+    if pageModel == nil { selectedModelId = nil }
+
+    // The server-status header is list chrome, not page chrome: a model page has
+    // its own identity header, so skip the global one there.
+    if pageModel == nil {
+      let view = HeaderView(server: server)
+      menu.addItem(NSMenuItem.viewItem(with: view))
+      menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
+    }
 
     // Surface the app-owned CLI install (setting up… / failed + retry) above
     // everything else; without the engine, nothing below it can run.
@@ -262,10 +276,9 @@ final class MenuController: NSObject, NSMenuDelegate {
       addFolderWarning(to: menu)
     }
 
-    // Snapshot the managed models once — `managedModels` sorts and concatenates
-    // three lists, and the rebuild needs it for the installed rows, the Discover
+    // `managed` was snapshotted above (needed there to resolve the page model);
+    // the rest of the rebuild reuses it for the installed rows, the Discover
     // filter, the empty-state decision, and the membership snapshot below.
-    let managed = modelManager.managedModels
     let suggestions = visibleDiscoverSuggestions(managed: managed)
 
     // Rows whose tags-hidden title (org prefix + name + params + quant) collides
@@ -292,18 +305,14 @@ final class MenuController: NSObject, NSMenuDelegate {
         )
       })
 
-    // A selected model replaces the list body, like navigating to a page inside
-    // the menu. If it disappeared while this page was open (for example after
-    // deletion), fall through to the list instead.
-    if let selectedModelId,
-      let model = managed.first(where: { $0.id == selectedModelId })
-    {
-      addModelPage(to: menu, model: model, models: managed)
+    // A selected model replaces the whole list (header included) with its page,
+    // like navigating to a page inside the menu. Resolved above, so a selection
+    // whose model has since disappeared already fell back to the list.
+    if let pageModel {
+      addModelPage(to: menu, model: pageModel, models: managed)
       addFooter(to: menu)
       renderedManagedIds = Set(managed.map(\.id))
       return
-    } else {
-      selectedModelId = nil
     }
 
     // Always render the Installed section — with rows, or the empty placeholder
