@@ -8,13 +8,12 @@ import Foundation
 /// - Loading: circular icon (active, spinner)
 /// - Running: circular icon (active)
 ///
-/// Installed rows are near-pure navigation -- clicking opens the model's page,
-/// which owns all actions (Chat, Copy ID, Unload, Delete). The one in-row
-/// accelerator is a hover-only chat button: chat is the primary action on a
-/// model, so it's worth a shortcut that skips the page. The other in-row
-/// control is the hover-only cancel X on downloading rows, since a download
-/// in flight has no page to host it. Chat and cancel are mutually exclusive --
-/// a row is either installed or downloading, never both.
+/// Installed rows are pure navigation -- clicking opens the model's page, which
+/// owns all actions (Chat, Copy ID, Unload, Delete). A persistent dimmed chevron
+/// signals that the row leads to that page. The only in-row control is the
+/// hover-only cancel X on downloading rows, since a download in flight has no
+/// page to host it. Chevron and cancel are mutually exclusive -- a row is either
+/// installed or downloading, never both.
 final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let model: Model
   private unowned let server: LlamaServer
@@ -50,11 +49,13 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     return label
   }()
 
-  // Icon and the hover-only trailing controls: the chat accelerator on
-  // installed rows, the cancel X on downloading rows (mutually exclusive).
+  // Icon and the trailing accessories: a persistent chevron on installed rows
+  // signalling the row opens the model's page, and the hover-only cancel X on
+  // downloading rows. They're mutually exclusive -- a row is either installed
+  // or downloading, never both.
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
-  private let chatButton = NSButton()
+  private let chevronImageView = NSImageView()
 
   /// Whether the row is currently styled as downloading (in flight, paused, or in the
   /// brief post-cancel window). Set by `refresh()`; read back both to detect the
@@ -82,10 +83,13 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     Theme.configure(cancelImageView, symbol: "xmark", tooltip: "Cancel download")
     cancelImageView.isHidden = true
 
-    Theme.configure(chatButton, symbol: "bubble.left", tooltip: "Chat with this model")
-    chatButton.target = self
-    chatButton.action = #selector(didClickChat)
-    chatButton.isHidden = true
+    // Dimmed disclosure chevron -- purely decorative (the whole row is the click
+    // target), so it's an image, not a button. Tertiary tint keeps it a quiet
+    // hint rather than a competing accent. Shown only on installed rows.
+    Theme.configure(
+      chevronImageView, symbol: "chevron.right",
+      color: Theme.Colors.textTertiary, pointSize: 11)
+    chevronImageView.isHidden = true
 
     setupLayout()
     setupGestures()
@@ -112,11 +116,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // The trailing accessories are both hover-only (see `highlightDidChange`):
-    // the chat button on installed rows and the cancel X on downloading rows.
-    // They never show at once, so they can share the slot. Progress and
-    // pause/play both live in the ring around the leading icon (see `IconView`).
-    let rootStack = NSStackView(views: [leading, spacer, chatButton, cancelImageView])
+    // Trailing accessories: the persistent chevron on installed rows and the
+    // hover-only cancel X on downloading rows (see `highlightDidChange`). They
+    // never show at once, so they can share the slot. Progress and pause/play
+    // both live in the ring around the leading icon (see `IconView`).
+    let rootStack = NSStackView(views: [leading, spacer, chevronImageView, cancelImageView])
     rootStack.orientation = .horizontal
     rootStack.alignment = .centerY
     rootStack.spacing = 6
@@ -133,16 +137,16 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
-    Layout.constrainToIconSize(chatButton)
+    Layout.constrainToIconSize(chevronImageView)
 
     titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
     titleLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
-    // Allow subtitle to compress and truncate when a hover accessory appears
+    // Allow subtitle to compress and truncate when a trailing accessory appears
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
-    chatButton.setContentHuggingPriority(.required, for: .horizontal)
-    chatButton.setContentCompressionResistancePriority(.required, for: .horizontal)
+    chevronImageView.setContentHuggingPriority(.required, for: .horizontal)
+    chevronImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
   }
 
   private func setupGestures() {
@@ -177,24 +181,15 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     actionHandler.cancelDownload(for: model)
   }
 
-  @objc private func didClickChat() {
-    // The server runs continuously in router mode (started at app launch), so we
-    // just open the webui -- no need to start or wait on anything. In router mode
-    // `serve` loads the model on demand from the `?model=` selection when the
-    // user sends their first message.
-    guard let url = LlamaServer.webuiUrl(modelId: model.id) else { return }
-    openInBrowser(url)
-  }
-
-  // Prevent row toggle when clicking a hover accessory. Each owns its own click
+  // Prevent row toggle when clicking the cancel X. It owns its own click
   // gesture — excluding it here stops the row-body gesture from also firing.
+  // The chevron is decorative and has no gesture, so a click on it falls
+  // through to the row body (opening the page) as intended.
   func gestureRecognizer(
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
-    let loc = event.locationInWindow
-    return ![cancelImageView, chatButton].contains { view in
-      !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
-    }
+    !(!cancelImageView.isHidden
+      && cancelImageView.bounds.contains(cancelImageView.convert(event.locationInWindow, from: nil)))
   }
 
   func refresh() {
@@ -301,12 +296,15 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     updateHoverAccessories()
   }
 
-  // Both trailing accessories are hover-only: the chat button on installed rows,
-  // the cancel X on downloading rows. Called from both `refresh()` (state changes
-  // while hovered) and `highlightDidChange` (hover enters/leaves).
+  // Keeps the trailing accessories in sync with row state: the chevron shows
+  // persistently on installed rows (it opens the page), the cancel X only on
+  // hovered downloading rows. Called from both `refresh()` (state changes) and
+  // `highlightDidChange` (hover enters/leaves).
   private func updateHoverAccessories() {
     cancelImageView.isHidden = !(isHighlighted && showAsDownloading)
-    chatButton.isHidden = !(isHighlighted && modelManager.isInstalled(model))
+    // Installed rows navigate to the page; downloading ones don't, so suppress
+    // the chevron whenever the row is styled as downloading.
+    chevronImageView.isHidden = showAsDownloading || !modelManager.isInstalled(model)
   }
 
   override func viewDidChangeEffectiveAppearance() {
