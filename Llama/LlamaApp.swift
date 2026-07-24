@@ -204,8 +204,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       // global-input capture panel while iterating on it, run the "show global
       // input" AppleScript command -- see CLAUDE.md -- rather than gating on the
       // experiment flag here.)
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-        self?.menuController?.openMenu()
+      //
+      // The installed-models scan is async, so opening on a fixed delay races it
+      // and shows an empty Installed section until you reopen. Wait for the scan:
+      // open now if the list is already populated, otherwise on the first
+      // list-change notification (a one-shot observer) -- which the scan posts on
+      // completion even when it finds nothing, so a fresh machine still opens.
+      let openMenu: () -> Void = { [weak self] in self?.menuController?.openMenu() }
+      if !ModelManager.shared.downloadedModels.isEmpty {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: openMenu)
+      } else {
+        var token: NSObjectProtocol?
+        token = NotificationCenter.default.addObserver(
+          forName: .LBModelDownloadedListDidChange, object: nil, queue: .main
+        ) { _ in
+          if let token { NotificationCenter.default.removeObserver(token) }
+          openMenu()
+        }
       }
     #endif
 
