@@ -32,6 +32,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var globalInputController: GlobalInputController?
   private var updatesObserver: NSObjectProtocol?
   private var recheckCLIObserver: NSObjectProtocol?
+  private var globalInputObserver: NSObjectProtocol?
 
   // Deeplink (llama://) plumbing.
   // Cold-launch URL events arrive before `applicationDidFinishLaunching`, so we have
@@ -165,6 +166,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       globalInputController = GlobalInputController()
     }
 
+    // Open the capture panel on demand (the "show global input" AppleScript
+    // command), creating the controller if the experiment flag left it dormant.
+    // Lets us bring up the panel while iterating on it without enabling the flag.
+    globalInputObserver = NotificationCenter.default.addObserver(
+      forName: .LBShowGlobalInput, object: nil, queue: .main
+    ) { [weak self] _ in
+      guard let self else { return }
+      MainActor.assumeIsolated {
+        if self.globalInputController == nil {
+          self.globalInputController = GlobalInputController()
+        }
+        self.globalInputController?.show()
+      }
+    }
+
     // Ensure a usable llama binary exists, then start the server in Router Mode.
     ensureCLIThenStartServer()
 
@@ -184,30 +200,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     #if DEBUG
-      // Auto-open a UI in debug builds to save a click. Prefer the global-input
-      // capture panel when it's enabled (so panel edits show up immediately on
-      // build); otherwise fall back to the menu.
-      if let globalInput = globalInputController {
-        // The panel snapshots the installed models when shown, so hold off until
-        // the initial scan has populated the list -- opening before then shows an
-        // empty panel. Open now if the list is already ready, otherwise on the
-        // first list-change notification (a one-shot observer).
-        let openPanel = { globalInput.show() }
-        if !ModelManager.shared.downloadedModels.isEmpty {
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: openPanel)
-        } else {
-          var token: NSObjectProtocol?
-          token = NotificationCenter.default.addObserver(
-            forName: .LBModelDownloadedListDidChange, object: nil, queue: .main
-          ) { _ in
-            if let token { NotificationCenter.default.removeObserver(token) }
-            openPanel()
-          }
-        }
-      } else {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-          self?.menuController?.openMenu()
-        }
+      // Auto-open the menu in debug builds to save a click. (To bring up the
+      // global-input capture panel while iterating on it, run the "show global
+      // input" AppleScript command -- see CLAUDE.md -- rather than gating on the
+      // experiment flag here.)
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        self?.menuController?.openMenu()
       }
     #endif
 

@@ -5,5 +5,8 @@
         <command name="show settings" code="LBrnSett" description="Open the settings window.">
             <cocoa class="Llama.ShowSettingsCommand"/>
         </command>
+        <command name="show global input" code="LBrnGinp" description="Open the global-input capture panel.">
+            <cocoa class="Llama.ShowGlobalInputCommand"/>
+        </command>
     </suite>
 </dictionary>

@@ -28,4 +28,8 @@ extension Notification.Name {
   // Posted to pop open the status-bar menu (e.g. the global-input panel routing
   // to onboarding when no models are installed).
   static let LBOpenMenu = Notification.Name("LBOpenMenu")
+  // Posted to open the global-input capture panel programmatically, creating the
+  // controller on demand if the experiment flag left it dormant. Used while
+  // iterating on the feature (see the "show global input" AppleScript command).
+  static let LBShowGlobalInput = Notification.Name("LBShowGlobalInput")
 }
