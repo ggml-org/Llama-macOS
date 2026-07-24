@@ -8,12 +8,13 @@ import Foundation
 /// - Loading: circular icon (active, spinner)
 /// - Running: circular icon (active)
 ///
-/// Installed rows are pure navigation -- clicking opens the model's page, which
-/// owns all actions (Chat, Copy ID, Unload, Delete). A persistent dimmed chevron
-/// signals that the row leads to that page. The only in-row control is the
-/// hover-only cancel X on downloading rows, since a download in flight has no
-/// page to host it. Chevron and cancel are mutually exclusive -- a row is either
-/// installed or downloading, never both.
+/// Clicking an installed row opens the model's page, which owns the full action
+/// set (Chat, Copy ID, Unload, Delete). The trailing slot is reserved for the
+/// one quick action each "active" state deserves in-row, shown on hover: the
+/// eject button on loaded rows and the cancel X on downloading rows. Idle
+/// installed rows show nothing there -- so an accessory always reads as "the
+/// action for this active state," and its glyph says which. The three states are
+/// mutually exclusive: a row is idle-installed, loaded, or downloading.
 final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   private let model: Model
   private unowned let server: LlamaServer
@@ -49,13 +50,12 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     return label
   }()
 
-  // Icon and the trailing accessories: a persistent chevron on installed rows
-  // signalling the row opens the model's page, and the hover-only cancel X on
-  // downloading rows. They're mutually exclusive -- a row is either installed
-  // or downloading, never both.
+  // Icon and the hover-only trailing accessories, one per "active" state: the
+  // eject button on loaded rows and the cancel X on downloading rows. Idle
+  // installed rows have none. All three states are mutually exclusive.
   private let iconView = IconView()
   private let cancelImageView = NSImageView()
-  private let chevronImageView = NSImageView()
+  private let unloadImageView = NSImageView()
 
   /// Whether the row is currently styled as downloading (in flight, paused, or in the
   /// brief post-cancel window). Set by `refresh()`; read back both to detect the
@@ -83,13 +83,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     Theme.configure(cancelImageView, symbol: "xmark", tooltip: "Cancel download")
     cancelImageView.isHidden = true
 
-    // Dimmed disclosure chevron -- purely decorative (the whole row is the click
-    // target), so it's an image, not a button. Tertiary tint keeps it a quiet
-    // hint rather than a competing accent. Shown only on installed rows.
-    Theme.configure(
-      chevronImageView, symbol: "chevron.right",
-      color: Theme.Colors.textTertiary, pointSize: 11)
-    chevronImageView.isHidden = true
+    // Eject glyph -- the in-row unload shortcut on loaded rows. Like the cancel X
+    // it owns a click gesture (see `setupGestures`) so a click on it unloads
+    // rather than falling through to the row's open-page navigation.
+    Theme.configure(unloadImageView, symbol: "eject", tooltip: "Unload model")
+    unloadImageView.isHidden = true
 
     setupLayout()
     setupGestures()
@@ -116,11 +114,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
     spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // Trailing accessories: the persistent chevron on installed rows and the
-    // hover-only cancel X on downloading rows (see `highlightDidChange`). They
-    // never show at once, so they can share the slot. Progress and pause/play
-    // both live in the ring around the leading icon (see `IconView`).
-    let rootStack = NSStackView(views: [leading, spacer, chevronImageView, cancelImageView])
+    // Trailing accessories: the hover-only eject (loaded) and cancel X
+    // (downloading), gated in `updateHoverAccessories`. They never show at once,
+    // so they can share the slot. Progress and pause/play both live in the ring
+    // around the leading icon (see `IconView`).
+    let rootStack = NSStackView(views: [leading, spacer, unloadImageView, cancelImageView])
     rootStack.orientation = .horizontal
     rootStack.alignment = .centerY
     rootStack.spacing = 6
@@ -137,7 +135,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
 
     // Constraints
     Layout.constrainToIconSize(cancelImageView)
-    Layout.constrainToIconSize(chevronImageView)
+    Layout.constrainToIconSize(unloadImageView)
 
     titleLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
     titleLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
@@ -145,8 +143,8 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     cancelImageView.setContentHuggingPriority(.required, for: .horizontal)
     cancelImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
-    chevronImageView.setContentHuggingPriority(.required, for: .horizontal)
-    chevronImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
+    unloadImageView.setContentHuggingPriority(.required, for: .horizontal)
+    unloadImageView.setContentCompressionResistancePriority(.required, for: .horizontal)
   }
 
   private func setupGestures() {
@@ -157,6 +155,11 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // (the row body itself resumes a paused download — opposite action, same row).
     let cancelClick = NSClickGestureRecognizer(target: self, action: #selector(didClickCancel))
     cancelImageView.addGestureRecognizer(cancelClick)
+
+    // Dedicated click target on the eject glyph so it unloads instead of opening
+    // the page (which the row body does).
+    let unloadClick = NSClickGestureRecognizer(target: self, action: #selector(didClickUnload))
+    unloadImageView.addGestureRecognizer(unloadClick)
   }
 
   @objc private func didClickRow() {
@@ -181,15 +184,22 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     actionHandler.cancelDownload(for: model)
   }
 
-  // Prevent row toggle when clicking the cancel X. It owns its own click
-  // gesture — excluding it here stops the row-body gesture from also firing.
-  // The chevron is decorative and has no gesture, so a click on it falls
-  // through to the row body (opening the page) as intended.
+  @objc private func didClickUnload() {
+    // On a loaded model the primary action is unload; refresh so the eject glyph
+    // clears once the row is no longer active.
+    actionHandler.performPrimaryAction(for: model)
+    refresh()
+  }
+
+  // Prevent row toggle when clicking a trailing accessory. Each owns its own
+  // click gesture — excluding it here stops the row-body gesture from also firing.
   func gestureRecognizer(
     _ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent
   ) -> Bool {
-    !(!cancelImageView.isHidden
-      && cancelImageView.bounds.contains(cancelImageView.convert(event.locationInWindow, from: nil)))
+    let loc = event.locationInWindow
+    return ![cancelImageView, unloadImageView].contains { view in
+      !view.isHidden && view.bounds.contains(view.convert(loc, from: nil))
+    }
   }
 
   func refresh() {
@@ -296,15 +306,12 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     updateHoverAccessories()
   }
 
-  // Keeps the trailing accessories in sync with row state: the chevron shows
-  // persistently on installed rows (it opens the page), the cancel X only on
-  // hovered downloading rows. Called from both `refresh()` (state changes) and
-  // `highlightDidChange` (hover enters/leaves).
+  // Both trailing accessories are hover-only and state-gated: the cancel X on
+  // downloading rows, the eject on loaded rows. Called from both `refresh()`
+  // (state changes while hovered) and `highlightDidChange` (hover enters/leaves).
   private func updateHoverAccessories() {
     cancelImageView.isHidden = !(isHighlighted && showAsDownloading)
-    // Installed rows navigate to the page; downloading ones don't, so suppress
-    // the chevron whenever the row is styled as downloading.
-    chevronImageView.isHidden = showAsDownloading || !modelManager.isInstalled(model)
+    unloadImageView.isHidden = !(isHighlighted && server.isActive(model: model))
   }
 
   override func viewDidChangeEffectiveAppearance() {
