@@ -30,7 +30,7 @@ enum LlamaBinaries {
   /// The build the app installs and keeps its own binary at -- the pinned
   /// target, not whatever is newest. Bump per app release after smoke-testing
   /// `serve` + `fit-params`; the app's auto-updater then rolls it out.
-  static let targetVersion = LlamaVersion(parsing: "b9986")!
+  static let targetVersion = LlamaVersion(parsing: "b10098")!
 
   /// The minimum build the app accepts from an unmanaged install (e.g. Homebrew)
   /// before nudging the user to update -- the app can't update those itself.
