@@ -618,7 +618,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // loaded (a server-state rebuild keeps it current); Delete closes the set,
     // tinted destructive.
     menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
-    let chatRow = ActionItemView(title: "Chat", symbol: "bubble.left") {}
+    let chatRow = ActionItemView(title: "Open chat", symbol: "bubble.left") {}
     chatRow.onAction = { [weak chatRow] in
       // Opened through the row so the menu dismisses with the navigation.
       guard let url = LlamaServer.webuiUrl(modelId: model.id) else { return }
