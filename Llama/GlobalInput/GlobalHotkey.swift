@@ -30,7 +30,16 @@ final class GlobalHotkey {
 
   /// A process-unique id so the C event callback can find the right instance.
   private static var nextId: UInt32 = 1
-  private static var instances: [UInt32: GlobalHotkey] = [:]
+  /// Live instances, keyed by id, so the app-wide C callback can route to the
+  /// right one. Held *weakly* (via a box, since Swift dicts can't store weak
+  /// values directly): a strong entry here would keep every hotkey alive even
+  /// after its owner drops it, so `deinit` -- which is what unregisters the
+  /// Carbon hotkey -- would never run, and stale combos would keep firing.
+  private final class WeakRef {
+    weak var hotkey: GlobalHotkey?
+    init(_ hotkey: GlobalHotkey) { self.hotkey = hotkey }
+  }
+  private static var instances: [UInt32: WeakRef] = [:]
   private let id: UInt32
 
   /// Registers `combo` system-wide. `handler` runs on the main thread each time
@@ -61,7 +70,7 @@ final class GlobalHotkey {
           nil,
           &hotKeyId
         )
-        if let instance = GlobalHotkey.instances[hotKeyId.id] {
+        if let instance = GlobalHotkey.instances[hotKeyId.id]?.hotkey {
           instance.handler()
         }
         return noErr
@@ -90,7 +99,7 @@ final class GlobalHotkey {
       return nil
     }
 
-    GlobalHotkey.instances[id] = self
+    GlobalHotkey.instances[id] = WeakRef(self)
   }
 
   deinit {
