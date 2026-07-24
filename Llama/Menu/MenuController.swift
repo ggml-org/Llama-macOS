@@ -660,7 +660,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // informs a decision (how much space deleting reclaims).
     menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
       title: "Delete", symbol: "trash", destructive: true,
-      detail: model.totalSize
+      detail: model.totalSize, confirmTitle: "Click again to confirm"
     ) { [weak self] in
       self?.actionHandler.delete(model: model)
     }))

@@ -11,28 +11,43 @@ final class ActionItemView: ItemView {
   var onAction: () -> Void
   private let iconView = NSImageView()
   private let symbol: String
+  private let label: NSTextField
+  private let title: String
+
+  /// When non-nil, the row confirms inline instead of firing on first click:
+  /// the first click arms it (swapping the label to `confirmTitle`), and only a
+  /// second click within `confirmWindow` runs `onAction`. Disarms on hover-out
+  /// or timeout, restoring the original title. Nil = fire immediately.
+  private let confirmTitle: String?
+  private var isArmed = false
+  private var disarmWorkItem: DispatchWorkItem?
+  private static let confirmWindow: TimeInterval = 3.0
 
   /// - Parameters:
   ///   - title: Row label, e.g. "Chat".
   ///   - symbol: SF symbol name for the leading glyph.
   ///   - destructive: Tints the whole row red for delete-style actions.
   ///   - detail: Optional trailing metadata (e.g. Delete's disk footprint).
-  ///   - onAction: Invoked on click.
+  ///   - confirmTitle: When set, requires an inline two-step confirm (see above).
+  ///   - onAction: Invoked on click (or the confirming second click).
   init(
     title: String,
     symbol: String,
     destructive: Bool = false,
     detail: String? = nil,
+    confirmTitle: String? = nil,
     onAction: @escaping () -> Void
   ) {
     self.onAction = onAction
     self.symbol = symbol
+    self.title = title
+    self.confirmTitle = confirmTitle
+    self.label = Theme.primaryLabel(title)
     super.init(frame: .zero)
 
     let color: NSColor = destructive ? .systemRed : Theme.Colors.modelIconTint
     Theme.configure(iconView, symbol: symbol, color: color, pointSize: 12)
 
-    let label = Theme.primaryLabel(title)
     if destructive {
       label.textColor = .systemRed
     }
@@ -80,6 +95,42 @@ final class ActionItemView: ItemView {
   }
 
   @objc private func didClick() {
-    onAction()
+    // No inline confirmation configured -- fire straight away.
+    guard let confirmTitle else {
+      onAction()
+      return
+    }
+    // First click arms; second (confirming) click within the window fires.
+    if isArmed {
+      disarm()
+      onAction()
+    } else {
+      arm(with: confirmTitle)
+    }
+  }
+
+  /// Swaps the label to the confirm prompt and schedules an auto-disarm so a
+  /// stray first click doesn't leave the row stuck in its armed state.
+  private func arm(with confirmTitle: String) {
+    isArmed = true
+    label.stringValue = confirmTitle
+    let workItem = DispatchWorkItem { [weak self] in self?.disarm() }
+    disarmWorkItem = workItem
+    DispatchQueue.main.asyncAfter(deadline: .now() + Self.confirmWindow, execute: workItem)
+  }
+
+  /// Restores the original label and cancels any pending auto-disarm.
+  private func disarm() {
+    disarmWorkItem?.cancel()
+    disarmWorkItem = nil
+    guard isArmed else { return }
+    isArmed = false
+    label.stringValue = title
+  }
+
+  /// Disarm when the pointer leaves the row -- moving away is an implicit cancel.
+  override func highlightDidChange(_ highlighted: Bool) {
+    super.highlightDidChange(highlighted)
+    if !highlighted { disarm() }
   }
 }
