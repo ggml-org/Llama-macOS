@@ -623,13 +623,23 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
     menu.addItem(NSMenuItem.viewItem(with: copyRow))
     // A one-paste proof the API works end to end (server, port, model id) --
-    // the model page is where someone wiring up the API lands first.
+    // the model page is where someone wiring up the API lands first. Sits next
+    // to Copy model ID: same workflow (scripting the API), not just same verb.
     let curlRow = ActionItemView(title: "Copy curl command", symbol: "terminal") {}
     curlRow.onAction = { [weak curlRow] in
       Clipboard.copy(LlamaServer.curlCommand(modelId: model.id))
       curlRow?.flashConfirmation()
     }
     menu.addItem(NSMenuItem.viewItem(with: curlRow))
+    // The HF model card is where the id pays off -- license, description, the
+    // org's other quants. Every managed model is HF-backed, so the id maps
+    // straight to a repo URL.
+    let hfRow = ActionItemView(title: "View on Hugging Face", symbol: "arrow.up.right") {}
+    hfRow.onAction = { [weak hfRow] in
+      guard let url = URL(string: "https://huggingface.co/\(model.idBase)") else { return }
+      hfRow?.openInBrowser(url)
+    }
+    menu.addItem(NSMenuItem.viewItem(with: hfRow))
     if server.isActive(model: model) {
       menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
         title: "Unload", symbol: "eject"
