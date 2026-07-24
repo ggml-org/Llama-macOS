@@ -98,12 +98,10 @@ final class ExpandedModelDetailsView: ItemView {
           picker.addArrangedSubview(makeDivider())
         }
         let segment = makeSegment(tier: tier)
-        if enabledTiers.contains(tier) {
-          // Spell out what the two lines mean for anyone the legend doesn't reach.
-          segment.toolTip =
-            "\(tier.shortLabel) context uses \(costLabel(for: tier)) of memory"
-        } else {
-          // Explain why a disabled tier can't be selected (memory constraint).
+        // Enabled tiers show their memory cost inline (see the sublabel in
+        // `makeSegment`), so they need no tooltip. Disabled tiers still get one
+        // to explain why they can't be selected -- info shown nowhere else.
+        if !enabledTiers.contains(tier) {
           segment.toolTip = model.incompatibilitySummary(
             ctxWindowTokens: Double(tier.rawValue))
         }
