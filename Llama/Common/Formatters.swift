@@ -223,10 +223,17 @@ extension Format {
     id: String,
     color: NSColor,
     hasVision: Bool = false,
-    showTags: Bool = false
+    showTags: Bool = false,
+    font: NSFont = Theme.Fonts.primary
   ) -> NSAttributedString {
     let parsed = ModelIdParser.parse(id)
     let result = NSMutableAttributedString()
+    // The name (and org prefix) take the caller's font -- the model page
+    // title renders larger than list rows. Chips and tags keep their fixed
+    // sizes; they're metadata badges, not text that scales with the name.
+    let nameAttributes: (NSColor) -> [NSAttributedString.Key: Any] = { color in
+      [.font: font, .foregroundColor: color]
+    }
 
     // Non-default orgs keep their `org/` prefix, dimmed: it's part of the
     // identity the model was installed by (the verbatim HF id), and it's what
@@ -238,11 +245,11 @@ extension Format {
       result.append(
         NSAttributedString(
           string: org + "/",
-          attributes: Theme.primaryAttributes(color: Theme.Colors.textSecondary)))
+          attributes: nameAttributes(Theme.Colors.textSecondary)))
     }
 
     result.append(
-      NSAttributedString(string: parsed.name, attributes: Theme.primaryAttributes(color: color)))
+      NSAttributedString(string: parsed.name, attributes: nameAttributes(color)))
 
     // Chip order matches the WebUI (params, quant, then leftover tags); the
     // kinds descend in visual weight — see `ChipStyle`.

@@ -16,11 +16,13 @@ final class ActionItemView: ItemView {
   ///   - title: Row label, e.g. "Chat".
   ///   - symbol: SF symbol name for the leading glyph.
   ///   - destructive: Tints the whole row red for delete-style actions.
+  ///   - detail: Optional trailing metadata (e.g. Delete's disk footprint).
   ///   - onAction: Invoked on click.
   init(
     title: String,
     symbol: String,
     destructive: Bool = false,
+    detail: String? = nil,
     onAction: @escaping () -> Void
   ) {
     self.onAction = onAction
@@ -44,6 +46,15 @@ final class ActionItemView: ItemView {
     stack.orientation = .horizontal
     stack.alignment = .centerY
     stack.spacing = 4
+
+    // Trailing metadata in the dimmed secondary style, pushed to the far
+    // edge -- context for the action, not part of its label.
+    if let detail {
+      stack.addArrangedSubview(.flexibleSpacer())
+      let detailLabel = Theme.secondaryLabel(detail)
+      detailLabel.textColor = Theme.Colors.textSecondary
+      stack.addArrangedSubview(detailLabel)
+    }
     contentView.addSubview(stack)
     stack.pinToSuperview()
 

@@ -1,19 +1,25 @@
 import AppKit
 import Foundation
 
-/// Static identity at the top of a model page: the model's icon and title.
+/// The model page's title line: the model name at page-title scale, bare and
+/// flush left, with a live status dot beside it.
 ///
-/// This is deliberately not a `ModelItemView`: a page header does not navigate
-/// when clicked and should not inherit the list row's hover background or hidden
-/// actions. The model's live loading state still appears in its icon. Page
-/// actions live in the `ActionItemView` rows below the settings.
+/// Deliberately not an identity block (no icon, no subtitle) -- every fuller
+/// header treatment read as either a stray list row or an over-promoted hero.
+/// The name is the one fact the title must carry; the icon's brand job is done
+/// by the list, and the disk footprint lives on the Delete row where it
+/// informs a decision. The dot keeps the one live signal worth keeping: green
+/// while the model is running, dimmed while loading, absent when idle.
 final class ModelPageHeaderView: ItemView {
   private let model: Model
   private unowned let server: LlamaServer
 
-  private let iconView = IconView()
   private let titleLabel = Theme.primaryLabel()
-  private let subtitleLabel = Theme.secondaryLabel()
+  private let statusDot = NSView()
+
+  /// Page-title scale for the model name -- a step up from the 13pt list rows
+  /// so the header reads as a heading, not a stray list item.
+  private static let titleFont = NSFont.systemFont(ofSize: 15, weight: .semibold)
 
   init(
     model: Model,
@@ -24,26 +30,17 @@ final class ModelPageHeaderView: ItemView {
     self.server = server
     super.init(frame: .zero)
 
-    iconView.imageView.image =
-      model.brandLogoAsset.flatMap { NSImage(named: $0) }
-      ?? NSImage(systemSymbolName: "cube.fill", accessibilityDescription: "Model")
-
     titleLabel.attributedStringValue = Format.modelName(
       id: model.id,
       color: Theme.Colors.textPrimary,
       hasVision: model.hasVisionSupport,
-      showTags: showTags
+      showTags: showTags,
+      font: Self.titleFont
     )
     titleLabel.maximumNumberOfLines = 1
     titleLabel.lineBreakMode = .byTruncatingTail
     titleLabel.cell?.truncatesLastVisibleLine = true
     titleLabel.allowsDefaultTighteningForTruncation = false
-
-    // Disk footprint, dropped from the list row's subtitle when the page
-    // header went identity-only. (Context length is deliberately absent --
-    // the picker below owns that story, including memory cost.)
-    subtitleLabel.stringValue = "\(model.totalSize) on disk"
-    subtitleLabel.textColor = Theme.Colors.textSecondary
 
     setupLayout()
     refresh()
@@ -55,27 +52,44 @@ final class ModelPageHeaderView: ItemView {
   override var highlightEnabled: Bool { false }
 
   private func setupLayout() {
-    // Two-line text column mirroring the list rows: title over metadata.
-    let textColumn = NSStackView(views: [titleLabel, subtitleLabel])
-    textColumn.orientation = .vertical
-    textColumn.alignment = .leading
-    textColumn.spacing = Layout.textLineSpacing
+    statusDot.wantsLayer = true
+    statusDot.layer?.cornerRadius = 3
+    statusDot.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+      statusDot.widthAnchor.constraint(equalToConstant: 6),
+      statusDot.heightAnchor.constraint(equalToConstant: 6),
+    ])
 
-    let identityRow = NSStackView(views: [iconView, textColumn])
-    identityRow.orientation = .horizontal
-    identityRow.alignment = .centerY
-    identityRow.spacing = 6
-    contentView.addSubview(identityRow)
-    identityRow.pinToSuperview(top: 4, leading: 0, trailing: 0, bottom: 4)
+    let row = NSStackView(views: [titleLabel, statusDot])
+    row.orientation = .horizontal
+    row.alignment = .centerY
+    row.spacing = 6
+    contentView.addSubview(row)
+    row.pinToSuperview(top: 4, leading: 0, trailing: 0, bottom: 4)
 
     widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
     titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
   }
 
-  /// Updates the status icon to reflect the model's live server state.
+  /// Updates the status dot to the model's live server state: green while
+  /// running, dimmed while loading, hidden when idle (the absence of a dot is
+  /// the "not loaded" signal).
   func refresh() {
-    iconView.inactiveTintColor = Theme.Colors.modelIconTint
-    iconView.setLoading(server.isLoading(model: model))
-    iconView.isActive = server.isActive(model: model)
+    let isActive = server.isActive(model: model)
+    let isLoading = server.isLoading(model: model)
+    statusDot.isHidden = !isActive && !isLoading
+    restyleDot()
+  }
+
+  private func restyleDot() {
+    let color: NSColor =
+      server.isActive(model: model) ? .systemGreen : Theme.Colors.textTertiary
+    statusDot.layer?.setBackgroundColor(color, in: self)
+  }
+
+  // The dot's layer color is a resolved CGColor; re-resolve on light/dark flips.
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    restyleDot()
   }
 }

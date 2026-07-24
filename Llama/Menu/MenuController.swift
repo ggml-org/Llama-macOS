@@ -637,8 +637,11 @@ final class MenuController: NSObject, NSMenuDelegate {
         self?.actionHandler.performPrimaryAction(for: model)
       }))
     }
+    // Disk footprint rides the Delete row -- it's the one place the number
+    // informs a decision (how much space deleting reclaims).
     menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
-      title: "Delete", symbol: "trash", destructive: true
+      title: "Delete", symbol: "trash", destructive: true,
+      detail: model.totalSize
     ) { [weak self] in
       self?.actionHandler.delete(model: model)
     }))
