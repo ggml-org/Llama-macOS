@@ -33,6 +33,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var updatesObserver: NSObjectProtocol?
   private var recheckCLIObserver: NSObjectProtocol?
   private var globalInputObserver: NSObjectProtocol?
+  #if DEBUG
+    private var debugMenuObserver: NSObjectProtocol?
+  #endif
 
   // Deeplink (llama://) plumbing.
   // Cold-launch URL events arrive before `applicationDidFinishLaunching`, so we have
@@ -198,11 +201,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       if !ModelManager.shared.downloadedModels.isEmpty {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: openMenu)
       } else {
-        var token: NSObjectProtocol?
-        token = NotificationCenter.default.addObserver(
+        debugMenuObserver = NotificationCenter.default.addObserver(
           forName: .LBModelDownloadedListDidChange, object: nil, queue: .main
-        ) { _ in
-          if let token { NotificationCenter.default.removeObserver(token) }
+        ) { [weak self] _ in
+          if let observer = self?.debugMenuObserver {
+            NotificationCenter.default.removeObserver(observer)
+            self?.debugMenuObserver = nil
+          }
           openMenu()
         }
       }
