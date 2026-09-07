@@ -17,7 +17,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
   /// this split view.
   private var splitVC: NSSplitViewController?
 
-  func showSettings() {
+  /// - Parameter tab: the section to select, or nil to leave the selection
+  ///   alone -- reopening the window shouldn't move someone off the pane they
+  ///   were last on just because the caller didn't care which one it was.
+  func showSettings(tab: SettingsTab? = nil) {
+    if let tab { tabSelection.tab = tab }
+
     // Build the window on first show; afterwards it's reused (and just
     // brought back to the front by the tail of this method).
     if window == nil {
@@ -224,6 +229,21 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .webUI: "macwindow"
     case .command: "terminal"
     }
+  }
+
+  /// Looks a section up by the name the sidebar shows for it.
+  ///
+  /// Derived from `title` rather than kept as a second list of strings: the
+  /// scripting vocabulary is meant to be what's on screen, and a separate
+  /// mapping is a thing to forget when a section is renamed. Case-insensitive
+  /// because "network" is what someone types.
+  init?(sidebarName name: String) {
+    guard
+      let match = SettingsTab.allCases.first(where: {
+        $0.title.caseInsensitiveCompare(name) == .orderedSame
+      })
+    else { return nil }
+    self = match
   }
 }
 

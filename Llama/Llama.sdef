@@ -4,6 +4,9 @@
     <suite name="Llama Suite" code="LBrn" description="Llama specific classes and commands.">
         <command name="show settings" code="LBrnSett" description="Open the settings window.">
             <cocoa class="Llama.ShowSettingsCommand"/>
+            <parameter name="tab" code="LBtb" type="text" optional="yes" description="Which section to select, by its sidebar name (e.g. &quot;Network&quot;). Omitted, the window keeps whatever was last selected.">
+                <cocoa key="tab"/>
+            </parameter>
         </command>
         <command name="show global input" code="LBrnGinp" description="Open the global-input capture panel.">
             <cocoa class="Llama.ShowGlobalInputCommand"/>
