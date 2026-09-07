@@ -378,6 +378,10 @@ struct SettingsView: View {
   @State private var serverPort = LlamaServer.port
   @State private var showingServerPortSheet = false
   @State private var networkAccess = UserSettings.networkAccess
+  // The code's modules follow the appearance, so the row has to redraw on a
+  // theme change.
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.displayScale) private var displayScale
 
   @ViewBuilder private var form: some View {
     switch tab {
@@ -484,8 +488,69 @@ struct SettingsView: View {
         networkAccessControl
       }
 
+      // Address section -- only once there's an address another device could
+      // actually use.
+      if let url = otherDeviceURL {
+        Section {
+          addressRow(url)
+        }
+      }
+
     }
     .formStyle(.grouped)
+  }
+
+  /// The URL another device would use to reach the server, or nil when the
+  /// server is on loopback -- a QR code for `localhost` would be a code for
+  /// the scanning phone's own self, and there's no address worth printing.
+  ///
+  /// Derived from settings rather than from the running server, so it's right
+  /// the instant the option is picked instead of after the restart lands.
+  private var otherDeviceURL: URL? {
+    let host = LlamaServer.resolvedHost
+    guard host != "localhost" else { return nil }
+    return URL(string: "http://\(host):\(LlamaServer.port)/")
+  }
+
+  /// The address another device would use, with its QR code shown inline.
+  ///
+  /// Inline rather than behind a button: the code is the whole point of the
+  /// row, the pane has the room, and a click to reveal it would only be worth
+  /// asking for if it were usually in the way. In the menu it *is* in the way
+  /// -- that's a small popup you open dozens of times a day -- which is why
+  /// the same code hides behind a button there and sits in the open here.
+  private func addressRow(_ url: URL) -> some View {
+    HStack(alignment: .top, spacing: 16) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Address")
+
+        Text("Open this on another device, or scan the code.")
+          .font(.system(size: 11))
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+
+        // The address in text as well as in the code: it's the fallback when
+        // a camera won't cooperate, and it's what you'd paste into a config.
+        Text(url.absoluteString)
+          .font(.system(size: 11, design: .monospaced))
+          .textSelection(.enabled)
+          .padding(.top, 4)
+      }
+
+      Spacer(minLength: 0)
+
+      // No padding around it: the code is transparent and the card is a flat
+      // surface, so the card's own margins serve as the quiet zone, at several
+      // times the four modules a decoder asks for.
+      if let image = QRCode.image(
+        for: url.absoluteString, size: QRCode.size, dark: colorScheme == .dark,
+        scale: displayScale)
+      {
+        Image(nsImage: image)
+          // No smoothing: blurred module edges are what a camera fails on.
+          .interpolation(.none)
+      }
+    }
   }
 
   /// The Downloads tab -- where downloaded models land, and what authenticates

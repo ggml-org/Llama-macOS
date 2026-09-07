@@ -15,9 +15,6 @@ extension Notification.Name {
   // speech-bubble hint (e.g. deeplink install started). userInfo["message"]
   // carries the text.
   static let LBShowMenuHint = Notification.Name("LBShowMenuHint")
-  /// Posted by the menu header when the user asks for the server URL as a QR
-  /// code; the menu controller owns the status item it has to be anchored to.
-  static let LBShowServerQR = Notification.Name("LBShowServerQR")
   // Posted when the app-owned CLI install state changes (idle/installing/failed),
   // so the menu can surface a "setting up…" banner or a retry affordance.
   static let LBCLIInstallStateDidChange = Notification.Name("LBCLIInstallStateDidChange")

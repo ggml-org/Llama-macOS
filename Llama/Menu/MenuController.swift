@@ -46,7 +46,6 @@ final class MenuController: NSObject, NSMenuDelegate {
   private var renderedManagedIds: Set<String> = []
 
   private var hintPopover: HintPopover?
-  private var qrPopover: ServerQRPopover?
 
   /// A download has finished that the user hasn't seen yet (i.e. hasn't opened
   /// the menu since). Drives the checkmark badge on the icon; cleared the next
@@ -125,23 +124,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     let popover = HintPopover(message: message)
     popover.show(from: statusItem)
     hintPopover = popover
-  }
-
-  /// Shows the server URL as a QR code, anchored to the menu bar icon.
-  ///
-  /// The menu is still tracking when the button is clicked, and a popover
-  /// won't appear over a menu's modal loop -- so close the menu first and
-  /// present on the next turn of the run loop.
-  private func showServerQR(_ url: URL) {
-    // Any hint bubble already dismissed itself when the menu opened.
-    statusItem.menu?.cancelTracking()
-
-    DispatchQueue.main.async { [weak self] in
-      guard let self else { return }
-      let popover = ServerQRPopover(url: url)
-      popover.show(from: self.statusItem)
-      self.qrPopover = popover
-    }
   }
 
   private func configureStatusItem() {
@@ -443,13 +425,6 @@ final class MenuController: NSObject, NSMenuDelegate {
     observe(.LBShowMenuHint) { [weak self] note in
       guard let msg = note.userInfo?["message"] as? String else { return }
       self?.showHint(msg)
-    }
-
-    // The header's QR button, handed over because the popover has to anchor to
-    // the status item and can only be shown once the menu has closed.
-    observe(.LBShowServerQR) { [weak self] note in
-      guard let url = note.userInfo?["url"] as? URL else { return }
-      self?.showServerQR(url)
     }
 
     // A background flow wants the menu open (e.g. the global-input panel routing

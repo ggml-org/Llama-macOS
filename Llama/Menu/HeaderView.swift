@@ -12,11 +12,14 @@ final class HeaderView: ItemView {
   private let linkLabel = Theme.secondaryLabel()
   private let copyButton = NSButton()
   private let qrButton = NSButton()
+  private let qrImageView = NSImageView()
   private let webUiLabel = Theme.secondaryLabel()
   private let restartLabel = Theme.secondaryLabel()
 
   private var currentUrl: URL?
   private var webUiUrl: URL?
+  /// Whether the code is expanded under the address row.
+  private var showingQRCode = false
   private var showingCopyConfirmation = false
   private var showingRestartIcon = false
   private var restartIconHideTask: DispatchWorkItem?
@@ -55,11 +58,25 @@ final class HeaderView: ItemView {
     statusStackView.alignment = .firstBaseline
     statusStackView.distribution = .fill
 
+    // The code sits under the status row and starts collapsed, so the menu
+    // opens at its usual height and grows only when asked.
+    qrImageView.isHidden = true
+    // No smoothing: blurred module edges are what a camera fails on.
+    qrImageView.imageScaling = .scaleNone
+    NSLayoutConstraint.activate([
+      qrImageView.widthAnchor.constraint(equalToConstant: QRCode.size),
+      qrImageView.heightAnchor.constraint(equalToConstant: QRCode.size),
+    ])
+
     // Main stack for vertical layout of title row and status
-    let mainStack = NSStackView(views: [titleStack, statusStackView])
+    let mainStack = NSStackView(views: [titleStack, statusStackView, qrImageView])
     mainStack.orientation = .vertical
     mainStack.alignment = .leading
     mainStack.spacing = Layout.textLineSpacing
+    // The stack's spacing is meant for consecutive lines of text; the code is
+    // a block rather than a line, so it needs the gap a block gets or it reads
+    // as attached to the address above it.
+    mainStack.setCustomSpacing(8, after: statusStackView)
 
     contentView.addSubview(mainStack)
     mainStack.pinToSuperview()
@@ -143,6 +160,8 @@ final class HeaderView: ItemView {
       linkLabel.isHidden = true
       copyButton.isHidden = true
       qrButton.isHidden = true
+      showingQRCode = false
+      qrImageView.isHidden = true
       webUiLabel.isHidden = true
       restartLabel.isHidden = false
       needsDisplay = true
@@ -175,6 +194,17 @@ final class HeaderView: ItemView {
     copyButton.isHidden = false
     // A QR code for `localhost` would point the phone at itself.
     qrButton.isHidden = host == "localhost"
+    // Collapse along with the button: an address that stopped being scannable
+    // shouldn't leave a stale code open underneath it.
+    if qrButton.isHidden { showingQRCode = false }
+
+    qrImageView.isHidden = !showingQRCode
+    if showingQRCode {
+      let dark = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+      qrImageView.image = QRCode.image(
+        for: webUiUrlString, size: QRCode.size, dark: dark,
+        scale: window?.backingScaleFactor ?? 2)
+    }
     webUiLabel.isHidden = false
     restartLabel.isHidden = true
 
@@ -205,13 +235,21 @@ final class HeaderView: ItemView {
     }
   }
 
+  /// Expands or collapses the code in place.
+  ///
+  /// In place rather than in a popover: a popover can't appear over the menu's
+  /// tracking loop, so presenting one meant closing the menu and opening a
+  /// second panel where it had been -- which reads as the menu being replaced
+  /// rather than as the row you clicked opening up.
   @objc private func showQRCode() {
-    guard let webUiUrl else { return }
-    // The menu owns the status item the popover anchors to, and a popover
-    // can't show while the menu's tracking loop is running -- so hand it off
-    // and let the menu present it once it has closed.
-    NotificationCenter.default.post(
-      name: .LBShowServerQR, object: nil, userInfo: ["url": webUiUrl])
+    showingQRCode.toggle()
+    refresh()
+
+    // The menu sized itself when it opened, so growing the item's view isn't
+    // enough on its own -- the menu has to be told its content changed.
+    if let item = enclosingMenuItem {
+      item.menu?.itemChanged(item)
+    }
   }
 
   @objc private func copyUrl() {
