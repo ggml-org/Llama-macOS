@@ -171,7 +171,11 @@ final class HeaderView: ItemView {
     // Build server URLs using the resolved host (handles 0.0.0.0 -> local IP)
     let host = LlamaServer.resolvedHost
     let linkText = "\(host):\(LlamaServer.port)"
-    let apiUrlString = "http://\(linkText)/v1"
+    // No `/v1` suffix: llama.cpp serves the OpenAI-compatible routes at the
+    // root as well as under `/v1`, so the bare origin works both with clients
+    // that append `/v1/...` themselves and with OpenAI SDKs that append
+    // `/chat/completions` -- and it's the form tools like Pi expect.
+    let apiUrlString = "http://\(linkText)"
     let webUiUrlString = "http://\(linkText)/"
 
     self.currentUrl = URL(string: apiUrlString)!
