@@ -10,29 +10,38 @@ import Foundation
 /// and nothing else; it's also the only place the app is named in its own UI
 /// (the footer carries versions, the menu bar carries a glyph).
 ///
-/// It used to be more than a title, and that was the problem: it held line one
-/// while nothing in the header said whether the server was up -- the address
-/// below was printed identically whether the server was serving, still
-/// starting, or wedged behind a taken port. State lives on line two now, in
-/// the dot inside the chip, which frees the name to just be a name. The word
-/// beside the chip appears only when it isn't the expected one: "Starting…"
-/// while the server comes up, the bind error in place of the address when
-/// there isn't a working one.
+/// Line one is the title and a state dot; line two is how the server is
+/// reached, or -- when it can't be -- why.
+///
+/// The dot says the thing the menu otherwise never says: that there's a server
+/// here and it's up, even with no model loaded. It also carries the states
+/// that text can't. A restart resolves in well under a second (changing a
+/// model's context length triggers one, so they're common), and a word that
+/// appears and vanishes before it can be read costs attention without paying
+/// anything back -- but a dot going grey for that same moment asks for no
+/// reading, shifts no layout, and is free to be missed. It's how the menu
+/// shows that a settings change restarts the server at all.
+///
+/// An error takes line two rather than crowding the title: that line is where
+/// the endpoint lives, so when there isn't one, the reason belongs in its
+/// place -- next to the retry that acts on it, with the room to say what
+/// happened.
 final class HeaderView: ItemView {
 
   private unowned let server: LlamaServer
-  /// Set once -- a title with no second job, at the weight macOS gives the
+  /// At the weight macOS gives the
   /// same thing: the system's own menu bar menus (Battery, Wi-Fi) title
   /// themselves in 13pt semibold over a secondary status line, with 13pt
   /// regular item names below. Measured off a Battery menu capture rather than
   /// guessed -- semibold matches its title's ink box exactly, medium doesn't.
   private let titleLabel = Theme.primaryLabel("Llama")
-  private let statusDot = NSView()
+  private let statusDot = StatusDotView()
   /// Secondary (11pt) rather than primary: it shares the row with the chip and
   /// the chat link, and a 13pt word would set the row's height taller than the
   /// controls need.
   private let statusLabel = Theme.secondaryLabel()
-  private let urlChip = URLChipView()
+  private let addressLabel = Theme.secondaryLabel()
+  private let copyButton = NSButton()
   private let qrButton = NSButton()
   private let qrImageView = NSImageView()
   private let webUiLabel = Theme.secondaryLabel()
@@ -57,15 +66,6 @@ final class HeaderView: ItemView {
   private func setup() {
     widthAnchor.constraint(equalToConstant: Layout.menuWidth).isActive = true
 
-    // Standalone dot -- shown only when the chip is hidden (the error state),
-    // since the chip carries a dot of its own the rest of the time.
-    statusDot.wantsLayer = true
-    statusDot.layer?.cornerRadius = 3
-    statusDot.translatesAutoresizingMaskIntoConstraints = false
-    NSLayoutConstraint.activate([
-      statusDot.widthAnchor.constraint(equalToConstant: 6),
-      statusDot.heightAnchor.constraint(equalToConstant: 6),
-    ])
 
     // A long bind error ("Port 9931 is in use by ...") can outrun the row; the
     // tooltip keeps the full text reachable.
@@ -74,16 +74,22 @@ final class HeaderView: ItemView {
     statusLabel.cell?.truncatesLastVisibleLine = true
     statusLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-    // The chip is the copy target: the address and the copy glyph are one
-    // object, so there's no 13x13 icon to hit next to text that looks
-    // copyable but isn't.
-    urlChip.onClick = { [weak self] in self?.copyUrl() }
+    // A plain glyph button rather than a control wrapping the whole address:
+    // copying the URL is the rarest thing anyone does in this menu (a couple
+    // of times per tool they wire up, then never), and a hover-highlighted run
+    // of text would be an interaction pattern that exists nowhere else here --
+    // not for the chat link, not for the code button, not in the footer.
+    Theme.configure(copyButton, symbol: "doc.on.doc", tooltip: "Copy the base URL", pointSize: 10)
+    copyButton.target = self
+    copyButton.action = #selector(copyUrl)
 
     // Only useful once the server is bound off this machine, so `refresh()`
     // hides it for a localhost bind. It sits outside the chip: the chip's own
     // bounds group copying with the address, which keeps the code from reading
     // as a second thing to do with the same glyph.
-    Theme.configure(qrButton, symbol: "qrcode", tooltip: "Show QR code", pointSize: 11)
+    // 10pt like the copy glyph: at 11 its box stood taller than everything else
+    // on the line, which read as the line reaching up toward the title.
+    Theme.configure(qrButton, symbol: "qrcode", tooltip: "Show QR code", pointSize: 10)
     qrButton.target = self
     qrButton.action = #selector(showQRCode)
     qrButton.isHidden = true
@@ -120,29 +126,36 @@ final class HeaderView: ItemView {
       NSClickGestureRecognizer(target: self, action: #selector(restartServer)))
 
     let actionRow = NSStackView(views: [
-      statusDot, urlChip, qrButton, statusLabel, NSView.flexibleSpacer(), webUiLabel, restartLabel,
+      addressLabel, copyButton, qrButton, statusLabel, NSView.flexibleSpacer(), webUiLabel,
+      restartLabel,
     ])
     actionRow.orientation = .horizontal
     actionRow.alignment = .centerY
     actionRow.spacing = 6
     // The code button is a separate affordance, not a second thing to do with
-    // the address; at the row's 6pt spacing its glyph read as a pair with the
-    // copy glyph just inside the chip's border.
-    actionRow.setCustomSpacing(10, after: urlChip)
+    // the address, so it doesn't sit at the copy glyph's distance from it.
+    actionRow.setCustomSpacing(10, after: copyButton)
 
     titleLabel.font = .systemFont(ofSize: Theme.Fonts.primary.pointSize, weight: .semibold)
 
-    let mainStack = NSStackView(views: [titleLabel, actionRow, qrImageView])
+    let titleRow = NSStackView(views: [titleLabel, statusDot])
+    titleRow.orientation = .horizontal
+    // Baselined rather than centered: the dot is placed against the title's
+    // x-height (see StatusDotView), which centering on the row's box wouldn't
+    // give it.
+    titleRow.alignment = .firstBaseline
+    titleRow.spacing = 6
+
+    let mainStack = NSStackView(views: [titleRow, actionRow, qrImageView])
     mainStack.orientation = .vertical
     mainStack.alignment = .leading
     // The rows' own line spacing: the title and the address below it are two
     // lines of one block, not two stacked rows.
     mainStack.spacing = Layout.textLineSpacing
-    // Except the chip isn't a line of text -- its box clears the text's cap
-    // height by its own padding and border, so at the rows' 2pt its ink sits
-    // closer to the title than a second text line's would. Giving that padding
-    // back is what makes it *look* like the rows' spacing.
-    mainStack.setCustomSpacing(Layout.textLineSpacing + 4, after: titleLabel)
+    // The glyphs on the address line stand taller than the text they sit with,
+    // so the rows' text-to-text spacing leaves them crowding the title. Two
+    // points back is what makes the gap read as even.
+    mainStack.setCustomSpacing(Layout.textLineSpacing + 2, after: titleRow)
     // The code is a block rather than a line, so it needs the gap a block gets
     // or it reads as attached to the address above it.
     mainStack.setCustomSpacing(8, after: actionRow)
@@ -158,10 +171,9 @@ final class HeaderView: ItemView {
     // imply the server is up.
     if case .error(let err) = server.state {
       let message = err.errorDescription ?? "Server error"
-      setStatus(message, dot: .systemOrange, color: Theme.Colors.textPrimary)
-      statusDot.isHidden = false
-      statusLabel.toolTip = message
-      urlChip.isHidden = true
+      setStatus(message, dot: .systemRed, tooltip: message)
+      addressLabel.isHidden = true
+      copyButton.isHidden = true
       qrButton.isHidden = true
       showingQRCode = false
       qrImageView.isHidden = true
@@ -186,27 +198,23 @@ final class HeaderView: ItemView {
 
     // Off-loopback: the address is now one another device can reach, which is
     // what makes the code worth offering.
-    let onNetwork = host != "localhost"
+    // Line two carries the endpoint, so it says nothing of its own here; the
+    // dot has the state. Grey covers starting and restarting alike -- both are
+    // moments on the way to running, and the address stays valid through them.
     switch server.state {
     case .running:
-      // The expected state says nothing; the dot carries it. (Which also means
-      // the row has no room to announce an off-loopback bind in words -- the
-      // LAN address in the chip and the code button beside it are the tell.)
-      setStatus(nil, dot: .systemGreen)
+      setStatus(nil, dot: .systemGreen, tooltip: "Server running")
     case .idle, .loading:
-      // The server is started at launch and stays up, so idle is a moment on
-      // the way to running rather than a resting state of its own.
-      setStatus("Starting…", dot: Theme.Colors.textTertiary)
+      setStatus(nil, dot: Theme.Colors.textTertiary, tooltip: "Server restarting")
     case .error:
       break  // handled above
     }
 
-    urlChip.isHidden = false
-    urlChip.address = linkText
-    // The chip holds the dot whenever there's an address for it to sit beside.
-    statusDot.isHidden = true
+    addressLabel.isHidden = false
+    addressLabel.stringValue = linkText
+    copyButton.isHidden = false
     // A QR code for `localhost` would point the phone at itself.
-    qrButton.isHidden = !onNetwork
+    qrButton.isHidden = host == "localhost"
     // Collapse along with the button: an address that stopped being scannable
     // shouldn't leave a stale code open underneath it.
     if qrButton.isHidden { showingQRCode = false }
@@ -224,17 +232,16 @@ final class HeaderView: ItemView {
     needsDisplay = true
   }
 
-  /// Sets the dot, and the word beside it -- `nil` for the expected state,
-  /// where the dot alone is the whole message.
-  private func setStatus(
-    _ text: String?, dot color: NSColor, color textColor: NSColor = Theme.Colors.textSecondary
-  ) {
+  /// Sets the dot (and its tooltip, so the colour isn't the only way to read
+  /// it), plus line two's message -- `nil` whenever there's an endpoint to
+  /// show there instead.
+  private func setStatus(_ text: String?, dot color: NSColor, tooltip: String) {
     statusLabel.isHidden = text == nil
     statusLabel.stringValue = text ?? ""
-    statusLabel.textColor = textColor
-    if text == nil { statusLabel.toolTip = nil }
+    statusLabel.textColor = Theme.Colors.textPrimary
+    statusLabel.toolTip = text
+    statusDot.toolTip = tooltip
     statusDotColor = color
-    urlChip.dotColor = color
     statusDot.layer?.setBackgroundColor(color, in: self)
   }
 
@@ -276,126 +283,44 @@ final class HeaderView: ItemView {
     }
   }
 
-  private func copyUrl() {
+  @objc private func copyUrl() {
     guard let url = currentUrl else { return }
     Clipboard.copy(url.absoluteString)
 
-    urlChip.showingConfirmation = true
+    Theme.updateCopyIcon(copyButton, showingConfirmation: true)
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-      self?.urlChip.showingConfirmation = false
+      guard let self else { return }
+      Theme.updateCopyIcon(self.copyButton, showingConfirmation: false)
     }
   }
 }
 
-// MARK: - URL chip
+// MARK: - Status dot
 
-/// The endpoint as one object: the state dot, the address and a copy glyph
-/// inside a single rounded control, so the whole thing is the button. Hover
-/// fills it, a click copies and swaps the glyph for a checkmark.
+/// The 6pt state dot, with a baseline so it can sit in a baselined row of text.
 ///
-/// The dot lives inside rather than beside: out in the row it read as floating
-/// in the left margin rather than as belonging to the address it describes,
-/// and it pushed the address off the column the rest of the menu starts on.
-private final class URLChipView: NSView {
+/// Its baseline is placed to leave the dot centered on the x-height of the text
+/// beside it -- sitting it *on* the baseline would hang it below the middle of
+/// the word it follows.
+private final class StatusDotView: NSView {
 
-  var onClick: (() -> Void)?
-
-  var address: String = "" {
-    didSet { label.stringValue = address }
-  }
-
-  var dotColor: NSColor = .systemGreen {
-    didSet { dot.layer?.setBackgroundColor(dotColor, in: self) }
-  }
-
-  var showingConfirmation = false {
-    didSet {
-      glyph.image = Theme.symbolImage(showingConfirmation ? "checkmark" : "doc.on.doc")
-    }
-  }
-
-  private let label = Theme.secondaryLabel()
-  private let glyph = NSImageView()
-  private let dot = NSView()
-  private var isHovered = false { didSet { restyle() } }
-  private var trackingArea: NSTrackingArea?
-
-  private static let cornerRadius: CGFloat = 5
-
-  /// Both fills stay under the row-highlight weight: the chip is a control at
-  /// rest, not a selected row.
-  private static let restFill = NSColor.dynamic(
-    light: NSColor.black.withAlphaComponent(0.05),
-    dark: NSColor.white.withAlphaComponent(0.09)
-  )
-  private static let hoverFill = NSColor.dynamic(
-    light: NSColor.black.withAlphaComponent(0.10),
-    dark: NSColor.white.withAlphaComponent(0.16)
-  )
+  private static let size: CGFloat = 6
 
   init() {
     super.init(frame: .zero)
     translatesAutoresizingMaskIntoConstraints = false
     wantsLayer = true
-    layer?.cornerRadius = Self.cornerRadius
-    layer?.borderWidth = 1
-
-    toolTip = "Copy the base URL"
-
-    Theme.configure(glyph, symbol: "doc.on.doc", pointSize: 10)
-
-    // Same 6pt dot as the model page's title, so "running" reads the same way
-    // wherever it's shown.
-    dot.wantsLayer = true
-    dot.layer?.cornerRadius = 3
-    dot.translatesAutoresizingMaskIntoConstraints = false
+    layer?.cornerRadius = Self.size / 2
     NSLayoutConstraint.activate([
-      dot.widthAnchor.constraint(equalToConstant: 6),
-      dot.heightAnchor.constraint(equalToConstant: 6),
+      widthAnchor.constraint(equalToConstant: Self.size),
+      heightAnchor.constraint(equalToConstant: Self.size),
     ])
-
-    let stack = NSStackView(views: [dot, label, glyph])
-    stack.orientation = .horizontal
-    stack.alignment = .centerY
-    stack.spacing = 5
-    addSubview(stack)
-    stack.pinToSuperview(top: 2, leading: 6, trailing: 6, bottom: 2)
-
-    restyle()
   }
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  private func restyle() {
-    layer?.setBackgroundColor(isHovered ? Self.hoverFill : Self.restFill, in: self)
-    layer?.setBorderColor(Theme.Colors.separator, in: self)
-    dot.layer?.setBackgroundColor(dotColor, in: self)
-  }
-
-  // The layer's colors are resolved CGColors; re-resolve on light/dark flips.
-  override func viewDidChangeEffectiveAppearance() {
-    super.viewDidChangeEffectiveAppearance()
-    restyle()
-  }
-
-  override func updateTrackingAreas() {
-    super.updateTrackingAreas()
-    if let trackingArea { removeTrackingArea(trackingArea) }
-    let area = NSTrackingArea(
-      rect: bounds,
-      options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
-      owner: self
-    )
-    addTrackingArea(area)
-    trackingArea = area
-  }
-
-  override func resetCursorRects() {
-    addCursorRect(bounds, cursor: .pointingHand)
-  }
-
-  override func mouseEntered(with event: NSEvent) { isHovered = true }
-  override func mouseExited(with event: NSEvent) { isHovered = false }
-  override func mouseDown(with event: NSEvent) {}  // swallow, so the row behind stays put
-  override func mouseUp(with event: NSEvent) { onClick?() }
+  /// Half a point below the dot's bottom edge: the dot's centre then lands ~3.5pt
+  /// above the baseline, which is about half the x-height of the 13pt title.
+  override var firstBaselineOffsetFromTop: CGFloat { Self.size + 0.5 }
 }
+
