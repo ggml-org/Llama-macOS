@@ -101,6 +101,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let config = URLSessionConfiguration.default
     config.timeoutIntervalForRequest = 120  // Temporary network stalls
     config.timeoutIntervalForResource = 60 * 60 * 24  // 24 hours for large files
+    config.httpAdditionalHeaders = ["User-Agent": AppInfo.userAgent]
 
     urlSession = URLSession(configuration: config, delegate: self, delegateQueue: queue)
 

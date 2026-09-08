@@ -170,6 +170,7 @@ enum HFRepoResolver {
     var req = URLRequest(url: url)
     req.httpMethod = "GET"
     req.setValue("application/json", forHTTPHeaderField: "Accept")
+    req.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
     if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
 
     let data: Data

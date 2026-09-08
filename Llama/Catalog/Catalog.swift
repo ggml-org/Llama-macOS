@@ -92,7 +92,9 @@ enum Catalog {
   static func fetchFeatured(systemMemoryMb: UInt64) async -> [Suggestion] {
     let families: [Family]
     do {
-      let (data, response) = try await URLSession.shared.data(from: endpoint)
+      var request = URLRequest(url: endpoint)
+      request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
+      let (data, response) = try await URLSession.shared.data(for: request)
       guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
         logger.error("Catalog fetch returned non-2xx")
         return []
