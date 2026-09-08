@@ -944,7 +944,11 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// with the user's Hugging Face token when downloading from huggingface.co.
   private func makeRequest(for url: URL) -> URLRequest {
     var request = URLRequest(url: url)
-    if url.host?.hasSuffix("huggingface.co") == true,
+    // Match the host exactly or as a subdomain -- a bare `hasSuffix` would also
+    // accept `evilhuggingface.co`, and this check is the only thing keeping the
+    // token off a third-party host.
+    let host = url.host ?? ""
+    if host == "huggingface.co" || host.hasSuffix(".huggingface.co"),
       let token = UserSettings.hfToken
     {
       request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
