@@ -400,8 +400,16 @@ final class MenuController: NSObject, NSMenuDelegate {
     // the setup banner.
     observe(.LBCLIInstallStateDidChange, rebuildMenu: true)
 
-    // Model status changed (loaded/unloaded)
-    observe(.LBModelStatusDidChange)
+    // Models load/unload inside the running server, without changing its state.
+    // Rebuild an open model page so its Unload row follows those transitions;
+    // refreshing existing views alone cannot add or remove the action.
+    observe(.LBModelStatusDidChange) { [weak self] _ in
+      guard let self else { return }
+      if self.selectedModelId != nil {
+        self.rebuildMenuIfPossible()
+      }
+      self.refresh()
+    }
 
     // Download state changed. A plain progress tick only refreshes existing
     // rows; a membership change (download started/stopped — e.g. from Discover)
@@ -630,7 +638,7 @@ final class MenuController: NSObject, NSMenuDelegate {
     // Page actions as labeled menu rows -- bezel buttons read as dialog chrome
     // inside a menu and gray out whenever the app isn't frontmost. Chat leads
     // (the primary action on a model); Unload appears only while the model is
-    // loaded (a server-state rebuild keeps it current); Delete closes the set.
+    // loaded (status-change rebuilds keep it current); Delete closes the set.
     menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
     let chatRow = ActionItemView(title: "Chat with model", symbol: "bubble.left") {}
     chatRow.onAction = { [weak chatRow] in
@@ -681,7 +689,8 @@ final class MenuController: NSObject, NSMenuDelegate {
       menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
         title: "Unload", symbol: "eject"
       ) { [weak self] in
-        self?.actionHandler.performPrimaryAction(for: model)
+        // Keep this action one-way, even if the model unloads before the click.
+        self?.server.unloadModel(model)
       }))
     }
     // Disk footprint rides the Delete row -- it's the one place the number
