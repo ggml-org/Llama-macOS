@@ -161,12 +161,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     globalInputObserver = NotificationCenter.default.addObserver(
       forName: .LBShowGlobalInput, object: nil, queue: .main
     ) { [weak self] _ in
-      guard let self else { return }
       MainActor.assumeIsolated {
-        if self.globalInputController == nil {
-          self.globalInputController = GlobalInputController()
-        }
-        self.globalInputController?.show()
+        self?.globalInputController?.show()
       }
     }
 

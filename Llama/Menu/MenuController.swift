@@ -6,9 +6,9 @@ import Foundation
 @MainActor
 final class MenuController: NSObject, NSMenuDelegate {
   private let statusItem: NSStatusItem
-  private let modelManager: ModelManager
-  private let server: LlamaServer
-  private var actionHandler: ModelActionHandler!
+  private let modelManager = ModelManager.shared
+  private let server = LlamaServer.shared
+  private let actionHandler = ModelActionHandler()
 
   // Section State
   /// The installed model whose detail page is currently replacing the list.
@@ -65,20 +65,9 @@ final class MenuController: NSObject, NSMenuDelegate {
   // Store observer tokens for proper cleanup
   private var observers: [NSObjectProtocol] = []
 
-  init(modelManager: ModelManager? = nil, server: LlamaServer? = nil) {
+  override init() {
     self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    self.modelManager = modelManager ?? .shared
-    self.server = server ?? .shared
     super.init()
-
-    self.actionHandler = ModelActionHandler(
-      modelManager: self.modelManager,
-      server: self.server,
-      onMembershipChange: { [weak self] _ in
-        self?.rebuildMenuIfPossible()
-        self?.refresh()
-      }
-    )
 
     configureStatusItem()
     setupObservers()

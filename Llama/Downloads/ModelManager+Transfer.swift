@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Sentry
 import os.log
@@ -80,7 +81,7 @@ extension ModelManager {
         try? writer.handle.truncate(atOffset: 0)
         try? writer.handle.seek(toOffset: 0)
         writer.bytesWritten = 0
-        writer.hasher = HFCache.SHA256Hasher()
+        writer.hasher = SHA256()
       }
       if fullSize > 0 {
         writer.totalExpected = fullSize
@@ -101,7 +102,7 @@ extension ModelManager {
       guard let writer = writers[taskId] else { return false }
       do {
         try writer.handle.write(contentsOf: data)
-        writer.hasher.update(data)
+        writer.hasher.update(data: data)
         writer.bytesWritten += Int64(data.count)
         return false
       } catch {
@@ -228,7 +229,7 @@ extension ModelManager {
     }
 
     // Digest from the running hasher (covers existing-prefix re-hash at open time, plus streamed bytes).
-    let computed = writer.hasher.finalize()
+    let computed = HFCache.hex(writer.hasher.finalize())
     if let expected = writer.expectedBlobHash, expected != computed {
       logger.error(
         "Hash mismatch for \(writer.filename): expected \(expected), got \(computed)")

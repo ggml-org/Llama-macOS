@@ -1,4 +1,4 @@
-import CommonCrypto
+import CryptoKit
 import Foundation
 import os.log
 
@@ -53,33 +53,6 @@ enum HFCache {
       components[3] == "resolve"
     else { return nil }
     return components[5...].joined(separator: "/")
-  }
-
-  /// Path to a blob file in the HF cache.
-  static func blobPath(cacheDir: URL, repoDir: String, sha256: String) -> URL {
-    cacheDir
-      .appendingPathComponent(repoDir)
-      .appendingPathComponent("blobs")
-      .appendingPathComponent(sha256)
-  }
-
-  /// Path to a file's symlink in a snapshot directory.
-  static func snapshotPath(
-    cacheDir: URL, repoDir: String, commit: String, filename: String
-  ) -> URL {
-    cacheDir
-      .appendingPathComponent(repoDir)
-      .appendingPathComponent("snapshots")
-      .appendingPathComponent(commit)
-      .appendingPathComponent(filename)
-  }
-
-  /// Path to the refs/main file for a repo.
-  static func refsMainPath(cacheDir: URL, repoDir: String) -> URL {
-    cacheDir
-      .appendingPathComponent(repoDir)
-      .appendingPathComponent("refs")
-      .appendingPathComponent("main")
   }
 
   /// Directory that holds in-progress `.partial` files for a model.
@@ -329,38 +302,27 @@ enum HFCache {
     logger.info("Wrote HF cache: \(repoDir)/blobs/\(blobHash) + snapshot symlink for \(filename)")
   }
 
-  /// Incremental SHA256 hasher. Used by the resumable download path:
-  /// we stream bytes into the hasher as they're written to the `.partial` file
-  /// (and re-hash any existing prefix once at resume time) so the final digest
-  /// is ready at completion without a second full-file pass.
-  final class SHA256Hasher {
-    private var ctx = CC_SHA256_CTX()
-    init() { CC_SHA256_Init(&ctx) }
-
-    func update(_ data: Data) {
-      guard !data.isEmpty else { return }
-      data.withUnsafeBytes { ptr in
-        _ = CC_SHA256_Update(&ctx, ptr.baseAddress, CC_LONG(ptr.count))
-      }
-    }
-
-    func finalize() -> String {
-      var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-      CC_SHA256_Final(&digest, &ctx)
-      return digest.map { String(format: "%02x", $0) }.joined()
-    }
+  /// Lowercase hex of a SHA256 digest -- the form HF names blobs by.
+  ///
+  /// The resumable download path hashes incrementally with CryptoKit's
+  /// `SHA256`: bytes are streamed into the hasher as they're written to the
+  /// `.partial` file (and any existing prefix is re-hashed once at resume time,
+  /// see `feedHasher`), so the digest is ready at completion without a second
+  /// full-file pass.
+  static func hex(_ digest: SHA256.Digest) -> String {
+    digest.map { String(format: "%02x", $0) }.joined()
   }
 
   /// Feeds the entire contents of `fileURL` into `hasher` in 1 MB chunks.
   /// Used on resume to reconstruct the running hash over the existing `.partial` prefix.
-  static func feedHasher(_ hasher: SHA256Hasher, from fileURL: URL) throws {
+  static func feedHasher(_ hasher: inout SHA256, from fileURL: URL) throws {
     let handle = try FileHandle(forReadingFrom: fileURL)
     defer { try? handle.close() }
     let chunkSize = 1_048_576  // 1 MB
     while autoreleasepool(invoking: {
       let data = handle.readData(ofLength: chunkSize)
       guard !data.isEmpty else { return false }
-      hasher.update(data)
+      hasher.update(data: data)
       return true
     }) {}
   }

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Network
 import Sentry
@@ -335,9 +336,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let handle = try FileHandle(forWritingTo: partialURL)
     try handle.seekToEnd()
 
-    let hasher = HFCache.SHA256Hasher()
+    var hasher = SHA256()
     if existing > 0 {
-      try HFCache.feedHasher(hasher, from: partialURL)
+      try HFCache.feedHasher(&hasher, from: partialURL)
     }
 
     return PartialWriter(

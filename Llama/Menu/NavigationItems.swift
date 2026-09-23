@@ -66,11 +66,6 @@ final class TextItemView: ItemView {
     }
   }
 
-  /// Convenience initializer for back button style.
-  convenience init(text: String, showBackArrow: Bool, onAction: (() -> Void)? = nil) {
-    self.init(text: text, style: showBackArrow ? .back : .title, onAction: onAction)
-  }
-
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
   override var highlightEnabled: Bool { onAction != nil }

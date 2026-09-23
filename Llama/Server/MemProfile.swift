@@ -1,4 +1,4 @@
-import CommonCrypto
+import CryptoKit
 import Foundation
 import os.log
 
@@ -224,12 +224,9 @@ enum MemProfileCache {
       .appendingPathComponent("MemProfile")
   }
 
+  /// First 16 bytes of the SHA256, hex-encoded. Truncated to keep file names
+  /// short; changing the length would orphan every existing cache entry.
   private static func sha256(_ string: String) -> String {
-    let data = Data(string.utf8)
-    var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-    _ = data.withUnsafeBytes { ptr in
-      CC_SHA256(ptr.baseAddress, CC_LONG(data.count), &digest)
-    }
-    return digest.prefix(16).map { String(format: "%02x", $0) }.joined()
+    SHA256.hash(data: Data(string.utf8)).prefix(16).map { String(format: "%02x", $0) }.joined()
   }
 }

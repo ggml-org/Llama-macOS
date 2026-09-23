@@ -122,24 +122,11 @@ extension Theme {
 
 // Attribute dictionaries for creating styled NSAttributedString instances
 extension Theme {
-  // Returns attributes for primary-style text with custom color
-  // Used when you need primary font but want control over the color
-  static func primaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
-    [.font: Fonts.primary, .foregroundColor: color]
-  }
-
   // Returns attributes for secondary-style text with custom color
   // Used when you need secondary font but want control over the color
   static func secondaryAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
     [.font: Fonts.secondary, .foregroundColor: color]
   }
-
-  // Attributes for tertiary-style text with fixed color
-  // Used for de-emphasized metadata text
-  static let tertiaryAttributes: [NSAttributedString.Key: Any] = [
-    .font: Fonts.secondary,
-    .foregroundColor: Colors.textSecondary,
-  ]
 
   // Paragraph style that disables letter-spacing tightening before truncation.
   // Without it, labels shrink their glyphs as a fallback before adding the "..."
@@ -250,16 +237,6 @@ extension CALayer {
   //   - view: The view whose appearance should be used for resolving the color
   func setBorderColor(_ color: NSColor, in view: NSView) {
     borderColor = color.resolvedColor(in: view)
-  }
-}
-
-extension CAShapeLayer {
-  // Sets the layer's stroke color, resolving dynamic colors for current appearance
-  // - Parameters:
-  //   - color: The color to set (can be dynamic)
-  //   - view: The view whose appearance should be used for resolving the color
-  func setStrokeColor(_ color: NSColor, in view: NSView) {
-    strokeColor = color.resolvedColor(in: view)
   }
 }
 

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 // MARK: - WriterTable
@@ -52,7 +53,7 @@ final class PartialWriter: @unchecked Sendable {
   let handle: FileHandle
   /// Running hash over bytes present on disk. Replaced (not reset in place) when the
   /// server responds 200 and we truncate the partial.
-  var hasher: HFCache.SHA256Hasher
+  var hasher: SHA256
   /// Bytes currently on disk in the `.partial` file (= our running hash's input length).
   var bytesWritten: Int64
   /// Full size of the remote file once known from Content-Range / Content-Length.
@@ -65,7 +66,7 @@ final class PartialWriter: @unchecked Sendable {
   init(
     model: Model, cacheDir: URL, plan: HFDownloadPlan,
     url: URL, filename: String, partialURL: URL,
-    handle: FileHandle, hasher: HFCache.SHA256Hasher,
+    handle: FileHandle, hasher: SHA256,
     bytesWritten: Int64, expectedBlobHash: String?
   ) {
     self.modelId = model.id

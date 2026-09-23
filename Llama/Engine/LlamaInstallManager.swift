@@ -1,16 +1,15 @@
 import Foundation
-import Observation
 import os.log
 
-/// Observable owner of the app-managed CLI install. Holds the install `state` so
-/// the menu can surface a "setting up…" banner and a retry affordance, and
-/// drives `LlamaInstaller` off the UI.
+/// Owner of the app-managed CLI install. Holds the install `state` (changes are
+/// posted as `LBCLIInstallStateDidChange`) so the menu can surface a
+/// "setting up…" banner and a retry affordance, and drives `LlamaInstaller` off
+/// the UI.
 ///
 /// The install itself is silent (no permission prompt): it writes only to
 /// `~/.llama-app` / `~/.local/bin`, needs no privilege escalation, and is part
 /// of the app's "it just works" setup -- but it's never opaque, hence the state.
 @MainActor
-@Observable
 final class LlamaInstallManager {
   static let shared = LlamaInstallManager()
 

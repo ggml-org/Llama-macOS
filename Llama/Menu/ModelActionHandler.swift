@@ -3,21 +3,13 @@ import Foundation
 
 /// Handles user actions on model items (start, stop, download, delete, etc.).
 /// Decouples business logic from the view.
+///
+/// No menu refresh happens here: every `ModelManager` mutation below posts a
+/// downloads/installed-list notification, and `MenuController` rebuilds on those.
 @MainActor
 final class ModelActionHandler {
-  private let modelManager: ModelManager
-  private let server: LlamaServer
-  private let onMembershipChange: (Model) -> Void
-
-  init(
-    modelManager: ModelManager,
-    server: LlamaServer,
-    onMembershipChange: @escaping (Model) -> Void
-  ) {
-    self.modelManager = modelManager
-    self.server = server
-    self.onMembershipChange = onMembershipChange
-  }
+  private let modelManager = ModelManager.shared
+  private let server = LlamaServer.shared
 
   func performPrimaryAction(for model: Model) {
     if modelManager.isInstalled(model) {
@@ -31,7 +23,6 @@ final class ModelActionHandler {
       // flips to paused and the user can resume with another click. Discard is the
       // explicit red-X action, not row-body / pause-button click.
       modelManager.pauseModelDownload(model)
-      onMembershipChange(model)
     } else {
       // Available OR paused — downloadModel resumes from an existing `.partial` if present.
       startDownload(for: model)
@@ -41,20 +32,17 @@ final class ModelActionHandler {
   func delete(model: Model) {
     guard modelManager.isInstalled(model) else { return }
     modelManager.deleteDownloadedModel(model)
-    onMembershipChange(model)
   }
 
   /// Discards an in-flight or paused download and its `.partial` files.
   /// Used by the red X button; works in both `.downloading` and `.paused` states.
   func cancelDownload(for model: Model) {
     modelManager.cancelModelDownload(model)
-    onMembershipChange(model)
   }
 
   private func startDownload(for model: Model) {
     do {
       try modelManager.downloadModel(model)
-      onMembershipChange(model)
     } catch {
       ModalPresentation.showAlert(
         style: .warning,
