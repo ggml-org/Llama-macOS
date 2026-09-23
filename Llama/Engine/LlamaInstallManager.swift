@@ -52,20 +52,25 @@ final class LlamaInstallManager {
   /// failed install when no binary exists at all).
   @discardableResult
   func ensureReady() async -> Bool {
-    switch await Task.detached(operation: {
+    // Off the main thread: both the promotion and the version read touch the
+    // binary (the latter runs it).
+    let found = await Task.detached {
       // Promote a binary staged by a previous session first -- the server isn't
       // running yet, so swapping the live path here is trivially safe.
       LlamaInstaller.promoteStaged(target: LlamaBinaries.targetVersion)
-      return LlamaBinaries.installed()
-    }).value {
-    case .missing:
-      return await install()
+      return LlamaBinaries.resolve().map {
+        (origin: $0.origin, version: LlamaBinaries.readVersion(at: $0.path))
+      }
+    }.value
 
-    case .present(.managed, let version, _):
+    guard let (origin, version) = found else { return await install() }
+    currentVersion = version
+    currentOrigin = origin
+
+    switch origin {
+    case .managed:
       // The app manages this one -- keep it at the pinned target. A nil version
       // (unreadable) fails open as ready, to avoid a reinstall loop.
-      currentVersion = version
-      currentOrigin = .managed
       state = .idle
       if let version, version != LlamaBinaries.targetVersion {
         // The old binary is still usable (floor <= it), so don't hold the
@@ -80,11 +85,9 @@ final class LlamaInstallManager {
       }
       return true
 
-    case .present(.unmanaged, let version, let path):
+    case .brew, .external:
       // Can't touch an unmanaged install; nudge if below the floor but keep
       // running (warn, not block).
-      currentVersion = version
-      currentOrigin = LlamaBinaries.isHomebrew(at: path) ? .brew : .external
       if let version, version < LlamaBinaries.floorVersion {
         state = .unmanagedTooOld(version: version)
       } else {

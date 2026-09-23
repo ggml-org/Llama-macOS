@@ -41,40 +41,28 @@ enum LlamaBinaries {
   /// if the app starts relying on an even newer flag.
   static let floorVersion = LlamaVersion(parsing: "b9726")!
 
-  /// Whether the app may update the resolved binary.
-  enum Management: Equatable { case managed, unmanaged }
-
-  /// Where the in-use binary comes from, for display (the footer marker).
-  /// `brew` and `external` are both unmanaged; brew is split out so the footer
-  /// can hint at the actual update channel (`brew upgrade`) instead of a
-  /// generic "external" marker.
+  /// Where the in-use binary comes from. Only `managed` is the app's to
+  /// update; `brew` and `external` are both used as-is and never modified.
+  /// Brew is split out so the footer can hint at the actual update channel
+  /// (`brew upgrade`) instead of a generic "external" marker.
   enum Origin: Equatable { case managed, brew, external }
 
   /// Whether the binary at `path` is a Homebrew install. Follows symlinks and
   /// checks for Homebrew's Cellar layout (`bin/llama` is a symlink into
   /// `../Cellar/llama.cpp/...`) rather than the bin dir alone -- /usr/local/bin
   /// also hosts manual installs.
-  static func isHomebrew(at path: String) -> Bool {
+  private static func isHomebrew(at path: String) -> Bool {
     (path as NSString).resolvingSymlinksInPath.contains("/Cellar/")
   }
 
-  /// Where the `llama` binary is and whether the app may update it.
-  enum Resolution: Equatable {
-    /// App-managed binary at the curl-install path; the app may update it.
-    case managed(path: String)
-    /// A pre-existing install (e.g. Homebrew); use it but never modify it.
-    case unmanaged(path: String)
-    /// No `llama` binary found anywhere; the install flow needs to run.
-    case missing
-  }
-
-  /// Resolves the active `llama` binary. The managed path wins, then the
-  /// unmanaged locations in order, else `.missing`.
-  static func resolve() -> Resolution {
+  /// Resolves the active `llama` binary: the managed path wins, then the
+  /// unmanaged locations in order. Nil when none is found, which is what sends
+  /// the app down the install flow.
+  static func resolve() -> (path: String, origin: Origin)? {
     let fm = FileManager.default
 
     if fm.isExecutableFile(atPath: managedPath) {
-      return .managed(path: managedPath)
+      return (managedPath, .managed)
     }
 
     #if DEBUG
@@ -84,39 +72,28 @@ enum LlamaBinaries {
       //   defaults write app.llama.Llama.dev ignoreUnmanagedLlama -bool YES
       if UserDefaults.standard.bool(forKey: "ignoreUnmanagedLlama") {
         logger.debug("ignoreUnmanagedLlama set; ignoring unmanaged installs")
-        return .missing
+        return nil
       }
     #endif
 
     for dir in unmanagedDirs {
       let path = dir + "/llama"
       if fm.isExecutableFile(atPath: path) {
-        return .unmanaged(path: path)
+        return (path, isHomebrew(at: path) ? .brew : .external)
       }
     }
 
-    return .missing
+    return nil
   }
 
   /// The path to the `llama` binary to invoke, or `nil` if none is installed.
   static var llamaPath: String? {
-    switch resolve() {
-    case .managed(let path), .unmanaged(let path):
-      logger.debug("Using llama binary at \(path, privacy: .public)")
-      return path
-    case .missing:
+    guard let path = resolve()?.path else {
       logger.error("No llama binary found")
       return nil
     }
-  }
-
-  /// What's installed: management plus the reported version (nil if it couldn't
-  /// be read), or nothing at all. These are facts -- the target/floor policy
-  /// that turns them into install/update/nudge decisions lives in
-  /// `LlamaInstallManager`.
-  enum Installed: Equatable {
-    case present(management: Management, version: LlamaVersion?, path: String)
-    case missing
+    logger.debug("Using llama binary at \(path, privacy: .public)")
+    return path
   }
 
   /// Reads the version reported by the binary at `path`, or nil if it can't be
@@ -143,18 +120,5 @@ enum LlamaBinaries {
     proc.waitUntilExit()
     guard proc.terminationStatus == 0 else { return nil }
     return LlamaVersion(parsing: String(decoding: data, as: UTF8.self))
-  }
-
-  /// Resolves the binary and reads its version. Blocks on a `version`
-  /// subprocess, so call off the main thread.
-  static func installed() -> Installed {
-    switch resolve() {
-    case .missing:
-      return .missing
-    case .managed(let path):
-      return .present(management: .managed, version: readVersion(at: path), path: path)
-    case .unmanaged(let path):
-      return .present(management: .unmanaged, version: readVersion(at: path), path: path)
-    }
   }
 }
