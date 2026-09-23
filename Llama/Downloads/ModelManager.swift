@@ -102,7 +102,6 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let config = URLSessionConfiguration.default
     config.timeoutIntervalForRequest = 120  // Temporary network stalls
     config.timeoutIntervalForResource = 60 * 60 * 24  // 24 hours for large files
-    config.httpAdditionalHeaders = ["User-Agent": AppInfo.userAgent]
 
     urlSession = URLSession(configuration: config, delegate: self, delegateQueue: queue)
 
@@ -296,7 +295,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   func makeDataTask(
     for url: URL, modelId: String, writer: PartialWriter
   ) -> URLSessionDataTask {
-    var request = makeRequest(for: url)
+    var request = HFRequest.make(url, token: UserSettings.hfToken)
     if writer.bytesWritten > 0 {
       request.setValue("bytes=\(writer.bytesWritten)-", forHTTPHeaderField: "Range")
       logger.info(
@@ -939,22 +938,6 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       let haveStr = Format.gigabytes(available)
       throw DownloadError.notEnoughDiskSpace(required: needStr, available: haveStr)
     }
-  }
-
-  /// Creates a URLRequest for the given URL, adding an Authorization header
-  /// with the user's Hugging Face token when downloading from huggingface.co.
-  private func makeRequest(for url: URL) -> URLRequest {
-    var request = URLRequest(url: url)
-    // Match the host exactly or as a subdomain -- a bare `hasSuffix` would also
-    // accept `evilhuggingface.co`, and this check is the only thing keeping the
-    // token off a third-party host.
-    let host = url.host ?? ""
-    if host == "huggingface.co" || host.hasSuffix(".huggingface.co"),
-      let token = UserSettings.hfToken
-    {
-      request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    }
-    return request
   }
 
   func postDownloadsDidChange() {

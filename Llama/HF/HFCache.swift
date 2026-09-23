@@ -195,19 +195,14 @@ enum HFCache {
     for urls: [URL], token: String?
   ) async -> [URL: FileMetadata] {
     let delegate = SameHostRedirectDelegate()
-    let config = URLSessionConfiguration.default
-    config.httpAdditionalHeaders = ["User-Agent": AppInfo.userAgent]
-    let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
     defer { session.finishTasksAndInvalidate() }
 
     var results: [URL: FileMetadata] = [:]
 
     for url in urls {
-      var request = URLRequest(url: url)
+      var request = HFRequest.make(url, token: token)
       request.httpMethod = "HEAD"
-      if let token {
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-      }
 
       guard let (_, response) = try? await session.data(for: request),
         let httpResponse = response as? HTTPURLResponse,

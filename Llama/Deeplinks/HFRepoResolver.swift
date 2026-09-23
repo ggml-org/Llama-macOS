@@ -164,11 +164,8 @@ enum HFRepoResolver {
     guard let url = URL(string: "https://huggingface.co/api/models/\(repo)?blobs=true") else {
       throw ResolveError.repoNotFound(repo)
     }
-    var req = URLRequest(url: url)
-    req.httpMethod = "GET"
+    var req = HFRequest.make(url, token: token)
     req.setValue("application/json", forHTTPHeaderField: "Accept")
-    req.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
-    if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
 
     let data: Data
     let response: URLResponse
