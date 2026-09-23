@@ -10,9 +10,6 @@ struct Model: Identifiable, Codable {
   /// deeplink and post-install scan paths because both derive the tag through
   /// `GGUFQuant.tag(forPath:)` and build the id through `makeId`.
   let id: String
-  /// Family name parsed from the repo (e.g. "Qwen3-30B-A3B-Instruct"). Not
-  /// displayed (rows show the id) — drives brand-logo matching and sort order.
-  let family: String
   /// Maximum context length in tokens. 128k upper bound — clamped by the
   /// memory budget once `ctxBytesPer1kTokens` is measured.
   let ctxWindow: Int
@@ -47,13 +44,9 @@ struct Model: Identifiable, Codable {
   /// forms are visible (see `HFCache.buildSideloadedEntry`); the deeplink
   /// path leaves it false and carries the sidecar in `mtpUrl` instead.
   let hasMTPHead: Bool
-  /// HF org parsed from the repo dir (e.g. "bartowski"). Shown in the row to
-  /// disambiguate repos that share a base name across orgs.
-  let org: String
 
   init(
     id: String,
-    family: String,
     ctxWindow: Int = 131_072,
     fileSize: Int64,
     ctxBytesPer1kTokens: Int = 0,
@@ -62,11 +55,9 @@ struct Model: Identifiable, Codable {
     additionalParts: [URL]? = nil,
     mmprojUrl: URL? = nil,
     mtpUrl: URL? = nil,
-    hasMTPHead: Bool = false,
-    org: String
+    hasMTPHead: Bool = false
   ) {
     self.id = id
-    self.family = family
     self.ctxWindow = ctxWindow
     self.fileSize = fileSize
     self.ctxBytesPer1kTokens = ctxBytesPer1kTokens
@@ -76,7 +67,6 @@ struct Model: Identifiable, Codable {
     self.mmprojUrl = mmprojUrl
     self.mtpUrl = mtpUrl
     self.hasMTPHead = hasMTPHead
-    self.org = org
   }
 
   /// Builds the stable model id shared by the deeplink and post-install scan
@@ -125,10 +115,10 @@ struct Model: Identifiable, Codable {
   }
 
   /// Brand logo asset name in `Assets.xcassets/ModelLogos`, matched from the
-  /// parsed family name. Nil when the family doesn't match a known brand — the
-  /// row then falls back to a generic system symbol.
+  /// name the row shows (`ModelIdParser`). Nil when it doesn't match a known
+  /// brand — the row then falls back to a generic system symbol.
   var brandLogoAsset: String? {
-    ModelLogos.asset(matching: family)
+    ModelLogos.asset(matching: ModelIdParser.parse(id).name)
   }
 
   /// Human-readable total file size for the metadata line.
@@ -172,24 +162,24 @@ struct Model: Identifiable, Codable {
     HFCache.repoDirName(from: downloadUrl)
   }
 
-  /// Sort key — mirrors the row's rendering: non-default orgs keep their
-  /// `org/` prefix (see `ModelIdParser.Parsed.displayOrg`), so prefixed rows
-  /// sort by the org and cluster together, and the list's left edge stays
-  /// alphabetical. Default-org models key on the bare family, matching their
-  /// bare rendering. (The name part is `family`, the historical sort key —
-  /// close to the parsed name a row shows, not character-identical.)
+  /// Sort key — the row's rendering: non-default orgs keep their `org/`
+  /// prefix (see `ModelIdParser.Parsed.displayOrg`), so prefixed rows sort by
+  /// the org and cluster together, and the list's left edge stays
+  /// alphabetical. Default-org models key on the bare name, matching their
+  /// bare rendering.
   private var sortKey: String {
-    if let org = ModelIdParser.parse(id).displayOrg {
-      return "\(org)/\(family)"
+    let parsed = ModelIdParser.parse(id)
+    if let org = parsed.displayOrg {
+      return "\(org)/\(parsed.name)"
     }
-    return family
+    return parsed.name
   }
 
   /// Sort order — by displayed name, then by id for stability. Parameter
   /// counts and full-precision rankings are no longer available without a
   /// curated catalog, so id is the tie-breaker.
   static func displayOrder(_ lhs: Model, _ rhs: Model) -> Bool {
-    // Keys are compared case-insensitively so differently-cased families
+    // Keys are compared case-insensitively so differently-cased names
     // (e.g. "gemma-4", "embeddinggemma") sort alongside their capitalized
     // siblings rather than clustering at the end of the list. Ties (same
     // key ignoring case) fall back to the id for a stable order.

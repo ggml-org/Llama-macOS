@@ -80,7 +80,6 @@ final class DeeplinkHandler {
 
     let entry = Model.placeholderForDownload(
       modelId: resolved.modelId,
-      repo: resolved.repo,
       mainUrl: resolved.mainUrl,
       additionalParts: resolved.additionalParts,
       mmprojUrl: resolved.mmprojUrl,

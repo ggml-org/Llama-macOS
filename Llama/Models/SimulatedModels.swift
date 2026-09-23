@@ -38,85 +38,68 @@
       [
         // Common dense models — brand logos, plus the fallback symbol for Llama.
         make(
-          org: "unsloth", repo: "Gemma-4-E4B-it-GGUF", family: "Gemma 4 E4B",
-          quant: "Q4_K_M", fileGB: 5.0, memGB: 5.7),
+          org: "unsloth", repo: "Gemma-4-E4B-it-GGUF", quant: "Q4_K_M", fileGB: 5.0, memGB: 5.7),
         make(
           org: "ggml-org", repo: "Meta-Llama-3.1-8B-Instruct-GGUF",
-          family: "Meta-Llama 3.1", quant: "Q4_K_M",
+          quant: "Q4_K_M",
           fileGB: 6.0, memGB: 6.4),
         make(
-          org: "ggml-org", repo: "gpt-oss-20b-GGUF", family: "gpt-oss",
-          quant: "MXFP4", fileGB: 12.1, memGB: 13.0),
+          org: "ggml-org", repo: "gpt-oss-20b-GGUF", quant: "MXFP4", fileGB: 12.1, memGB: 13.0),
         make(
-          org: "unsloth", repo: "GLM-4.7-Flash-GGUF", family: "GLM 4.7 Flash",
-          quant: "Q4_K_M", fileGB: 17.5, memGB: 18.3),
+          org: "unsloth", repo: "GLM-4.7-Flash-GGUF", quant: "Q4_K_M", fileGB: 17.5, memGB: 18.3),
 
         // Toy sizes, plus near-identical rows disambiguated by quant chip and org prefix.
         make(
-          org: "ggml-org", repo: "Qwen3-0.6B-GGUF", family: "Qwen3",
-          quant: "Q4_K_M", fileGB: 0.4, memGB: 1.1),
+          org: "ggml-org", repo: "Qwen3-0.6B-GGUF", quant: "Q4_K_M", fileGB: 0.4, memGB: 1.1),
         make(
-          org: "ggml-org", repo: "Qwen3-0.6B-GGUF", family: "Qwen3",
-          quant: "Q8_0", fileGB: 0.8, memGB: 1.5),
+          org: "ggml-org", repo: "Qwen3-0.6B-GGUF", quant: "Q8_0", fileGB: 0.8, memGB: 1.5),
         make(
-          org: "unsloth", repo: "Qwen3-0.6B-GGUF", family: "Qwen3",
-          quant: "Q4_K_M", fileGB: 0.4, memGB: 1.2),
+          org: "unsloth", repo: "Qwen3-0.6B-GGUF", quant: "Q4_K_M", fileGB: 0.4, memGB: 1.2),
         make(
-          org: "ggml-org", repo: "Qwen3-1.7B-GGUF", family: "Qwen3",
-          quant: "Q4_K_M", fileGB: 1.3, memGB: 1.9),
+          org: "ggml-org", repo: "Qwen3-1.7B-GGUF", quant: "Q4_K_M", fileGB: 1.3, memGB: 1.9),
 
         // Mid-size dense models — the comfortable-fit case.
         make(
-          org: "ggml-org", repo: "Qwen2.5-Coder-7B-GGUF", family: "Qwen2.5-Coder",
-          quant: "Q8_0", fileGB: 8.1, memGB: 8.1),
+          org: "ggml-org", repo: "Qwen2.5-Coder-7B-GGUF", quant: "Q8_0", fileGB: 8.1, memGB: 8.1),
         make(
-          org: "unsloth", repo: "Qwen3.5-9B-GGUF", family: "Qwen3.5",
-          quant: "Q4_K_M", fileGB: 5.7, memGB: 6.0),
+          org: "unsloth", repo: "Qwen3.5-9B-GGUF", quant: "Q4_K_M", fileGB: 5.7, memGB: 6.0),
 
         // MoE (A3B) builds — resident mem far below file size (active experts only).
         make(
-          org: "ggml-org", repo: "Qwen3-30B-A3B-GGUF", family: "Qwen3",
-          quant: "Q8_0", fileGB: 32.5, memGB: 30.9),
+          org: "ggml-org", repo: "Qwen3-30B-A3B-GGUF", quant: "Q8_0", fileGB: 32.5, memGB: 30.9),
         make(
           org: "ggml-org", repo: "Qwen3-Coder-30B-A3B-Instruct-GGUF",
-          family: "Qwen3-Coder", quant: "Q8_0",
+          quant: "Q8_0",
           fileGB: 32.5, memGB: 30.9),
         make(
-          org: "ggml-org", repo: "Qwen3.6-35B-A3B-GGUF", family: "Qwen3.6",
-          quant: "Q8_0", fileGB: 36.9, memGB: 35.0),
+          org: "ggml-org", repo: "Qwen3.6-35B-A3B-GGUF", quant: "Q8_0", fileGB: 36.9, memGB: 35.0),
 
         // MTP sidecar variants — a separate draft head.
         make(
-          org: "ggml-org", repo: "Qwen3.6-27B-MTP-GGUF", family: "Qwen3.6",
-          quant: "Q8_0", fileGB: 29.0, memGB: 28.0, mtp: true),
+          org: "ggml-org", repo: "Qwen3.6-27B-MTP-GGUF", quant: "Q8_0", fileGB: 29.0, memGB: 28.0, mtp: true),
         make(
-          org: "unsloth", repo: "Qwen3.6-35B-A3B-MTP-GGUF", family: "Qwen3.6",
-          quant: "Q4_K_M", fileGB: 22.7, memGB: 21.7, mtp: true),
+          org: "unsloth", repo: "Qwen3.6-35B-A3B-MTP-GGUF", quant: "Q4_K_M", fileGB: 22.7, memGB: 21.7, mtp: true),
 
         // Vision model — mmproj sidecar drives the eyeglasses badge.
         make(
-          org: "ggml-org", repo: "Qwen2.5-VL-7B-Instruct-GGUF", family: "Qwen2.5-VL",
-          quant: "Q4_K_M", fileGB: 6.0, memGB: 6.5,
+          org: "ggml-org", repo: "Qwen2.5-VL-7B-Instruct-GGUF", quant: "Q4_K_M", fileGB: 6.0, memGB: 6.5,
           vision: true),
 
         // Awaiting the mem-profile probe — renders "estimating...".
         make(
-          org: "ggml-org", repo: "Qwen3.6-27B-GGUF", family: "Qwen3.6",
-          quant: "Q8_0", fileGB: 28.6, memGB: nil),
+          org: "ggml-org", repo: "Qwen3.6-27B-GGUF", quant: "Q8_0", fileGB: 28.6, memGB: nil),
         make(
-          org: "unsloth", repo: "Qwen3.5-122B-A10B-GGUF", family: "Qwen3.5",
-          quant: "Q4_K_M", fileGB: 0.0, memGB: nil),
+          org: "unsloth", repo: "Qwen3.5-122B-A10B-GGUF", quant: "Q4_K_M", fileGB: 0.0, memGB: nil),
 
         // Too large for most Macs — the incompatible row state.
         make(
           org: "unsloth", repo: "Mistral-Medium-3.5-128B-GGUF",
-          family: "Mistral-Medium 3.5", quant: "Q4_K_M",
+          quant: "Q4_K_M",
           fileGB: 75.7, memGB: 72.2),
 
-        // Embedding model — different role; lowercase family guards the sort.
+        // Embedding model — different role; lowercase name guards the sort.
         make(
-          org: "ggml-org", repo: "embeddinggemma-300m-GGUF", family: "embeddinggemma",
-          quant: "Q8_0", fileGB: 0.6, memGB: 0.8),
+          org: "ggml-org", repo: "embeddinggemma-300m-GGUF", quant: "Q8_0", fileGB: 0.6, memGB: 0.8),
       ]
     }
 
@@ -124,7 +107,7 @@
     /// at 0 so the row shows "estimating..."; otherwise `memGB` becomes the
     /// measured resident weight memory and a plausible KV footprint is attached.
     private static func make(
-      org: String, repo: String, family: String, quant: String,
+      org: String, repo: String, quant: String,
       fileGB: Double, memGB: Double?,
       mtp: Bool = false, vision: Bool = false
     ) -> Model {
@@ -135,7 +118,6 @@
         // Real ids go through the shared grammar (native shortening, -GGUF
         // stripping) — the fixture must too, now that rows display the id.
         id: Model.makeId(org: org, repo: repo, tag: quant),
-        family: family,
         fileSize: Int64(fileGB * 1_000_000_000),
         // 0 => pending probe ("estimating..."); ~150 KB per 1k tokens is a
         // representative KV-cache footprint for these model sizes.
@@ -143,8 +125,7 @@
         residentBytes: Int((memGB ?? 0) * 1_000_000_000),
         downloadUrl: url,
         mmprojUrl: vision ? url : nil,
-        mtpUrl: mtp ? url : nil,
-        org: org)
+        mtpUrl: mtp ? url : nil)
     }
   }
 #endif

@@ -3,7 +3,7 @@ import Foundation
 /// Maps a model family or brand name to a logo asset in
 /// `Assets.xcassets/ModelLogos`. Without a curated catalog the brand is
 /// inferred by keyword — the single table here serves both the installed rows
-/// (matched on the parsed family name) and the Discover rows (matched on the
+/// (matched on the name parsed from the id) and the Discover rows (matched on the
 /// catalog's brand field), so the two can't drift apart.
 enum ModelLogos {
   /// Keyword → logo asset. Several Mistral lines share one mark; GLM is z.ai's;

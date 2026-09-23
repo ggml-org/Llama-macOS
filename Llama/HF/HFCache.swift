@@ -534,7 +534,7 @@ enum HFCache {
     siblings: [String],
     fm: FileManager
   ) -> (entry: Model, paths: ResolvedPaths)? {
-    // Parse metadata from repo dir name
+    // Org and repo from the repo dir name
     guard let parsed = HFRepoParser.parse(repoDir: repoDir) else { return nil }
 
     // Derive the quant tag. This is load-bearing for identity: the deeplink
@@ -614,15 +614,13 @@ enum HFCache {
 
     let entry = Model(
       id: modelId,
-      family: parsed.name,
       ctxWindow: ctxWindow,
       fileSize: totalFileSize,
       // ctxBytesPer1kTokens stays 0 until the async MemProfile probe runs.
       downloadUrl: URL(string: "file:///")!,
       // Either shape counts as MTP for the row's marker; `ResolvedPaths` below
       // keeps them apart because they produce different `models.ini` lines.
-      hasMTPHead: mtpSidecar != nil || hasEmbeddedHead,
-      org: parsed.org
+      hasMTPHead: mtpSidecar != nil || hasEmbeddedHead
     )
 
     // Build resolved paths

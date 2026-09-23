@@ -22,8 +22,6 @@ enum HFRepoResolver {
     /// Matches the id shape `HFCache.buildSideloadedEntry` produces, so
     /// post-install the row keeps the same identity without any handoff.
     let modelId: String
-    /// `"{org}/{repo}"` — mirrors the `repo` query param.
-    let repo: String
     /// Main GGUF URL (goes into `Model.downloadUrl`).
     let mainUrl: URL
     /// Sharded parts, if any (`-00002-of-NNNNN.gguf`, ...).
@@ -135,7 +133,6 @@ enum HFRepoResolver {
 
     return Resolved(
       modelId: modelId,
-      repo: repo,
       mainUrl: mainUrl,
       additionalParts: Array(extraUrls),
       mmprojUrl: mmprojUrl,
@@ -353,20 +350,12 @@ enum HFRepoResolver {
   private static func expandShards(
     main: String, siblings: [Sibling], repo: String
   ) throws -> [String] {
-    let basename = (main as NSString).lastPathComponent
-    guard HFRepoParser.isSplitShard(basename) else { return [main] }
-
     // Parse the `-<N>-of-<M>.gguf` tail. Both shard indices are 5-digit zero-
     // padded, same as llama.cpp's sharder.
-    let re = try NSRegularExpression(
-      pattern: #"-(\d{5})-of-(\d{5})\.gguf$"#, options: .caseInsensitive)
-    let range = NSRange(basename.startIndex..., in: basename)
-    guard let m = re.firstMatch(in: basename, range: range),
-      let mRange = Range(m.range(at: 2), in: basename),
-      let total = Int(basename[mRange])
-    else {
-      return [main]
-    }
+    let basename = (main as NSString).lastPathComponent
+    guard let total = HFRepoParser.shardTotal(basename),
+      let stemBeforeShard = HFRepoParser.splitShardBaseName(basename)
+    else { return [main] }
 
     // `main` may be nested in a subdir — preserve the prefix when reconstructing siblings.
     let prefix: String = {
@@ -376,11 +365,7 @@ enum HFRepoResolver {
       return ""
     }()
 
-    // Template: strip `-NNNNN-of-NNNNN.gguf` (exactly what the regex matched
-    // positionally) and rebuild with a varying index.
-    let shardRange = Range(m.range, in: basename)!
-    let stemBeforeShard = String(basename[..<shardRange.lowerBound])
-
+    // Rebuild each shard name from the stem with a varying index.
     let siblingSet = Set(siblings.map(\.rfilename))
     var shards: [String] = []
     for i in 1...total {

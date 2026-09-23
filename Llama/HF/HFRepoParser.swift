@@ -1,22 +1,13 @@
 import Foundation
 
-/// Parsed metadata from a HuggingFace repo directory name.
-/// Derived by splitting the repo name on `-` and classifying segments.
-struct ParsedRepo {
-  let org: String  // HF org, e.g. "bartowski"
-  let repo: String  // Raw repo name, e.g. "Llama-3.2-1B-Instruct-GGUF"
-  let name: String  // Model name, e.g. "Llama-3.2"
-  let params: String?  // Parameter count, e.g. "1B", "270M"
-  let tags: [String]  // Remaining segments, e.g. ["Instruct"]
-}
-
-/// Parses HuggingFace repo directory names and GGUF filenames into structured components.
-/// Follows the same approach as the llama.cpp WebUI model selector.
+/// Parses HuggingFace repo directory names and GGUF filenames into structured
+/// components. (Display parsing of a model's name, params and tags lives in
+/// `ModelIdParser`, which works off the id and so covers every model alike.)
 enum HFRepoParser {
 
-  /// Parses a repo dir name (e.g. "models--bartowski--Llama-3.2-1B-Instruct-GGUF")
-  /// into structured components. Returns nil if the format is unrecognized.
-  static func parse(repoDir: String) -> ParsedRepo? {
+  /// Splits a repo dir name (e.g. "models--bartowski--Llama-3.2-1B-Instruct-GGUF")
+  /// into its org and repo. Returns nil if the format is unrecognized.
+  static func parse(repoDir: String) -> (org: String, repo: String)? {
     // Extract org and repo from "models--{org}--{repo}"
     guard repoDir.hasPrefix("models--") else { return nil }
 
@@ -27,35 +18,7 @@ enum HFRepoParser {
     let org = dashDashParts[1]
     let repo = dashDashParts[2...].joined(separator: "--")
     guard !org.isEmpty, !repo.isEmpty else { return nil }
-
-    // Split repo name on "-" to classify segments.
-    // Use a smarter split that preserves version numbers like "3.2":
-    // We split on "-" but then rejoin segments that form version-like patterns.
-    let segments = splitRepoName(repo)
-
-    // Find the first params segment (e.g. "1B", "270M", "0.6B")
-    let paramsIdx = segments.firstIndex(where: { isParams($0) })
-
-    // Model name = segments before params (or all segments if no params found)
-    let nameEndIdx = paramsIdx ?? segments.endIndex
-    let nameSegments = Array(segments[..<nameEndIdx])
-
-    // If name is empty (params is the first segment), use the full repo as name
-    guard !nameSegments.isEmpty else {
-      return ParsedRepo(org: org, repo: repo, name: repo, params: nil, tags: [])
-    }
-
-    let name = nameSegments.joined(separator: "-")
-
-    // Params
-    let params = paramsIdx.map { String(segments[$0]) }
-
-    // Tags = segments after params, excluding GGUF/GGML
-    let tagsStartIdx = paramsIdx.map { $0 + 1 } ?? segments.endIndex
-    let excludedTags: Set<String> = ["GGUF", "GGML", "gguf", "ggml"]
-    let tags = segments[tagsStartIdx...].filter { !excludedTags.contains($0) }
-
-    return ParsedRepo(org: org, repo: repo, name: name, params: params, tags: tags)
+    return (org, repo)
   }
 
   /// Extracts quantization from a GGUF filename.
@@ -152,28 +115,4 @@ enum HFRepoParser {
   private static let splitShardPattern: NSRegularExpression = {
     try! NSRegularExpression(pattern: #"-(\d{5})-of-(\d{5})\.gguf$"#, options: .caseInsensitive)
   }()
-
-  /// Regex matching parameter count segments like "1B", "0.6B", "270M".
-  /// The optional leading E covers Gemma's MatFormer "effective" sizes
-  /// ("E2B", "E4B") — those repos carry no plain size segment, so missing
-  /// them would collapse the whole repo name into the family. MoE active-size
-  /// markers like "A3B" stay unmatched on purpose: they always follow a plain
-  /// size and render as a tag.
-  private static let paramsPattern: NSRegularExpression = {
-    try! NSRegularExpression(pattern: #"^[Ee]?\d+(\.\d+)?[BbMmKkTt]$"#)
-  }()
-
-  /// Returns true if a segment looks like a parameter count (e.g. "1B", "270M", "0.6B", "E4B")
-  private static func isParams(_ segment: String) -> Bool {
-    paramsPattern.firstMatch(
-      in: segment, range: NSRange(segment.startIndex..., in: segment)
-    ) != nil
-  }
-
-  /// Splits a repo name on "-", filtering empty segments.
-  /// Version numbers like "3.2" stay intact since the dot isn't a split point.
-  /// e.g. "Llama-3.2-1B-Instruct-GGUF" → ["Llama", "3.2", "1B", "Instruct", "GGUF"]
-  private static func splitRepoName(_ repo: String) -> [String] {
-    repo.components(separatedBy: "-").filter { !$0.isEmpty }
-  }
 }

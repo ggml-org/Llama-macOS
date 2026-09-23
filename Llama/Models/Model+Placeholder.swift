@@ -9,28 +9,19 @@ extension Model {
   /// row's identity round-trips once the scan surfaces the landed files.
   static func placeholderForDownload(
     modelId: String,
-    repo: String,
     mainUrl: URL,
     additionalParts: [URL],
     mmprojUrl: URL?,
     mtpUrl: URL?,
     fileSize: Int64
   ) -> Model {
-    let repoDir = "models--" + repo.replacingOccurrences(of: "/", with: "--")
-    let parsed = HFRepoParser.parse(repoDir: repoDir)
-    let parts = repo.split(separator: "/")
-    let org = parsed?.org ?? (parts.first.map(String.init) ?? "")
-    let name = parsed?.name ?? (parts.count > 1 ? String(parts[1]) : repo)
-
-    return Model(
+    Model(
       id: modelId,
-      family: name,
       fileSize: fileSize,
       downloadUrl: mainUrl,
       additionalParts: additionalParts.isEmpty ? nil : additionalParts,
       mmprojUrl: mmprojUrl,
-      mtpUrl: mtpUrl,
-      org: org
+      mtpUrl: mtpUrl
     )
   }
 }
