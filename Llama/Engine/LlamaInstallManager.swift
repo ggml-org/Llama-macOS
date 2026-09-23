@@ -45,13 +45,28 @@ final class LlamaInstallManager {
   /// "Check for Updates") is explained rather than mysterious.
   private(set) var currentOrigin: LlamaBinaries.Origin = .managed
 
+  /// Ensures a usable `llama` binary is present -- installing one if none is
+  /// found -- then starts the server. Runs at launch and from the menu's setup
+  /// banner (retry a failed install, or re-check after a `brew upgrade`).
+  /// Install logic lives here rather than in `LlamaServer.start()`, which runs
+  /// on every model load and settings change.
+  ///
+  /// The server only starts once a binary is available; on a failed install
+  /// the menu shows the error and a retry, driven by `state`.
+  func startServerWhenReady() {
+    Task {
+      if await ensureReady() {
+        LlamaServer.shared.start()
+      }
+    }
+  }
+
   /// Ensures a usable `llama` binary is available, applying the version policy:
   /// install when missing, stage the pinned target in the background when the
   /// managed binary trails it, or nudge when an unmanaged binary is below the
   /// floor. Returns true if the server should start afterward (always, except a
   /// failed install when no binary exists at all).
-  @discardableResult
-  func ensureReady() async -> Bool {
+  private func ensureReady() async -> Bool {
     // Off the main thread: both the promotion and the version read touch the
     // binary (the latter runs it).
     let found = await Task.detached {

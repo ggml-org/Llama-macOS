@@ -78,6 +78,6 @@ final class CLISetupView: ItemView {
   }
 
   @objc private func recheck() {
-    NotificationCenter.default.post(name: .LBRecheckCLI, object: nil)
+    LlamaInstallManager.shared.startServerWhenReady()
   }
 }

@@ -28,11 +28,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var updaterController: SPUStandardUpdaterController?
   private let logger = Logger(subsystem: Logging.subsystem, category: "AppDelegate")
   private var menuController: MenuController?
-  private var globalInputController: GlobalInputController?
   private var networkExposureGuard: NetworkExposureGuard?
-  private var updatesObserver: NSObjectProtocol?
-  private var recheckCLIObserver: NSObjectProtocol?
-  private var globalInputObserver: NSObjectProtocol?
 
   // Deeplink (llama://) plumbing.
   // Cold-launch URL events arrive before `applicationDidFinishLaunching`, so we have
@@ -145,44 +141,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     ModelManager.shared.scanNow()
 
     // Create the AppKit-based status bar menu (installed models only for now)
-    menuController = MenuController()
+    menuController = MenuController(checkForUpdates: { [weak self] in
+      self?.updaterController?.checkForUpdates(nil)
+    })
 
     // Scope network access to the network it was granted on, so the setting
     // doesn't follow the laptop onto someone else's wifi.
     networkExposureGuard = NetworkExposureGuard()
     networkExposureGuard?.start()
 
-    // Register the global-input hotkey (⌥Space) and its capture panel -- a
-    // system-wide quick-capture that dispatches a prompt to the web UI.
-    globalInputController = GlobalInputController()
-
-    // Open the capture panel on demand (the "show global input" AppleScript
-    // command).
-    globalInputObserver = NotificationCenter.default.addObserver(
-      forName: .LBShowGlobalInput, object: nil, queue: .main
-    ) { [weak self] _ in
-      MainActor.assumeIsolated {
-        self?.globalInputController?.show()
-      }
-    }
+    // Register the global-input hotkey and its capture panel -- a system-wide
+    // quick-capture that dispatches a prompt to the web UI.
+    GlobalInputController.shared.start()
 
     // Ensure a usable llama binary exists, then start the server in Router Mode.
-    ensureCLIThenStartServer()
-
-    // Listen for explicit update requests from the menu controller
-    updatesObserver = NotificationCenter.default.addObserver(
-      forName: .LBCheckForUpdates, object: nil, queue: .main
-    ) { [weak self] _ in
-      self?.updaterController?.checkForUpdates(nil)
-    }
-
-    // Re-run the CLI readiness check from the menu's setup banner (retry a
-    // failed install, or re-check after a `brew upgrade`).
-    recheckCLIObserver = NotificationCenter.default.addObserver(
-      forName: .LBRecheckCLI, object: nil, queue: .main
-    ) { [weak self] _ in
-      self?.ensureCLIThenStartServer()
-    }
+    LlamaInstallManager.shared.startServerWhenReady()
 
     #if DEBUG
       // Auto-open the menu in debug builds to save a click. (To bring up the
@@ -209,34 +182,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     logger.info("Llama startup complete")
   }
 
-  /// Ensures a usable `llama` binary is present -- installing one if none is
-  /// found -- then starts the server. Install logic lives here, at launch,
-  /// rather than in `LlamaServer.start()`, which runs on every model load and
-  /// settings change.
-  ///
-  /// For now a missing binary triggers a silent install; how this is surfaced
-  /// (silent vs. a prompt) and how an outdated binary is handled are left for
-  /// the install UX. If the install fails, `start()` surfaces the
-  /// missing-binary error state in the menu.
-  private func ensureCLIThenStartServer() {
-    Task { @MainActor in
-      // Installs the app-owned binary if none is found, driving the menu's
-      // setup banner via LlamaInstallManager. Only start the server once a
-      // binary is available; on failure the menu shows the error + retry.
-      if await LlamaInstallManager.shared.ensureReady() {
-        LlamaServer.shared.start()
-      }
-    }
-  }
-
   func applicationWillTerminate(_ notification: Notification) {
     logger.info("Llama shutting down")
 
     // Gracefully stop the llama-server process when app quits
     LlamaServer.shared.stop()
-
-    // Clean up observers
-    if let updatesObserver { NotificationCenter.default.removeObserver(updatesObserver) }
   }
 }
 

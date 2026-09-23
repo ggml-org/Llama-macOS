@@ -6,16 +6,19 @@ import os.log
 /// panel, and the dispatch of a captured prompt to the web UI.
 ///
 /// Prototype scope: user-configurable hotkey (none by default), single panel
-/// reused across invocations, opens the web UI on submit. Hold a strong
-/// reference (AppDelegate does) for the hotkey to stay registered.
+/// reused across invocations, opens the web UI on submit. A singleton so the
+/// "show global input" AppleScript command can reach it; `start()` at launch
+/// registers the hotkey.
 @MainActor
 final class GlobalInputController {
+  static let shared = GlobalInputController()
+
   private let logger = Logger(subsystem: Logging.subsystem, category: "GlobalInput")
   private var hotkey: GlobalHotkey?
   private var panel: CapturePanel?
   private var shortcutObserver: NSObjectProtocol?
 
-  init() {
+  func start() {
     registerHotkey()
     // Re-register live when the shortcut is changed in Settings.
     shortcutObserver = NotificationCenter.default.addObserver(
@@ -44,8 +47,8 @@ final class GlobalInputController {
     }
   }
 
-  /// Show the panel, unconditionally. Used by the DEBUG auto-open to bring up
-  /// the capture panel on launch (see LlamaApp).
+  /// Show the panel, unconditionally. Used by the "show global input"
+  /// AppleScript command.
   func show() {
     present()
   }

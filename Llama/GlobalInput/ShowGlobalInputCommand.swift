@@ -10,7 +10,9 @@ import Cocoa
 /// Takes no arguments and returns nothing: showing the panel is all it can do.
 class ShowGlobalInputCommand: NSScriptCommand {
   override func performDefaultImplementation() -> Any? {
-    NotificationCenter.default.post(name: .LBShowGlobalInput, object: nil)
+    DispatchQueue.main.async {
+      GlobalInputController.shared.show()
+    }
     return nil
   }
 }

@@ -5,7 +5,6 @@ extension Notification.Name {
   static let LBModelDownloadsDidChange = Notification.Name("LBModelDownloadsDidChange")
   static let LBModelDownloadedListDidChange = Notification.Name("LBModelDownloadedListDidChange")
   static let LBUserSettingsDidChange = Notification.Name("LBUserSettingsDidChange")
-  static let LBCheckForUpdates = Notification.Name("LBCheckForUpdates")
   static let LBModelDownloadDidFail = Notification.Name("LBModelDownloadDidFail")
   // Posted when a model's downloads all finish (weights verified + promoted into
   // the HF cache), so the menu bar can flag a not-yet-seen completion on its icon.
@@ -18,16 +17,10 @@ extension Notification.Name {
   // Posted when the app-owned CLI install state changes (idle/installing/failed),
   // so the menu can surface a "setting up…" banner or a retry affordance.
   static let LBCLIInstallStateDidChange = Notification.Name("LBCLIInstallStateDidChange")
-  // Posted by the menu's setup banner to re-run the CLI readiness check --
-  // retry a failed install, or re-check after the user ran `brew upgrade`.
-  static let LBRecheckCLI = Notification.Name("LBRecheckCLI")
   // Posted when the global-input shortcut setting changes, so the controller
   // can re-register the hotkey without a relaunch.
   static let LBGlobalInputShortcutDidChange = Notification.Name("LBGlobalInputShortcutDidChange")
   // Posted to pop open the status-bar menu (e.g. the global-input panel routing
   // to onboarding when no models are installed).
   static let LBOpenMenu = Notification.Name("LBOpenMenu")
-  // Posted to open the global-input capture panel programmatically. Used while
-  // iterating on the feature (see the "show global input" AppleScript command).
-  static let LBShowGlobalInput = Notification.Name("LBShowGlobalInput")
 }
