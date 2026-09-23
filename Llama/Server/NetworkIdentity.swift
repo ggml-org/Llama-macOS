@@ -1,6 +1,5 @@
 import Foundation
 import OSLog
-import SystemConfiguration
 
 /// Identifies *which* network the Mac is currently attached to.
 ///
@@ -25,7 +24,7 @@ enum NetworkIdentity {
   /// a laptop with wifi off hasn't moved anywhere, and flipping the setting
   /// off on every transient dropout would be its own kind of broken.
   static func currentFingerprint() -> String? {
-    guard let router = routerAddress() else { return nil }
+    guard let router = LocalNetwork.routerAddress() else { return nil }
     guard let mac = hardwareAddress(for: router) else {
       // The gateway may not be in the ARP cache yet right after a link change.
       // Returning nil (rather than the bare IP) keeps a half-known network from
@@ -34,16 +33,6 @@ enum NetworkIdentity {
       return nil
     }
     return "\(router)|\(mac)"
-  }
-
-  /// The default gateway's IPv4 address, from the same dynamic-store key that
-  /// tells us the primary interface.
-  private static func routerAddress() -> String? {
-    guard let store = SCDynamicStoreCreate(nil, "app.llama.Llama" as CFString, nil, nil),
-      let info = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString)
-        as? [String: Any]
-    else { return nil }
-    return info["Router"] as? String
   }
 
   /// MAC address of an IPv4 neighbour, read out of the kernel's ARP table.

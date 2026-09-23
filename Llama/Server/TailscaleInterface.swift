@@ -19,12 +19,9 @@ enum TailscaleInterface {
   /// the user chose rather than what exists right now -- a Tailscale bind
   /// stays a Tailscale bind while Tailscale is signed out. Detection of a
   /// *live* address is stricter (see `address()`).
-  static func isTailscaleAddress(_ ip: String) -> Bool {
-    isCGNAT(ip)
-  }
-
+  ///
   /// Tailscale hands out addresses from the CGNAT range, 100.64.0.0/10.
-  private static func isCGNAT(_ ip: String) -> Bool {
+  static func isTailscaleAddress(_ ip: String) -> Bool {
     let parts = ip.split(separator: ".").compactMap { Int($0) }
     guard parts.count == 4, parts[0] == 100 else { return false }
     return (64...127).contains(parts[1])
@@ -38,8 +35,8 @@ enum TailscaleInterface {
   /// carrier's CGNAT address instead of a private overlay would be precisely
   /// the wrong outcome.
   static func address() -> String? {
-    LlamaServer.localIPv4Addresses()
-      .filter { $0.key.hasPrefix("utun") && isCGNAT($0.value) }
+    LocalNetwork.ipv4Addresses()
+      .filter { $0.key.hasPrefix("utun") && isTailscaleAddress($0.value) }
       .values
       .sorted()  // stable when more than one utun qualifies
       .first
