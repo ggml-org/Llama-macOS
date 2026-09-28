@@ -85,6 +85,31 @@ class LlamaServer {
     return configured
   }
 
+  /// The custom web UI folder the server will actually serve, which is the
+  /// configured one only while it still has an `index.html`.
+  ///
+  /// Same reasoning as `effectiveBindAddress`: a folder can be moved or
+  /// deleted between launches, and `llama serve --path` on a missing folder
+  /// would leave `/` answering 404 -- a chat that's just gone, for a setting
+  /// the user can't see is now stale. Falling back to the built-in UI keeps a
+  /// working chat, and it's self-healing: put the folder back and the next
+  /// start serves it again.
+  nonisolated static var effectiveWebUIDirectory: String? {
+    guard let dir = UserSettings.customWebUIDirectory else { return nil }
+    guard hasIndexPage(dir) else {
+      logger.notice("custom web UI folder has no index.html -- using the built-in web UI")
+      return nil
+    }
+    return dir.path
+  }
+
+  /// Whether `dir` has the `index.html` the server hands out for `/`. The
+  /// server serves files as-is, with no fallback page, so a folder without one
+  /// would answer every visit to the root with a 404.
+  nonisolated static func hasIndexPage(_ dir: URL) -> Bool {
+    FileManager.default.fileExists(atPath: dir.appendingPathComponent("index.html").path)
+  }
+
   /// Returns the host string for server URLs.
   /// If network bind address is set, uses that (resolving 0.0.0.0 to the actual local IP).
   /// Otherwise defaults to "localhost".
@@ -401,11 +426,20 @@ class LlamaServer {
       // Path flags, grouped together.
       "--models-preset", presetsPath,
       "--log-file", Self.logFilePath,
+    ]
+
+    // Custom web UI: serve the user's folder at `/` instead of the built-in
+    // chat. The API routes are unaffected. Kept with the other path flags.
+    if let webUIDirectory = effectiveWebUIDirectory {
+      arguments.append(contentsOf: ["--path", webUIDirectory])
+    }
+
+    arguments.append(contentsOf: [
       // Other value-taking flags.
       "--port", String(Self.port),
       "--models-max", "1",
       "--fit-target", String(Int(Model.fitTargetMb)),
-    ]
+    ])
 
     // Bind to custom address if network exposure is enabled
     if let bindAddress = effectiveBindAddress {

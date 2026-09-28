@@ -418,6 +418,7 @@ struct SettingsView: View {
   @State private var agentMode = UserSettings.agentMode
   @State private var hfCacheDir = UserSettings.hfCacheDirectory
   @State private var globalShortcut = UserSettings.globalInputShortcut
+  @State private var customWebUIDir = UserSettings.customWebUIDirectory
   @State private var hfToken = UserSettings.hfToken ?? ""
   @State private var showingHFTokenSheet = false
   // Effective server port; re-read after the edit sheet saves so the row updates.
@@ -737,8 +738,139 @@ struct SettingsView: View {
           .font(.callout)
         }
       }
+
+      // Custom web UI section. Last in the tab: it's for people building their
+      // own chat, a smaller group than either setting above.
+      Section {
+        // Row, caution and hint share one Form row, like agent mode above, so
+        // the grouped style doesn't rule separators between them.
+        VStack(alignment: .leading, spacing: 6) {
+        SettingRow(
+          title: "Custom web UI",
+          description: "Serves your own folder in place of the built-in chat."
+        ) {
+          HStack(spacing: 6) {
+            // Resetting means going back to the built-in UI.
+            if customWebUIDir != nil {
+              RestoreDefaultButton {
+                UserSettings.customWebUIDirectory = nil
+                customWebUIDir = nil
+              }
+            }
+
+            // "Choose…" until a folder is set, then the folder itself -- the
+            // same button as the model directory, so it reads as a location.
+            Button {
+              chooseWebUIFolder()
+            } label: {
+              HStack(spacing: 6) {
+                if let customWebUIDir {
+                  // Shorter than the model directory's cap: this row shares
+                  // its width with the reset button, and the leaf folder (the
+                  // part that says which UI it is) must survive truncation.
+                  Text(abbreviatedPath(customWebUIDir, maxLen: 28))
+                    .lineLimit(1)
+                } else {
+                  Text("Choose…")
+                }
+
+                Image(systemName: "folder")
+              }
+            }
+            .controlSize(.small)
+          }
+          .font(.callout)
+        }
+
+          if let caution = customWebUICaution {
+            SettingCaution(text: caution)
+          }
+
+          // Only once a folder is set: that's when a browser that has opened
+          // the built-in chat can keep showing it. The built-in UI installs a
+          // service worker that answers page loads from its cache, and the
+          // server can't retire it -- the worker's own update check now gets a
+          // 404, which browsers treat as "keep the old one". Clearing the
+          // site's data is the fix, and without this line the setting just
+          // looks broken.
+          if customWebUIDir != nil {
+            Text("A browser that has opened the built-in chat may keep showing it until you clear its data for this site.")
+              .font(.system(size: 11))
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+      }
     }
     .formStyle(.grouped)
+  }
+
+  /// The caution for the custom web UI row, or nil when the server is
+  /// reachable only from this Mac.
+  ///
+  /// The server hands out every file in the folder, dotfiles included, so
+  /// network access widens who can read it. Shown whether or not a folder is
+  /// set, for the same reason as `agentModeCaution`: it's there to inform the
+  /// choice, so it has to be readable before it's made.
+  private var customWebUICaution: String? {
+    guard let who = networkAudience else { return nil }
+    return "Network access is on, so \(who) could read every file in the chosen folder."
+  }
+
+  /// Opens a folder picker and sets it as the custom web UI.
+  ///
+  /// Refuses a folder with no `index.html` at its top level: the server would
+  /// start fine and then answer the root with a 404, which reads as the app
+  /// being broken rather than as the wrong folder. The common way to get there
+  /// is picking a project folder instead of its build output, so the alert
+  /// says what's missing rather than just "invalid folder".
+  private func chooseWebUIFolder() {
+    let selection = ModalPresentation.run { () -> URL? in
+      let panel = NSOpenPanel()
+      panel.canChooseFiles = false
+      panel.canChooseDirectories = true
+      panel.canCreateDirectories = false
+      panel.allowsMultipleSelection = false
+      panel.message = "Choose a folder with an index.html to serve as the web UI"
+      panel.prompt = "Select"
+      panel.directoryURL = customWebUIDir
+
+      return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    guard let url = selection else { return }
+
+    // Checked before `index.html`, so a project root that also lacks one gets
+    // the more specific message.
+    if let marker = projectMarker(in: url) {
+      ModalPresentation.showAlert(
+        style: .warning, title: "This folder has a \(marker)",
+        body: "The server hands out every file in the folder, so \(marker) would be readable too. Choose the folder with just the built web UI -- usually build or dist.")
+      return
+    }
+
+    guard LlamaServer.hasIndexPage(url) else {
+      ModalPresentation.showAlert(
+        style: .warning, title: "No index.html in this folder",
+        body: "Choose the folder that holds your web UI's index.html -- for a project with a build step, that's usually its build output.")
+      return
+    }
+
+    UserSettings.customWebUIDirectory = url
+    customWebUIDir = UserSettings.customWebUIDirectory
+  }
+
+  /// The first entry in `dir` that marks it as a project folder rather than a
+  /// build output -- `.git`, or an `.env` file -- or nil if there's none.
+  ///
+  /// The server serves every file in the folder, dotfiles included, so a
+  /// project root would hand out its history and secrets. It's also an easy
+  /// pick to make by mistake: a plain Vite project keeps its `index.html` at
+  /// the root, so the `index.html` check alone would let it through. Only the
+  /// top level is checked -- that's where both live in a project root.
+  private func projectMarker(in dir: URL) -> String? {
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+    return names.sorted().first { $0 == ".git" || $0 == ".env" || $0.hasPrefix(".env.") }
   }
 
   /// This Mac's Tailscale address, re-read on every render rather than
@@ -849,6 +981,13 @@ struct SettingsView: View {
             SettingCaution(text: "Agent mode is on, so anyone who connects would get file access.")
               .padding(.top, 2)
           }
+
+          // Same idea for a custom web UI: every file in its folder is served,
+          // so exposing the server exposes the folder.
+          if option == .localNetwork, customWebUIDir != nil {
+            SettingCaution(text: "A custom web UI is set, so anyone who connects could read every file in its folder.")
+              .padding(.top, 2)
+          }
         }
 
         Spacer(minLength: 0)
@@ -883,16 +1022,17 @@ struct SettingsView: View {
   /// attached, and naming the people is what makes it a warning rather than a
   /// status line.
   private var agentModeCaution: String? {
-    guard exposedBeyondThisMac else { return nil }
-
-    let who =
-      if case .custom = networkAccess {
-        "anything that can reach the server"
-      } else {
-        "anyone on your current network"
-      }
-
+    guard let who = networkAudience else { return nil }
     return "Network access is on, so \(who) could do this too."
+  }
+
+  /// Who besides this Mac's user can reach the server, phrased to follow
+  /// "so", or nil when it's only them. Shared by the cautions on settings
+  /// whose risk grows with network access.
+  private var networkAudience: String? {
+    guard exposedBeyondThisMac else { return nil }
+    if case .custom = networkAccess { return "anything that can reach the server" }
+    return "anyone on your current network"
   }
 
   /// The address `option` binds, or nil when there's nothing true to print
