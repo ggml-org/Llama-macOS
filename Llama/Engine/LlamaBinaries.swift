@@ -104,9 +104,12 @@ enum LlamaBinaries {
     let proc = Process()
     proc.executableURL = URL(fileURLWithPath: path)
     proc.arguments = ["version"]
+    // Capture both streams into one pipe: which stream carries the version has
+    // changed across builds (e.g. b10679 prints it to stderr, b11200 to
+    // stdout), and the parser finds the build number either way.
     let out = Pipe()
     proc.standardOutput = out
-    proc.standardError = Pipe()  // discard any chatter
+    proc.standardError = out
 
     do {
       try proc.run()
