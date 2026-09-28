@@ -478,8 +478,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // User overrides are layered on top of everything the scan produces, so the
     // generated values below are only ever defaults. See `UserModelOverrides`.
     UserModelOverrides.reload()
-    let merged = UserModelOverrides.apply(
-      to: generatedModelSections(), overrides: UserModelOverrides.current)
+    let merged = ModelAliases.removeConflicts(
+      from: UserModelOverrides.apply(
+        to: generatedModelSections(), overrides: UserModelOverrides.current))
     return UserModelOverrides.generatedFileHeader + merged.map { $0.serialized() }.joined()
   }
 
@@ -528,6 +529,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       if useLargeBatch {
         section.set("ubatch-size", "2048")
       }
+
+      // Names the user pointed at this model in Settings > Aliases.
+      ModelAliases.apply(to: &section)
 
       sections.append(section)
     }

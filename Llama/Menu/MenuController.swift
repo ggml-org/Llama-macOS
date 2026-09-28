@@ -665,6 +665,21 @@ final class MenuController: NSObject, NSMenuDelegate {
       builderRow?.openInBrowser(url)
     }
     menu.addItem(NSMenuItem.viewItem(with: builderRow))
+    // The names this model answers to over the API, next to the row about
+    // using it from code. Only when it has any: a row on every page inviting
+    // you to add one would be clutter for everyone who never will. Clicking
+    // opens the tab where they're edited. Shows what's in effect, so a
+    // models.user.ini `alias` key wins here as it does in the server.
+    let aliases = ModelAliases.overridden(for: model.id)
+      ?? ModelAliases.names(for: model.id).joined(separator: ", ")
+    if !aliases.isEmpty {
+      menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
+        title: "Aliases", symbol: "tag", detail: aliases
+      ) { [weak self] in
+        self?.statusItem.menu?.cancelTracking()
+        SettingsWindowController.shared.showSettings(tab: .aliases)
+      }))
+    }
     // The HF model card is where the id pays off -- license, description, the
     // org's other quants. Every managed model is HF-backed, so the id maps
     // straight to a repo URL.

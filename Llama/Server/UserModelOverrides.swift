@@ -56,6 +56,11 @@ enum UserModelOverrides {
       }
     }
 
+    /// Removes `key` if present.
+    mutating func remove(_ key: String) {
+      pairs.removeAll { $0.key == key }
+    }
+
     func serialized() -> String {
       var out = "[\(name)]\n"
       for pair in pairs {
@@ -173,9 +178,15 @@ enum UserModelOverrides {
   /// The context picker owns this key too, so when an override exists the
   /// picker can't be allowed to imply it's in charge -- see its use site.
   static func overriddenCtxSize(for modelId: String) -> String? {
+    overriddenValue("ctx-size", for: modelId)
+  }
+
+  /// The value the user file sets for `key` in `modelId`'s section, if any.
+  /// Nil while overrides are suspended, since they aren't applied then.
+  static func overriddenValue(_ key: String, for modelId: String) -> String? {
     guard !isSuspended else { return nil }
     return current.first { $0.name == modelId }?
-      .pairs.first { $0.key == "ctx-size" }?.value
+      .pairs.first { $0.key == key }?.value
   }
 
   /// Re-reads the user file into `current`, emptying it if absent or unreadable.

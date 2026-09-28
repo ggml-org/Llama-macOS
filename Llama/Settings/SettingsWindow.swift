@@ -130,7 +130,7 @@ extension SettingsWindowController: NSToolbarDelegate {
 /// The control is vertically centered against the text block, so the gap
 /// between title and description stays uniform regardless of the control's
 /// height -- unlike a layout where the title shares a row with the control.
-private struct SettingRow<Control: View>: View {
+struct SettingRow<Control: View>: View {
   let title: String
   let description: String
   @ViewBuilder let control: () -> Control
@@ -167,7 +167,7 @@ private struct SettingRow<Control: View>: View {
 /// The text always names the other setting first, which is what keeps the
 /// cause attached to the effect -- a caution that opens with the consequence
 /// reads as a fact about the app rather than about a switch you can flip.
-private struct SettingCaution: View {
+struct SettingCaution: View {
   let text: String
 
   var body: some View {
@@ -207,6 +207,7 @@ enum SettingsTab: CaseIterable, Identifiable {
   case network
   case downloads
   case chat
+  case aliases
   case advanced
 
   var id: Self { self }
@@ -217,6 +218,7 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .network: "Network"
     case .downloads: "Downloads"
     case .chat: "Chat"
+    case .aliases: "Aliases"
     case .advanced: "Advanced"
     }
   }
@@ -227,6 +229,7 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .network: "network"
     case .downloads: "arrow.down.circle"
     case .chat: "bubble"
+    case .aliases: "tag"
     case .advanced: "wrench.adjustable"
     }
   }
@@ -447,6 +450,7 @@ struct SettingsView: View {
     case .network: networkForm
     case .downloads: downloadsForm
     case .chat: chatForm
+    case .aliases: AliasesSettingsView()
     case .advanced: ServerCommandView()
     }
   }

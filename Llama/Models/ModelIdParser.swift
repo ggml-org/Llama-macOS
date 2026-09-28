@@ -76,6 +76,18 @@ enum ModelIdParser {
       .joined(separator: "|")
   }
 
+  /// The row rendering as one plain string, e.g. `unsloth/Qwen3-Coder 30B-A3B
+  /// Q4_K_M` -- for places that can't draw chips, like a SwiftUI picker's
+  /// menu. Same parts in the same order as a row, so a model reads the same.
+  static func plainName(_ id: String, showTags: Bool) -> String {
+    let parsed = parse(id)
+    var parts = [(parsed.displayOrg.map { $0 + "/" } ?? "") + parsed.name]
+    if let params = parsed.params { parts.append(params) }
+    if showTags { parts.append(contentsOf: parsed.tags) }
+    if let quant = parsed.quant { parts.append(quant) }
+    return parts.joined(separator: " ")
+  }
+
   static func parse(_ id: String) -> Parsed {
     // Split off the post-colon quant tag and the pre-slash org. Both always
     // exist in ids we build; catalog repos arrive without the colon.

@@ -52,6 +52,7 @@ enum UserSettings {
     static let useFullWorkingSet = "useFullWorkingSet"
     static let globalInputShortcut = "globalInputShortcut"
     static let customWebUIDirectory = "customWebUIDirectory"
+    static let modelAliases = "modelAliases"
   }
 
   private static let defaults = UserDefaults.standard
@@ -352,6 +353,38 @@ enum UserSettings {
       } else {
         defaults.removeObject(forKey: Keys.customWebUIDirectory)
       }
+      NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
+    }
+  }
+
+  // MARK: - Model Aliases
+
+  /// Names API clients can use in place of a model id, each pointed at one
+  /// model on this Mac (see `ModelAlias`). In the order they were added,
+  /// which is the order Settings lists them in.
+  ///
+  /// Stored as `[{name, model}]` dicts rather than a name -> model dictionary
+  /// so that order survives. An alias whose model was deleted is kept: it
+  /// records what the user chose, and it resolves again if the model comes
+  /// back. Until then it's simply left out of `models.ini`.
+  ///
+  /// The setter posts the settings change notification, which regenerates
+  /// `models.ini` and restarts the server. A restart rather than the router's
+  /// in-place reload, because that reload doesn't update the aliases of a
+  /// model that's running -- a switch to or from a loaded model would
+  /// silently not take effect until it unloaded.
+  static var modelAliases: [ModelAlias] {
+    get {
+      let raw = defaults.array(forKey: Keys.modelAliases) as? [[String: String]] ?? []
+      return raw.compactMap { dict in
+        guard let name = dict["name"], let modelId = dict["model"] else { return nil }
+        return ModelAlias(name: name, modelId: modelId)
+      }
+    }
+    set {
+      guard newValue != modelAliases else { return }
+      defaults.set(
+        newValue.map { ["name": $0.name, "model": $0.modelId] }, forKey: Keys.modelAliases)
       NotificationCenter.default.post(name: .LBUserSettingsDidChange, object: nil)
     }
   }
