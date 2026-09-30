@@ -125,10 +125,11 @@ class LlamaServer {
   /// The host the app itself should use to reach the server.
   ///
   /// Unlike `resolvedHost` (which produces a URL for *other* devices), this is
-  /// about reachability from this machine: `llama serve` binds only the address
-  /// it's given, so once a specific one is configured, loopback is dead and the
-  /// app has to talk to that address. `0.0.0.0` already includes loopback, so
-  /// localhost stays the cheapest way in.
+  /// about reachability from this machine. With a specific address configured,
+  /// loopback is only bound too when the engine is new enough (`hostArgument`),
+  /// but the specific address is bound either way -- so the app talks to that,
+  /// which keeps this independent of the engine version. `0.0.0.0` already
+  /// includes loopback, so localhost stays the cheapest way in.
   nonisolated static var localHost: String {
     guard let bindAddr = effectiveBindAddress, bindAddr != "0.0.0.0" else { return "localhost" }
     return bindAddr
@@ -401,11 +402,31 @@ class LlamaServer {
     .urls(for: .libraryDirectory, in: .userDomainMask)[0]
     .appendingPathComponent("Logs/Llama/llama-server.log").path
 
+  /// The `--host` value for a network bind address.
+  ///
+  /// `llama serve` listens only on the addresses it's given, so binding a
+  /// specific one (Tailscale, or a hand-set IP) would otherwise take loopback
+  /// away -- `localhost:<port>`, which most OpenAI-compatible clients default
+  /// to, would stop answering even on this Mac, and start answering again
+  /// whenever the address went away and we fell back to loopback. Listing
+  /// loopback alongside keeps localhost working in every mode.
+  ///
+  /// Only engines from `multiHostVersion` on accept a list; older ones (and an
+  /// unreadable version) get the single address, as before. `0.0.0.0` already
+  /// covers loopback, and repeating `127.0.0.1` would fail the second bind.
+  private static func hostArgument(for bindAddress: String) -> String {
+    guard bindAddress != "0.0.0.0", bindAddress != "127.0.0.1",
+      let version = LlamaInstallManager.shared.currentVersion,
+      version >= LlamaBinaries.multiHostVersion
+    else { return bindAddress }
+    return "127.0.0.1,\(bindAddress)"
+  }
+
   /// Builds the `llama serve` launch spec from the current settings. Pure with
-  /// respect to process state -- it only reads settings and the resolved binary
-  /// path -- so the settings UI can call it to preview the command. Returns nil
-  /// only when no llama binary is installed.
-  nonisolated static func buildLaunchSpec() -> LaunchSpec? {
+  /// respect to process state -- it only reads settings, the resolved binary
+  /// path and its version -- so the settings UI can call it to preview the
+  /// command. Returns nil only when no llama binary is installed.
+  static func buildLaunchSpec() -> LaunchSpec? {
     guard let llamaPath = LlamaBinaries.llamaPath else { return nil }
 
     let presetsPath = UserSettings.appSupportDir.appendingPathComponent("models.ini").path
@@ -443,7 +464,7 @@ class LlamaServer {
 
     // Bind to custom address if network exposure is enabled
     if let bindAddress = effectiveBindAddress {
-      arguments.append(contentsOf: ["--host", bindAddress])
+      arguments.append(contentsOf: ["--host", hostArgument(for: bindAddress)])
     }
 
     // Unload model from memory when idle

@@ -41,6 +41,18 @@ enum LlamaBinaries {
   /// if the app starts relying on an even newer flag.
   static let floorVersion = LlamaVersion(parsing: "b9726")!
 
+  /// The first build whose `serve --host` takes a comma-separated list of
+  /// addresses (llama.cpp PR #28690), which is what lets a server bound to a
+  /// specific address (e.g. Tailscale) keep answering on loopback too.
+  ///
+  /// It's above `floorVersion`, so it's a capability, not a requirement: the
+  /// app checks the in-use engine against it and passes a list only when it's
+  /// new enough, rather than raising the floor and nagging every Homebrew user
+  /// below it. The check has to be exact -- an older engine reads the list as
+  /// one hostname and binds nothing, so the server fails to start. Delete the
+  /// check (and this) once `floorVersion` reaches it.
+  static let multiHostVersion = LlamaVersion(parsing: "b11104")!
+
   /// Where the in-use binary comes from. Only `managed` is the app's to
   /// update; `brew` and `external` are both used as-is and never modified.
   /// Brew is split out so the footer can hint at the actual update channel

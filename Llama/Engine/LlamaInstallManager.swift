@@ -35,9 +35,11 @@ final class LlamaInstallManager {
     }
   }
 
-  /// Version of the resolved binary in use, for display (e.g. the menu footer).
-  /// Refreshed at launch and after an install; nil until first read or when no
-  /// binary is present.
+  /// Version of the resolved binary in use, for display (e.g. the menu footer)
+  /// and for gating flags newer than `floorVersion` (`LlamaServer.hostArgument`).
+  /// Refreshed at launch and after an install -- both before the server starts
+  /// -- and nil until first read, when no binary is present, or when its
+  /// output can't be parsed.
   private(set) var currentVersion: LlamaVersion?
 
   /// Where the resolved binary comes from. Unmanaged installs are surfaced in
