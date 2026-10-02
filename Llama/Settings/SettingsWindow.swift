@@ -207,7 +207,7 @@ enum SettingsTab: CaseIterable, Identifiable {
   case network
   case downloads
   case chat
-  case command
+  case advanced
 
   var id: Self { self }
 
@@ -217,7 +217,7 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .network: "Network"
     case .downloads: "Downloads"
     case .chat: "Chat"
-    case .command: "Command"
+    case .advanced: "Advanced"
     }
   }
 
@@ -227,7 +227,7 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .network: "network"
     case .downloads: "arrow.down.circle"
     case .chat: "bubble"
-    case .command: "terminal"
+    case .advanced: "wrench.adjustable"
     }
   }
 
@@ -342,21 +342,32 @@ struct SettingsSidebar: View {
   }
 }
 
-/// The Command tab -- the `llama serve` invocation the GUI produces.
+/// The Advanced tab -- the `llama serve` invocation the GUI produces, and the
+/// log of the server it starts.
 ///
 /// It lives in its own tab rather than under Network, Downloads or Chat because
 /// it reflects settings from all of them: port and network access, the idle
 /// timeout, the model directory, agent mode. Any subject label would imply a
-/// scope the command doesn't have. Named for what it holds rather than for who it's
-/// for: "Advanced" describes a disposition, and nothing else here is filed
-/// that way.
+/// scope the command doesn't have. Named "Advanced" rather than "Command"
+/// because less technical users read "Command" as something they're meant to
+/// run; "Advanced" is the macOS convention for "safe to skip", so the tab
+/// answers that before it's even opened. It's meant to hold only server
+/// internals like these, not whatever doesn't fit elsewhere.
 struct ServerCommandView: View {
   var body: some View {
     Form {
       Section {
-        Text("The command the app runs to start the server.")
-          .font(.system(size: 11))
-          .foregroundStyle(.secondary)
+        // Titled like the rows below rather than with a lone caption: a
+        // caption in secondary text loses to the colored command under it, and
+        // the command then reads as instructions. A title makes it a labeled
+        // exhibit, with the "you don't run this" right under it, where the eye
+        // lands.
+        SettingRow(
+          title: "Server command",
+          description: "The app runs this for you when it starts the server."
+        ) {
+          EmptyView()
+        }
 
         // The command itself: monospaced, wrapping, and selectable so a user
         // can read or grab any part of it. Lightly syntax-highlighted to make
@@ -436,7 +447,7 @@ struct SettingsView: View {
     case .network: networkForm
     case .downloads: downloadsForm
     case .chat: chatForm
-    case .command: ServerCommandView()
+    case .advanced: ServerCommandView()
     }
   }
 
