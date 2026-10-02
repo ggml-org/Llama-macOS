@@ -676,8 +676,7 @@ final class MenuController: NSObject, NSMenuDelegate {
       menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
         title: "Aliases", symbol: "tag", detail: aliases
       ) { [weak self] in
-        self?.statusItem.menu?.cancelTracking()
-        SettingsWindowController.shared.showSettings(tab: .aliases)
+        self?.openSettings(tab: .aliases)
       }))
     }
     // The HF model card is where the id pays off -- license, description, the
@@ -760,10 +759,15 @@ final class MenuController: NSObject, NSMenuDelegate {
 
   // MARK: - Settings Section
 
-  private func openSettings() {
-    // Close the menu first, then open settings window
-    statusItem.menu?.cancelTracking()
-    SettingsWindowController.shared.showSettings()
+  private func openSettings(tab: SettingsTab? = nil) {
+    // Close the menu first, then open the settings window. Without animation:
+    // the app can't activate until the menu is gone, so with `cancelTracking()`
+    // the window would sit through the menu's fade-out drawn inactive -- grey
+    // sidebar selection, grey traffic lights -- for a visible ~250ms before
+    // flipping to active. Cmd-, from the open menu never showed the flash --
+    // the menu seems to dismiss itself without animation for key equivalents.
+    statusItem.menu?.cancelTrackingWithoutAnimation()
+    SettingsWindowController.shared.showSettings(tab: tab)
   }
 
   // MARK: - Folder Warning
