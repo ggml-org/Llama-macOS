@@ -791,8 +791,10 @@ final class MenuController: NSObject, NSMenuDelegate {
     let warningView = TextItemView(
       text: "Model directory not available. Check Settings.",
       style: .description,
+      // Straight to the tab with the setting -- Advanced isn't where someone
+      // would look for it first.
       onAction: { [weak self] in
-        self?.openSettings()
+        self?.openSettings(tab: .advanced)
       }
     )
     menu.addItem(NSMenuItem.viewItem(with: warningView))

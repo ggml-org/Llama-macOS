@@ -205,7 +205,6 @@ private struct RestoreDefaultButton: View {
 enum SettingsTab: CaseIterable, Identifiable {
   case general
   case network
-  case downloads
   case chat
   case aliases
   case advanced
@@ -216,7 +215,6 @@ enum SettingsTab: CaseIterable, Identifiable {
     switch self {
     case .general: "General"
     case .network: "Network"
-    case .downloads: "Downloads"
     case .chat: "Chat"
     case .aliases: "Aliases"
     case .advanced: "Advanced"
@@ -227,7 +225,6 @@ enum SettingsTab: CaseIterable, Identifiable {
     switch self {
     case .general: "gearshape"
     case .network: "network"
-    case .downloads: "arrow.down.circle"
     case .chat: "bubble"
     case .aliases: "tag"
     case .advanced: "wrench.adjustable"
@@ -345,79 +342,77 @@ struct SettingsSidebar: View {
   }
 }
 
-/// The Advanced tab -- the `llama serve` invocation the GUI produces, and the
-/// log of the server it starts.
+/// Sheet showing the `llama serve` invocation the GUI produces, opened from
+/// the Advanced tab.
 ///
-/// It lives in its own tab rather than under Network, Downloads or Chat because
-/// it reflects settings from all of them: port and network access, the idle
-/// timeout, the model directory, agent mode. Any subject label would imply a
-/// scope the command doesn't have. Named "Advanced" rather than "Command"
-/// because less technical users read "Command" as something they're meant to
-/// run; "Advanced" is the macOS convention for "safe to skip", so the tab
-/// answers that before it's even opened. It's meant to hold only server
-/// internals like these, not whatever doesn't fit elsewhere.
-struct ServerCommandView: View {
-  var body: some View {
-    Form {
-      Section {
-        // Titled like the rows below rather than with a lone caption: a
-        // caption in secondary text loses to the colored command under it, and
-        // the command then reads as instructions. A title makes it a labeled
-        // exhibit, with the "you don't run this" right under it, where the eye
-        // lands.
-        SettingRow(
-          title: "Server command",
-          description: "See exactly how the app starts the server for you."
-        ) {
-          EmptyView()
-        }
+/// Behind a button rather than inline: most people never read it, and inline
+/// it filled the tab, which made a tab meant to be skippable look like
+/// something to study. Nothing is lost by hiding it -- it reflects settings
+/// from the other tabs, so it was never on screen while they changed anyway.
+/// A sheet also gets to be wider than the settings pane, so long paths wrap
+/// less.
+struct ServerCommandSheet: View {
+  @Environment(\.dismiss) private var dismiss
 
-        // The command itself: monospaced, wrapping, and selectable so a user
-        // can read or grab any part of it. Lightly syntax-highlighted to make
-        // the structure (env vars, flags, values) easier to scan. Its own row
-        // in the section (no panel of its own), so the form draws its native
-        // separator between the header and the command.
-        Text(ServerCommandHighlighter.highlight(serverCommand))
+  /// Built once per showing: the sheet is modal, so no setting can change
+  /// while it's up.
+  private let command =
+    LlamaServer.buildLaunchSpec()?.displayCommand ?? "llama not installed"
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 16) {
+      // Titled the way the row that opens it is, with the "you don't run this"
+      // right under the title, where the eye lands -- without it, the colored
+      // command reads as instructions.
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Server command")
+          .font(.headline)
+
+        Text("See exactly how the app starts the server for you.")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+
+      // The command itself: monospaced, wrapping, and selectable so a user can
+      // read or grab any part of it. Lightly syntax-highlighted to make the
+      // structure (env vars, flags, values) easier to scan. Scrolls past a cap
+      // so a long set of custom arguments can't push the buttons off screen.
+      ScrollView {
+        Text(ServerCommandHighlighter.highlight(command))
           .font(.system(size: 11, design: .monospaced))
           .textSelection(.enabled)
           .frame(maxWidth: .infinity, alignment: .leading)
           .fixedSize(horizontal: false, vertical: true)
+          .padding(10)
       }
+      .frame(maxHeight: 360)
+      .fixedSize(horizontal: false, vertical: true)
+      .background(Color(nsColor: .textBackgroundColor))
+      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .overlay(
+        RoundedRectangle(cornerRadius: 6)
+          .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+      )
 
-      // The server's log sits next to the command that produces it. Opened in
-      // Console.app rather than an in-app viewer: Console already follows the
-      // file live and has search, so there's nothing to build or maintain.
-      Section {
-        SettingRow(
-          title: "Server log",
-          description: "Output from the current server session."
-        ) {
-          Button("Open") { openServerLog() }
-            .font(.callout)
-            .controlSize(.small)
+      HStack {
+        Spacer()
+
+        // The usual reason to open this is to run the command by hand or
+        // paste it into a bug report; selecting a dozen wrapped lines is
+        // fiddly.
+        Button("Copy") {
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(command, forType: .string)
         }
+
+        Button("Done") {
+          dismiss()
+        }
+        .keyboardShortcut(.defaultAction)
       }
     }
-    .formStyle(.grouped)
-  }
-
-  /// Opens the log in Console.app specifically -- the default app for `.log`
-  /// can be a text editor, which shows a snapshot that doesn't update. Falls
-  /// back to the default app if Console can't be found.
-  private func openServerLog() {
-    let log = URL(fileURLWithPath: LlamaServer.logFilePath)
-    if let console = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Console") {
-      NSWorkspace.shared.open([log], withApplicationAt: console, configuration: NSWorkspace.OpenConfiguration())
-    } else {
-      NSWorkspace.shared.open(log)
-    }
-  }
-
-  /// The shell command that starts the server, built from the current
-  /// settings. Sourced from `LlamaServer` so it stays in lockstep with what
-  /// `start()` actually runs.
-  private var serverCommand: String {
-    LlamaServer.buildLaunchSpec()?.displayCommand ?? "llama not installed"
+    .padding(20)
+    .frame(width: 640)
   }
 }
 
@@ -435,6 +430,7 @@ struct SettingsView: View {
   @State private var customWebUIDir = UserSettings.customWebUIDirectory
   @State private var hfToken = UserSettings.hfToken ?? ""
   @State private var showingHFTokenSheet = false
+  @State private var showingServerCommandSheet = false
   // Effective server port; re-read after the edit sheet saves so the row updates.
   @State private var serverPort = LlamaServer.port
   @State private var showingServerPortSheet = false
@@ -448,10 +444,9 @@ struct SettingsView: View {
     switch tab {
     case .general: generalForm
     case .network: networkForm
-    case .downloads: downloadsForm
     case .chat: chatForm
     case .aliases: AliasesSettingsView()
-    case .advanced: ServerCommandView()
+    case .advanced: advancedForm
     }
   }
 
@@ -486,9 +481,6 @@ struct SettingsView: View {
           title: "Unload when idle",
           description: "Frees memory by unloading the model after this long without use."
         ) {
-          // The setting is written inside the binding (not `.onChange`) so the
-          // defaults value is current before SwiftUI recomputes the body --
-          // otherwise the server-command preview renders one change behind.
           PillPicker(
             options: UserSettings.SleepIdleTime.allCases.map { ($0, $0.displayName) },
             selection: Binding(
@@ -616,13 +608,24 @@ struct SettingsView: View {
     }
   }
 
-  /// The Downloads tab -- where downloaded models land, and what authenticates
-  /// the download. Named for the activity rather than for models: these two
-  /// settings don't configure a model, they configure fetching and storing
-  /// one, which is also the only thing the token is ever used for.
-  private var downloadsForm: some View {
+  /// The Advanced tab -- settings that are safe to skip: where models are
+  /// stored and what authenticates their download, then the server's
+  /// internals (the command the app runs, and its log).
+  ///
+  /// "Advanced" is the macOS convention for exactly that, so the tab answers
+  /// "do I need this?" before it's opened. The model settings moved here from
+  /// a Downloads tab of their own: almost nobody changes the directory, and
+  /// the token is found through the gated-model error that names it, not by
+  /// browsing. What it shouldn't become is the home of whatever can't be
+  /// placed -- the port and the custom web UI are rarely touched too, but they
+  /// clearly belong to Network and Chat.
+  ///
+  /// Two cards rather than one per row: the rows pair up (models, server),
+  /// and the grouping says so without section headers.
+  private var advancedForm: some View {
     Form {
-      // HF cache directory section
+      // Models section -- where they're stored, and what authenticates their
+      // download.
       Section {
         SettingRow(
           title: "Model directory",
@@ -654,9 +657,7 @@ struct SettingsView: View {
           }
           .font(.callout)
         }
-      }
-      // Optional HF access token section
-      Section {
+
         SettingRow(
           title: "Hugging Face token",
           description: "Only needed for gated or private models."
@@ -680,6 +681,34 @@ struct SettingsView: View {
           UserSettings.hfToken = newToken.isEmpty ? nil : newToken
         }
       }
+
+      // Server section -- the command the app runs, and the log of what it
+      // printed. Side by side because the log is the output of that command.
+      Section {
+        SettingRow(
+          title: "Server command",
+          description: "See exactly how the app starts the server for you."
+        ) {
+          Button("Show") { showingServerCommandSheet = true }
+            .font(.callout)
+            .controlSize(.small)
+        }
+
+        // Opened in Console.app rather than an in-app viewer: Console already
+        // follows the file live and has search, so there's nothing to build or
+        // maintain.
+        SettingRow(
+          title: "Server log",
+          description: "Output from the current server session."
+        ) {
+          Button("Open") { openServerLog() }
+            .font(.callout)
+            .controlSize(.small)
+        }
+      }
+      .sheet(isPresented: $showingServerCommandSheet) {
+        ServerCommandSheet()
+      }
     }
     .formStyle(.grouped)
   }
@@ -698,9 +727,6 @@ struct SettingsView: View {
           title: "Agent mode",
           description: "Lets models read and edit files and run commands on this Mac."
         ) {
-          // The setting is written inside the binding (not `.onChange`) so the
-          // defaults value is current before SwiftUI recomputes the body --
-          // otherwise the server-command preview renders one toggle behind.
           // The setter posts the settings-change notification, which restarts
           // the server with/without `--agent`.
           Toggle(
@@ -1088,8 +1114,8 @@ struct SettingsView: View {
     }
   }
 
-  /// Writes through to defaults before updating the mirror, so the
-  /// server-command preview on the Command tab doesn't render one change
+  /// Writes through to defaults before updating the mirror, so what's derived
+  /// from it (the address row, the server command) doesn't render one change
   /// behind. The setter posts the change notification, which restarts the
   /// server on the new host.
   private func setNetworkAccess(_ option: UserSettings.NetworkAccess) {
@@ -1097,6 +1123,18 @@ struct SettingsView: View {
     networkAccess = UserSettings.networkAccess
   }
 
+
+  /// Opens the log in Console.app specifically -- the default app for `.log`
+  /// can be a text editor, which shows a snapshot that doesn't update. Falls
+  /// back to the default app if Console can't be found.
+  private func openServerLog() {
+    let log = URL(fileURLWithPath: LlamaServer.logFilePath)
+    if let console = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Console") {
+      NSWorkspace.shared.open([log], withApplicationAt: console, configuration: NSWorkspace.OpenConfiguration())
+    } else {
+      NSWorkspace.shared.open(log)
+    }
+  }
 
   /// Opens a folder picker and updates the HF cache directory
   private func chooseCacheFolder() {
