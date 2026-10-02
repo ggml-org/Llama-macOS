@@ -206,7 +206,7 @@ enum SettingsTab: CaseIterable, Identifiable {
   case general
   case network
   case downloads
-  case webUI
+  case chat
   case command
 
   var id: Self { self }
@@ -216,7 +216,7 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .general: "General"
     case .network: "Network"
     case .downloads: "Downloads"
-    case .webUI: "Web UI"
+    case .chat: "Chat"
     case .command: "Command"
     }
   }
@@ -226,7 +226,7 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .general: "gearshape"
     case .network: "network"
     case .downloads: "arrow.down.circle"
-    case .webUI: "macwindow"
+    case .chat: "bubble"
     case .command: "terminal"
     }
   }
@@ -344,7 +344,7 @@ struct SettingsSidebar: View {
 
 /// The Command tab -- the `llama serve` invocation the GUI produces.
 ///
-/// It lives in its own tab rather than under Network, Downloads or Web UI because
+/// It lives in its own tab rather than under Network, Downloads or Chat because
 /// it reflects settings from all of them: port and network access, the idle
 /// timeout, the model directory, agent mode. Any subject label would imply a
 /// scope the command doesn't have. Named for what it holds rather than for who it's
@@ -435,7 +435,7 @@ struct SettingsView: View {
     case .general: generalForm
     case .network: networkForm
     case .downloads: downloadsForm
-    case .webUI: webUIForm
+    case .chat: chatForm
     case .command: ServerCommandView()
     }
   }
@@ -669,9 +669,9 @@ struct SettingsView: View {
     .formStyle(.grouped)
   }
 
-  /// The Web UI tab -- settings that shape the chat interface the server
+  /// The Chat tab -- settings that shape the chat interface the server
   /// serves: what models are allowed to do in it, and how to summon it.
-  private var webUIForm: some View {
+  private var chatForm: some View {
     Form {
       // Agent mode section
       Section {
