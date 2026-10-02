@@ -364,7 +364,7 @@ struct ServerCommandView: View {
         // lands.
         SettingRow(
           title: "Server command",
-          description: "The app runs this for you when it starts the server."
+          description: "See exactly how the app starts the server for you."
         ) {
           EmptyView()
         }
