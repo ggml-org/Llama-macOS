@@ -100,16 +100,17 @@ final class GlobalInputController {
 
     positionPanel(panel)
 
-    // Bring our app forward just enough to give the panel key focus. Because the
-    // panel is non-activating, this doesn't steal the user's app on dismiss.
-    NSApp.activate(ignoringOtherApps: true)
+    // Take key focus without activating the app -- a non-activating panel can
+    // become key on its own. Activating (`NSApp.activate`) would also bring every
+    // other Llama window (e.g. Settings) to the front along with the panel.
     panel.makeKeyAndOrderFront(nil)
   }
 
   private func dismiss() {
+    // The app was never activated, so whatever app was in front before we
+    // appeared is still in front -- just take the panel away. (Hiding the app
+    // here would also hide Settings if it's open.)
     panel?.orderOut(nil)
-    // Return the user to whatever app was in front before we appeared.
-    NSApp.hide(nil)
   }
 
   /// Build the panel chrome (frosted background, rounded corners). Content is
