@@ -227,7 +227,7 @@ enum SettingsTab: CaseIterable, Identifiable {
     case .network: "network"
     case .chat: "bubble"
     case .aliases: "tag"
-    case .advanced: "wrench.adjustable"
+    case .advanced: "slider.horizontal.3"
     }
   }
 
