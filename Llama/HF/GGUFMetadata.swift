@@ -51,6 +51,16 @@ enum GGUFMetadata {
     intValue(forKeySuffix: ".context_length", path: path)
   }
 
+  /// Whether the GGUF at `path` is a decision model -- one that answers typed
+  /// questions with a probability per option via llama-server's
+  /// `/v1/systemone` endpoint, rather than generating text. llama.cpp keys this
+  /// off `<arch>.decision.type` (`common.cpp`), so we do too: present means a
+  /// decision model, whatever its value. Suffix-matched like the keys above.
+  /// Returns nil when the header can't be parsed.
+  static func isDecisionModel(path: String) -> Bool? {
+    value(forKeySuffix: ".decision.type", path: path) { _, _ in () }.map { $0 != nil }
+  }
+
   // MARK: - Header parsing
 
   /// GGUF metadata value types, per the spec's `gguf_metadata_value_type`.
@@ -67,6 +77,16 @@ enum GGUFMetadata {
   /// couldn't be parsed at all; `.some(nil)` = the header parsed cleanly but
   /// the key isn't there (or isn't numeric) -- a trustworthy absence.
   private static func intValue(forKeySuffix keySuffix: String, path: String) -> Int?? {
+    value(forKeySuffix: keySuffix, path: path) { cursor, type in cursor.readIntValue(of: type) }
+      .map { $0 ?? nil }
+  }
+
+  /// The scan behind the typed lookups above: finds the first key ending in
+  /// `keySuffix` and hands its value to `read`. Same double optional -- outer
+  /// nil = header unparseable, `.some(nil)` = key absent.
+  private static func value<T>(
+    forKeySuffix keySuffix: String, path: String, read: (inout Cursor, ValueType) -> T
+  ) -> T?? {
     // `.alwaysMapped` avoids reading the (potentially huge) file into memory;
     // parsing only faults in the header pages.
     guard let data = try? Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
@@ -92,7 +112,7 @@ enum GGUFMetadata {
       else { return nil }
 
       if key.hasSuffix(keySuffix) {
-        return .some(cursor.readIntValue(of: type))
+        return .some(read(&cursor, type))
       }
       guard cursor.skipValue(of: type) else { return nil }
     }

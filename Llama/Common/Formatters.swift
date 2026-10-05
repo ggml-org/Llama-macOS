@@ -282,6 +282,7 @@ extension Format {
     color: NSColor,
     hasVision: Bool = false,
     hasMTP: Bool = false,
+    isDecision: Bool = false,
     showTags: Bool = false,
     font: NSFont = Theme.Fonts.primary
   ) -> NSAttributedString {
@@ -327,6 +328,14 @@ extension Format {
     if hasMTP {
       result.append(NSAttributedString(string: " "))
       result.append(chip("MTP", style: .rounded, nameFont: font))
+    }
+    // Decision models can't chat (they score options through `/v1/systemone`),
+    // so the row says so up front -- otherwise one looks like any other small
+    // model and the missing Chat action reads as a bug. Same chip treatment as
+    // MTP: a fact about the weights, sitting with the other metadata.
+    if isDecision {
+      result.append(NSAttributedString(string: " "))
+      result.append(chip("Decision", style: .rounded, nameFont: font))
     }
     if showTags && !parsed.tags.isEmpty {
       // Tags render as bare extra-dimmed text, no pill: they're name residue,

@@ -68,7 +68,7 @@ final class GlobalInputController {
     // set and resolved default (both can change between invocations).
     // Pretty names, same parsed rendering as the menu's rows; tags shown only
     // when two rows would otherwise render identically (same rule as the menu).
-    let downloaded = ModelManager.shared.downloadedModels
+    let downloaded = Self.chatModels
     var keyCounts = [String: Int]()
     for model in downloaded {
       keyCounts[ModelIdParser.displayKey(model.id), default: 0] += 1
@@ -216,11 +216,17 @@ final class GlobalInputController {
     NSWorkspace.shared.open(url)
   }
 
+  /// Installed models the panel can chat with. Decision models are left out:
+  /// they only answer `/v1/systemone`, so a prompt sent to one would fail.
+  private static var chatModels: [Model] {
+    ModelManager.shared.downloadedModels.filter { !$0.isDecisionModel }
+  }
+
   /// Resolve which model the chip should open on, preferring the stickiest
   /// signal. Always returns a concrete id (just the default chip selection; the
   /// user can change it via the ⌘K menu). Assumes at least one model is installed.
   private func resolveModelId() -> String {
-    let installed = ModelManager.shared.downloadedModels
+    let installed = Self.chatModels
     let installedIds = Set(installed.map(\.id))
 
     // 1. The last model the user deliberately ran -- if it's still installed.

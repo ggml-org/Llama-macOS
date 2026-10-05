@@ -530,6 +530,15 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         section.set("ubatch-size", "2048")
       }
 
+      // What kind of model this is, for clients reading `/v1/models`: the
+      // OpenAI-style listing has no field for it, and its `architecture`
+      // modalities read text-in/text-out for chat and decision models alike.
+      // llama-server passes `tags` through to each listing entry verbatim
+      // (it doesn't route on them), so a client can offer only `chat` models
+      // in a chat picker. Untagged models -- written by earlier app versions
+      // -- were all chat models, so clients can read a missing tag as `chat`.
+      section.set("tags", model.isDecisionModel ? "decision" : "chat")
+
       // Names the user pointed at this model in Settings > Aliases.
       ModelAliases.apply(to: &section)
 

@@ -607,6 +607,12 @@ enum HFCache {
       GGUFMetadata.hasEmbeddedMTPHead(path: mainFilePath)
       ?? fileHasMTPHead(URL(fileURLWithPath: filename).lastPathComponent)
 
+    // Decision models answer `/v1/systemone` instead of chatting; the menu
+    // hides chat actions for them and `models.ini` tags them apart (see
+    // `ModelManager.generatedModelSections`). An unparseable header reads as
+    // a chat model -- the behavior every model had before this check existed.
+    let isDecisionModel = GGUFMetadata.isDecisionModel(path: mainFilePath) ?? false
+
     let entry = Model(
       id: modelId,
       ctxWindow: ctxWindow,
@@ -615,7 +621,8 @@ enum HFCache {
       downloadUrl: URL(string: "file:///")!,
       // Either shape counts as MTP for the row's marker; `ResolvedPaths` below
       // keeps them apart because they produce different `models.ini` lines.
-      hasMTPHead: mtpSidecar != nil || hasEmbeddedHead
+      hasMTPHead: mtpSidecar != nil || hasEmbeddedHead,
+      isDecisionModel: isDecisionModel
     )
 
     // Build resolved paths

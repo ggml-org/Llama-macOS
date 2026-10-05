@@ -311,6 +311,7 @@ final class MenuController: NSObject, NSMenuDelegate {
           color: Theme.Colors.textPrimary,
           hasVision: model.hasVisionSupport,
           hasMTP: model.hasMTPSupport,
+          isDecision: model.isDecisionModel,
           showTags: collidingKeys.contains(ModelIdParser.displayKey(model.id))
         )
       })
@@ -629,13 +630,18 @@ final class MenuController: NSObject, NSMenuDelegate {
     // (the primary action on a model); Unload appears only while the model is
     // loaded (status-change rebuilds keep it current); Delete closes the set.
     menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
-    let chatRow = ActionItemView(title: "Chat with model", symbol: "bubble.left") {}
-    chatRow.onAction = { [weak chatRow] in
-      // Opened through the row so the menu dismisses with the navigation.
-      guard let url = LlamaServer.webuiUrl(modelId: model.id) else { return }
-      chatRow?.openInBrowser(url)
+    // Decision models can't chat and the request builder only writes chat
+    // requests, so both rows are left off their pages -- a Chat row that
+    // opens a WebUI erroring on every message is worse than no row.
+    if !model.isDecisionModel {
+      let chatRow = ActionItemView(title: "Chat with model", symbol: "bubble.left") {}
+      chatRow.onAction = { [weak chatRow] in
+        // Opened through the row so the menu dismisses with the navigation.
+        guard let url = LlamaServer.webuiUrl(modelId: model.id) else { return }
+        chatRow?.openInBrowser(url)
+      }
+      menu.addItem(NSMenuItem.viewItem(with: chatRow))
     }
-    menu.addItem(NSMenuItem.viewItem(with: chatRow))
     let copyRow = ActionItemView(title: "Copy model ID", symbol: "doc.on.doc") {}
     copyRow.onAction = { [weak copyRow] in
       Clipboard.copy(model.id)
@@ -657,14 +663,16 @@ final class MenuController: NSObject, NSMenuDelegate {
     // implied they were for different things -- which taught exactly the wrong
     // lesson, since the builder exists to answer the questions the bare curl
     // left you with (how do I turn thinking off, add a schema, send an image).
-    let builderRow = ActionItemView(title: "Build an API request", symbol: "curlybraces") {}
-    builderRow.onAction = { [weak builderRow] in
-      // Opened through the row so the menu dismisses with the navigation --
-      // same as Chat with model above.
-      guard let url = RequestBuilder.stagePage(modelId: model.id) else { return }
-      builderRow?.openInBrowser(url)
+    if !model.isDecisionModel {
+      let builderRow = ActionItemView(title: "Build an API request", symbol: "curlybraces") {}
+      builderRow.onAction = { [weak builderRow] in
+        // Opened through the row so the menu dismisses with the navigation --
+        // same as Chat with model above.
+        guard let url = RequestBuilder.stagePage(modelId: model.id) else { return }
+        builderRow?.openInBrowser(url)
+      }
+      menu.addItem(NSMenuItem.viewItem(with: builderRow))
     }
-    menu.addItem(NSMenuItem.viewItem(with: builderRow))
     // The names this model answers to over the API, next to the row about
     // using it from code. Only when it has any: a row on every page inviting
     // you to add one would be clutter for everyone who never will. Clicking

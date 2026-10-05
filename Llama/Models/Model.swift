@@ -44,6 +44,12 @@ struct Model: Identifiable, Codable {
   /// forms are visible (see `HFCache.buildSideloadedEntry`); the deeplink
   /// path leaves it false and carries the sidecar in `mtpUrl` instead.
   let hasMTPHead: Bool
+  /// Whether this is a decision model -- one that scores the options of typed
+  /// questions through llama-server's `/v1/systemone` endpoint instead of
+  /// chatting. Read from the GGUF header by the cache scan (see
+  /// `GGUFMetadata.isDecisionModel`); the deeplink path can't know it before
+  /// the file is on disk, so it leaves this false.
+  let isDecisionModel: Bool
 
   init(
     id: String,
@@ -55,7 +61,8 @@ struct Model: Identifiable, Codable {
     additionalParts: [URL]? = nil,
     mmprojUrl: URL? = nil,
     mtpUrl: URL? = nil,
-    hasMTPHead: Bool = false
+    hasMTPHead: Bool = false,
+    isDecisionModel: Bool = false
   ) {
     self.id = id
     self.ctxWindow = ctxWindow
@@ -67,6 +74,26 @@ struct Model: Identifiable, Codable {
     self.mmprojUrl = mmprojUrl
     self.mtpUrl = mtpUrl
     self.hasMTPHead = hasMTPHead
+    self.isDecisionModel = isDecisionModel
+  }
+
+  /// Decoding treats `isDecisionModel` as optional: download placeholders are
+  /// `Model`s written to disk by earlier app versions, and a required key
+  /// would make every paused download from before this field existed fail to
+  /// decode and silently drop out of the list.
+  init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    id = try c.decode(String.self, forKey: .id)
+    ctxWindow = try c.decode(Int.self, forKey: .ctxWindow)
+    fileSize = try c.decode(Int64.self, forKey: .fileSize)
+    ctxBytesPer1kTokens = try c.decode(Int.self, forKey: .ctxBytesPer1kTokens)
+    residentBytes = try c.decode(Int.self, forKey: .residentBytes)
+    downloadUrl = try c.decode(URL.self, forKey: .downloadUrl)
+    additionalParts = try c.decodeIfPresent([URL].self, forKey: .additionalParts)
+    mmprojUrl = try c.decodeIfPresent(URL.self, forKey: .mmprojUrl)
+    mtpUrl = try c.decodeIfPresent(URL.self, forKey: .mtpUrl)
+    hasMTPHead = try c.decode(Bool.self, forKey: .hasMTPHead)
+    isDecisionModel = try c.decodeIfPresent(Bool.self, forKey: .isDecisionModel) ?? false
   }
 
   /// Builds the stable model id shared by the deeplink and post-install scan
