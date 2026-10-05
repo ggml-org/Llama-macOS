@@ -91,7 +91,11 @@ enum MemProfileRunner {
     // at the probe points, or from a compute-buffer step that only shows up
     // at the high ctx. Overestimating the intercept is the safe direction.
     let aBytes = Int(max(aMib, 0) * 1_048_576.0)
-    let bBytesPer1k = Int(bPerToken * 1000.0 * 1_048_576.0)
+    // Floor the slope at 1 byte/1k: `Model.ctxBytesPer1kTokens == 0` is the
+    // "probe pending" sentinel, so a measured zero would leave the row on
+    // "estimating..." forever. Real zeros happen -- decision models like Laya
+    // keep no KV cache that grows with ctx (482 MiB at both 4k and 128k).
+    let bBytesPer1k = max(Int(bPerToken * 1000.0 * 1_048_576.0), 1)
 
     logger.info(
       "Mem profile (affine): total(\(ctxLo))=\(loMib) MiB, total(\(ctxHi))=\(hiMib) MiB → a=\(aBytes) bytes, b=\(bBytesPer1k) bytes/1k"
