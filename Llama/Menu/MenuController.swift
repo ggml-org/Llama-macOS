@@ -632,8 +632,20 @@ final class MenuController: NSObject, NSMenuDelegate {
     menu.addItem(NSMenuItem.viewItem(with: SeparatorView()))
     // Decision models can't chat and the request builder only writes chat
     // requests, so both rows are left off their pages -- a Chat row that
-    // opens a WebUI erroring on every message is worse than no row.
-    if !model.isDecisionModel {
+    // opens a WebUI erroring on every message is worse than no row. In Chat's
+    // place, the primary action is learning how to call one: the only way to
+    // use a decision model is the `/v1/systemone` API, and the llama.cpp blog
+    // post walks through a request and its response.
+    if model.isDecisionModel {
+      let howToRow = ActionItemView(title: "How to use", symbol: "book") {}
+      howToRow.onAction = { [weak howToRow] in
+        guard
+          let url = URL(string: "https://huggingface.co/blog/ggml-org/decision-models-in-llamacpp")
+        else { return }
+        howToRow?.openInBrowser(url)
+      }
+      menu.addItem(NSMenuItem.viewItem(with: howToRow))
+    } else {
       let chatRow = ActionItemView(title: "Chat with model", symbol: "bubble.left") {}
       chatRow.onAction = { [weak chatRow] in
         // Opened through the row so the menu dismisses with the navigation.
