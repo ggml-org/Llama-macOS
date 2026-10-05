@@ -92,12 +92,11 @@ final class LlamaInstallManager {
       if let version, version != LlamaBinaries.targetVersion {
         // The old binary is still usable (floor <= it), so don't hold the
         // server hostage to the download: report ready now and stage the new
-        // binary in the background; the next launch promotes it (above). No
-        // in-session swap means no server restart under the user and no
-        // old-router/new-child version mixing. Before this, the first launch
-        // after an app update (which bumps the pinned target) had no server at
-        // all until the download finished -- a dead webui and erroring menu
-        // actions for as long as it took (#112).
+        // binary in the background. Before this, the first launch after an app
+        // update (which bumps the pinned target) had no server at all until
+        // the download finished -- a dead webui and erroring menu actions for
+        // as long as it took. Once staged, it's swapped in right away if
+        // nothing is loaded, else at the next launch (see `stageTargetVersion`).
         stageTargetVersion()
       }
       return true
@@ -121,20 +120,47 @@ final class LlamaInstallManager {
   /// Downloads the pinned target to the staged path in the background. Silent:
   /// the in-use binary keeps working either way, so a failure just logs -- the
   /// next launch retries.
+  ///
+  /// When the download lands and no model is loaded (or loading), the staged
+  /// binary is promoted and the server restarted on it right away. The
+  /// download is small and starts at launch, so this is the common case, and a
+  /// restart with nothing loaded interrupts nothing. Restarting the whole
+  /// server (not just swapping the file) keeps the router and the model
+  /// instances it spawns on the same build. With a model loaded, a restart
+  /// would cut off whatever it's generating, so the swap waits for the next
+  /// launch instead, which promotes before the server starts (`ensureReady`).
   private func stageTargetVersion() {
     guard !isStaging else { return }
     isStaging = true
     Task {
       do {
         try await LlamaInstaller.install(version: LlamaBinaries.targetVersion.tag, staged: true)
-        logger.info(
-          "Staged llama \(LlamaBinaries.targetVersion.tag, privacy: .public) for the next launch")
+        if LlamaServer.shared.activeModelId == nil {
+          await applyStagedNow()
+        } else {
+          logger.info(
+            "Staged llama \(LlamaBinaries.targetVersion.tag, privacy: .public) for the next launch (a model is loaded)")
+        }
       } catch {
         let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         logger.error("Staging llama update failed: \(message, privacy: .public)")
       }
       isStaging = false
     }
+  }
+
+  /// Promotes the staged binary and restarts the server on it. Renaming over
+  /// the live path is safe with the old server still running -- the process
+  /// keeps its already-open file; only new launches see the new one.
+  private func applyStagedNow() async {
+    let version = await Task.detached {
+      LlamaInstaller.promoteStaged(target: LlamaBinaries.targetVersion)
+      return LlamaBinaries.readVersion(at: LlamaBinaries.managedPath)
+    }.value
+    // Set before the restart: `LlamaServer.hostArgument` gates flags on it.
+    currentVersion = version
+    logger.info("Switched to llama \(version?.tag ?? "?", privacy: .public), restarting the server")
+    LlamaServer.shared.reload()
   }
 
   /// Installs (or reinstalls) the app-managed binary at the pinned target,
