@@ -219,6 +219,32 @@ extension AppDelegate: SPUStandardUserDriverDelegate {
 // MARK: - SPUUpdaterDelegate
 
 extension AppDelegate: SPUUpdaterDelegate {
+  func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
+    // Refresh on every check so changing or removing the token takes effect
+    // without restarting the app. HFRequest keeps it off non-HF feed URLs.
+    updater.userAgentString = AppInfo.userAgent
+    updater.httpHeaders = updater.feedURL.map {
+      HFRequest.make($0, token: UserSettings.hfToken).allHTTPHeaderFields ?? [:]
+    }
+  }
+
+  func updater(_ updater: SPUUpdater, shouldDownloadReleaseNotesForUpdate updateItem: SUAppcastItem)
+    -> Bool
+  {
+    // Our appcast embeds its release notes. Sparkle also forwards httpHeaders
+    // to remote notes, so don't send the feed's token to a releaseNotesLink.
+    false
+  }
+
+  func updater(
+    _ updater: SPUUpdater, willDownloadUpdate item: SUAppcastItem,
+    with request: NSMutableURLRequest
+  ) {
+    // Sparkle reuses the feed headers for archives, which are hosted on GitHub.
+    // Authentication is only needed for attribution on the HF feed request.
+    request.setValue(nil, forHTTPHeaderField: "Authorization")
+  }
+
   func updater(_ updater: SPUUpdater, didFailToCheckForUpdatesWithError error: Error) {
     logger.error(
       "Sparkle: failed to check for updates: \(error.localizedDescription, privacy: .public)")
