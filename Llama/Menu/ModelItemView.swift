@@ -90,6 +90,17 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
   /// set up in `init`.
   private var showsPausedGlyph = false
 
+  /// Tint for the pause/play glyph. A live download takes the accent color: it's
+  /// the one row in the list whose state is changing, and otherwise everything
+  /// about it -- faded mark, gray fill, gray glyph -- is drawn in the same grays
+  /// as the installed rows around it, so it's easy to miss when it sits among
+  /// them (it keeps its sorted place rather than jumping to the top, so it
+  /// doesn't move again when it finishes). Paused drops back to tertiary like
+  /// the chevrons: nothing is happening, so there's nothing to draw the eye to.
+  private var pausePlayTint: NSColor {
+    showsPausedGlyph ? .tertiaryLabelColor : .controlAccentColor
+  }
+
   init(
     model: Model, server: LlamaServer, modelManager: ModelManager,
     actionHandler: ModelActionHandler,
@@ -127,7 +138,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     // place its size and tint are set; `refresh()` swaps just the symbol as the
     // state changes.
     Theme.configure(
-      pausePlayImageView, symbol: "pause.circle", color: .tertiaryLabelColor,
+      pausePlayImageView, symbol: "pause.circle", color: pausePlayTint,
       pointSize: Self.pausePlaySize)
     pausePlayImageView.isHidden = true
 
@@ -311,14 +322,14 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     }
 
     // Pause while in flight, play while paused -- the glyph names what a click
-    // on the row would do next. Only the symbol and its tooltip vary; size and
-    // tint stay with the one `Theme.configure` in `init`, so the two can't
-    // drift. Guarded because `refresh()` runs on every progress tick and this
+    // on the row would do next. Only the symbol, its tooltip and its tint vary;
+    // size stays with the one `Theme.configure` in `init`. Guarded because `refresh()` runs on every progress tick and this
     // changes at most twice a download.
     if showsPausedGlyph != isPaused {
       showsPausedGlyph = isPaused
       pausePlayImageView.image = Theme.symbolImage(isPaused ? "play.circle" : "pause.circle")
       pausePlayImageView.toolTip = isPaused ? "Resume download" : "Pause download"
+      pausePlayImageView.contentTintColor = pausePlayTint
     }
 
     updateTrailingGlyphs()
@@ -370,6 +381,6 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     super.viewDidChangeEffectiveAppearance()
     cancelImageView.contentTintColor = .tertiaryLabelColor
     chevronImageView.contentTintColor = .tertiaryLabelColor
-    pausePlayImageView.contentTintColor = .tertiaryLabelColor
+    pausePlayImageView.contentTintColor = pausePlayTint
   }
 }
