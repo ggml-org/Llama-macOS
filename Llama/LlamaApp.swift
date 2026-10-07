@@ -133,6 +133,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       // Use our custom UI handling for gentle reminders
       userDriverDelegate: self
     )
+    // Send the same User-Agent as model and engine downloads. The feed URL
+    // redirects to a Hugging Face bucket, so update checks then show up in HF's
+    // logs under one identifier with the rest of the app's HF traffic. Sparkle's
+    // default would be `Llama/<version> Sparkle/<version>`.
+    // No HF token: it's there for gated downloads, not for background checks.
+    updaterController?.updater.userAgentString = AppInfo.userAgent
 
     // Scan the model cache and write models.ini, before anything reads either.
     // Synchronous on purpose: the server reads models.ini once at start, so it
