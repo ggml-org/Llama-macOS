@@ -34,12 +34,14 @@ enum LlamaBinaries {
 
   /// The minimum build the app accepts from an unmanaged install (e.g. Homebrew)
   /// before nudging the user to update -- the app can't update those itself.
-  /// Must be <= targetVersion. Set to the build that introduced the `--agent`
-  /// serve flag (llama.cpp PR #24801), the newest flag the app passes -- on
-  /// older builds an unknown flag fails the launch outright, so accepting
-  /// them would break server start whenever agent mode is on. Only raise this
-  /// if the app starts relying on an even newer flag.
-  static let floorVersion = LlamaVersion(parsing: "b9726")!
+  /// Must be <= targetVersion. Set to the build that introduced DFlash
+  /// drafting (`spec-type = draft-dflash`, llama.cpp PR #22105), the newest
+  /// thing the app relies on -- older builds reject the spec type, so every
+  /// model with a DFlash head would fail to load. The previous floor, b9726,
+  /// was the `--agent` serve flag (llama.cpp PR #24801), which this build
+  /// includes. Only raise this if the app starts relying on an even newer
+  /// flag or value.
+  static let floorVersion = LlamaVersion(parsing: "b9831")!
 
   /// The first build whose `serve --host` takes a comma-separated list of
   /// addresses (llama.cpp PR #28690), which is what lets a server bound to a

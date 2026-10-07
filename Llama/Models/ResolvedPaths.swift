@@ -15,11 +15,13 @@ struct ResolvedPaths {
   /// ship it). Detected from the filename -- these builds tag themselves with
   /// an `mtp` token (e.g. `…-Q4_K_M-mtp.gguf`, `…-MTP-Q8_0.gguf`).
   let usesMTP: Bool
-  /// Absolute path to a *sidecar* MTP draft head (`mtp-….gguf`) shipped beside
-  /// the main weights, nil when absent. When set we pass it to llama-server as
-  /// `spec-draft-model` alongside `spec-type = draft-mtp`. Takes precedence over
-  /// `usesMTP` (a model has one form or the other, not both).
-  let mtpSidecarFile: String?
+  /// Absolute path to a *sidecar* draft head (`dflash-….gguf` or `mtp-….gguf`)
+  /// shipped beside the main weights, nil when absent; its kind is
+  /// `draftSidecarKind`. When set we pass it to llama-server as
+  /// `spec-draft-model` alongside that kind's `spec-type`. Takes precedence over
+  /// `usesMTP` -- a sidecar is what the repo's authors chose to ship for
+  /// drafting, and a DFlash one beats an embedded MTP head outright.
+  let draftSidecarFile: String?
   /// HF cache repo directory name (e.g. "models--bartowski--Llama-3.2-1B-Instruct-GGUF").
   /// Used by deletion to clean up the per-repo directory tree.
   let hfRepoDirName: String
@@ -29,15 +31,20 @@ struct ResolvedPaths {
     additionalParts: [String],
     mmprojFile: String?,
     usesMTP: Bool = false,
-    mtpSidecarFile: String? = nil,
+    draftSidecarFile: String? = nil,
     hfRepoDirName: String
   ) {
     self.modelFile = modelFile
     self.additionalParts = additionalParts
     self.mmprojFile = mmprojFile
     self.usesMTP = usesMTP
-    self.mtpSidecarFile = mtpSidecarFile
+    self.draftSidecarFile = draftSidecarFile
     self.hfRepoDirName = hfRepoDirName
+  }
+
+  /// The kind of `draftSidecarFile`, read from its filename prefix.
+  var draftSidecarKind: DraftHead? {
+    draftSidecarFile.flatMap { DraftHead(sidecarPath: $0) }
   }
 
   /// All file paths this model occupies on disk
@@ -47,8 +54,8 @@ struct ResolvedPaths {
     if let mmproj = mmprojFile {
       paths.append(mmproj)
     }
-    if let mtp = mtpSidecarFile {
-      paths.append(mtp)
+    if let draft = draftSidecarFile {
+      paths.append(draft)
     }
     return paths
   }

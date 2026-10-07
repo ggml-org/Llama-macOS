@@ -34,7 +34,7 @@ final class ModelPageHeaderView: ItemView {
       id: model.id,
       color: Theme.Colors.textPrimary,
       hasVision: model.hasVisionSupport,
-      hasMTP: model.hasMTPSupport,
+      draftHead: model.draftHead,
       isDecision: model.isDecisionModel,
       showTags: showTags,
       font: Self.titleFont

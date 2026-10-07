@@ -593,9 +593,12 @@ enum HFCache {
 
     let mainFilePath = snapshotDir.appendingPathComponent(filename).path
 
-    // A sidecar MTP head (`mtp-….gguf`) shipped beside the main weights, if any,
-    // quant-matched to the main. Present takes precedence over an embedded head.
-    let mtpSidecar = SidecarPicker.mtp(among: siblings, mainPath: filename, tag: quant)
+    // A sidecar draft head shipped beside the main weights, if any -- DFlash
+    // before MTP, quant-matched to the main (see `SidecarPicker.draftHead`).
+    // Present takes precedence over an embedded head. An install from before
+    // DFlash support has only the MTP sidecar on disk and keeps drafting
+    // with it; this picks up a DFlash sidecar as soon as one lands.
+    let draftSidecar = SidecarPicker.draftHead(among: siblings, mainPath: filename, tag: quant)
       .map { snapshotDir.appendingPathComponent($0).path }
 
     // Embedded-head detection reads the GGUF metadata (the ground truth --
@@ -619,9 +622,10 @@ enum HFCache {
       fileSize: totalFileSize,
       // ctxBytesPer1kTokens stays 0 until the async MemProfile probe runs.
       downloadUrl: URL(string: "file:///")!,
-      // Either shape counts as MTP for the row's marker; `ResolvedPaths` below
-      // keeps them apart because they produce different `models.ini` lines.
-      hasMTPHead: mtpSidecar != nil || hasEmbeddedHead,
+      // Either shape counts for the row's chip; `ResolvedPaths` below keeps
+      // them apart because they produce different `models.ini` lines.
+      scannedDraftHead: draftSidecar.flatMap { DraftHead(sidecarPath: $0) }
+        ?? (hasEmbeddedHead ? .mtp : nil),
       isDecisionModel: isDecisionModel
     )
 
@@ -640,8 +644,8 @@ enum HFCache {
       modelFile: mainFilePath,
       additionalParts: additionalParts,
       mmprojFile: mmprojFile,
-      usesMTP: mtpSidecar == nil && hasEmbeddedHead,
-      mtpSidecarFile: mtpSidecar,
+      usesMTP: draftSidecar == nil && hasEmbeddedHead,
+      draftSidecarFile: draftSidecar,
       hfRepoDirName: repoDir
     )
 

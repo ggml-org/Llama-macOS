@@ -33,17 +33,18 @@ struct Model: Identifiable, Codable {
   /// Vision projection sidecar URL (mmproj.gguf). Pre-download placeholders
   /// from the deeplink path carry this when the resolver attaches one.
   let mmprojUrl: URL?
-  /// MTP draft-head sidecar URL (`mtp-….gguf`). Some repos ship a separate
-  /// multi-token-prediction head alongside the main weights; when present we
-  /// download it and hand it to llama-server as the speculative draft model.
-  /// Pre-download placeholders carry this when the resolver attaches one.
-  let mtpUrl: URL?
-  /// Whether this model runs with MTP speculative decoding — either an
-  /// embedded head in the main weights or a quant-matched `mtp-….gguf`
-  /// sidecar on disk. Set by the cache scan, which is the only place both
-  /// forms are visible (see `HFCache.buildSideloadedEntry`); the deeplink
-  /// path leaves it false and carries the sidecar in `mtpUrl` instead.
-  let hasMTPHead: Bool
+  /// Draft-head sidecar URL (`dflash-….gguf` or `mtp-….gguf`, see
+  /// `DraftHead`). Some repos ship a speculative-decoding head alongside the
+  /// main weights; when present we download it and hand it to llama-server as
+  /// the draft model. Pre-download placeholders carry this when the resolver
+  /// attaches one.
+  let draftUrl: URL?
+  /// The draft head this model runs with, as the cache scan found it on disk --
+  /// an embedded MTP head in the main weights or a quant-matched sidecar. Set
+  /// by the scan, which is the only place both forms are visible (see
+  /// `HFCache.buildSideloadedEntry`); the deeplink path leaves it nil and
+  /// carries the sidecar in `draftUrl` instead. Read it through `draftHead`.
+  let scannedDraftHead: DraftHead?
   /// Whether this is a decision model -- one that scores the options of typed
   /// questions through llama-server's `/v1/systemone` endpoint instead of
   /// chatting. Read from the GGUF header by the cache scan (see
@@ -60,8 +61,8 @@ struct Model: Identifiable, Codable {
     downloadUrl: URL,
     additionalParts: [URL]? = nil,
     mmprojUrl: URL? = nil,
-    mtpUrl: URL? = nil,
-    hasMTPHead: Bool = false,
+    draftUrl: URL? = nil,
+    scannedDraftHead: DraftHead? = nil,
     isDecisionModel: Bool = false
   ) {
     self.id = id
@@ -72,15 +73,15 @@ struct Model: Identifiable, Codable {
     self.downloadUrl = downloadUrl
     self.additionalParts = additionalParts
     self.mmprojUrl = mmprojUrl
-    self.mtpUrl = mtpUrl
-    self.hasMTPHead = hasMTPHead
+    self.draftUrl = draftUrl
+    self.scannedDraftHead = scannedDraftHead
     self.isDecisionModel = isDecisionModel
   }
 
-  /// Decoding treats `isDecisionModel` as optional: download placeholders are
-  /// `Model`s written to disk by earlier app versions, and a required key
-  /// would make every paused download from before this field existed fail to
-  /// decode and silently drop out of the list.
+  /// Decoding treats `isDecisionModel` and `scannedDraftHead` as optional:
+  /// download placeholders are `Model`s written to disk by earlier app
+  /// versions, and a required key would make every paused download from before
+  /// the field existed fail to decode and silently drop out of the list.
   init(from decoder: Decoder) throws {
     let c = try decoder.container(keyedBy: CodingKeys.self)
     id = try c.decode(String.self, forKey: .id)
@@ -91,9 +92,20 @@ struct Model: Identifiable, Codable {
     downloadUrl = try c.decode(URL.self, forKey: .downloadUrl)
     additionalParts = try c.decodeIfPresent([URL].self, forKey: .additionalParts)
     mmprojUrl = try c.decodeIfPresent(URL.self, forKey: .mmprojUrl)
-    mtpUrl = try c.decodeIfPresent(URL.self, forKey: .mtpUrl)
-    hasMTPHead = try c.decode(Bool.self, forKey: .hasMTPHead)
+    // Placeholders from before DFlash support stored the sidecar as `mtpUrl`
+    // (and an always-false `hasMTPHead`, which is safe to drop -- placeholders
+    // come from the deeplink path, which never sets it).
+    let legacy = try decoder.container(keyedBy: LegacyCodingKeys.self)
+    draftUrl =
+      try c.decodeIfPresent(URL.self, forKey: .draftUrl)
+      ?? legacy.decodeIfPresent(URL.self, forKey: .mtpUrl)
+    scannedDraftHead = try c.decodeIfPresent(DraftHead.self, forKey: .scannedDraftHead)
     isDecisionModel = try c.decodeIfPresent(Bool.self, forKey: .isDecisionModel) ?? false
+  }
+
+  /// Keys older app versions wrote that the current shape no longer has.
+  private enum LegacyCodingKeys: String, CodingKey {
+    case mtpUrl
   }
 
   /// Builds the stable model id shared by the deeplink and post-install scan
@@ -158,12 +170,14 @@ struct Model: Identifiable, Codable {
     mmprojUrl != nil
   }
 
-  /// MTP speculative decoding, in either of its two shapes: a draft-head
-  /// sidecar (`mtpUrl`, the deeplink path's view) or a head detected on disk
-  /// by the cache scan (`hasMTPHead`). Mirrors `hasVisionSupport` — one
-  /// capability question the row can ask without reaching for `ResolvedPaths`.
-  var hasMTPSupport: Bool {
-    mtpUrl != nil || hasMTPHead
+  /// The draft head this model runs speculative decoding with, if any, from
+  /// either view: a head detected on disk by the cache scan
+  /// (`scannedDraftHead`) or a sidecar the deeplink path will download
+  /// (`draftUrl`, kind read from its filename). Mirrors `hasVisionSupport` —
+  /// one capability question the row can ask without reaching for
+  /// `ResolvedPaths`.
+  var draftHead: DraftHead? {
+    scannedDraftHead ?? draftUrl.flatMap { DraftHead(sidecarPath: $0.lastPathComponent) }
   }
 
   /// All remote URLs this model needs to download (main + shards + mmproj).
@@ -175,8 +189,8 @@ struct Model: Identifiable, Codable {
     if let mmproj = mmprojUrl {
       urls.append(mmproj)
     }
-    if let mtp = mtpUrl {
-      urls.append(mtp)
+    if let draft = draftUrl {
+      urls.append(draft)
     }
     return urls
   }

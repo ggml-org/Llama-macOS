@@ -20,23 +20,16 @@ enum SidecarPicker {
     return name.contains("mmproj") && name.hasSuffix(".gguf")
   }
 
-  /// True for an MTP draft-head sidecar (`mtp-….gguf`) — the convention
-  /// llama.cpp keys on (`find_best_mtp`). Accepts full repo-relative paths.
-  static func isMtp(_ path: String) -> Bool {
-    let name = (path as NSString).lastPathComponent.lowercased()
-    return name.hasPrefix("mtp-") && name.hasSuffix(".gguf")
-  }
-
   /// Filename prefixes llama.cpp resolves as draft heads shipped beside a model
   /// (`find_best_sibling` callers in `common/download.cpp`): `mtp-`
   /// (multi-token prediction), `dflash-` (block-diffusion drafting), `eagle3-`,
   /// and `dspark-`. Each borrows the target's token embeddings and output
   /// projection, so none loads as a model on its own.
   ///
-  /// We only drive `mtp-`. The rest are here so main-model selection skips
-  /// them: a head parses to the target's quant tag, so an unrecognised one
-  /// collides on `{org}/{repo}:{TAG}` and the dedupe can keep the head and drop
-  /// the real model. Keep in step with upstream -- a scheme we don't list is a
+  /// We drive `mtp-` and `dflash-` (see `DraftHead`). The rest are listed so
+  /// main-model selection skips them too: a head parses to the target's quant
+  /// tag, so an unrecognised one collides on `{org}/{repo}:{TAG}` and the
+  /// dedupe can keep the head and drop the real model. Keep in step with upstream -- a scheme we don't list is a
   /// scheme that shadows real models.
   static let draftHeadPrefixes = ["mtp-", "dflash-", "eagle3-", "dspark-"]
 
@@ -56,11 +49,24 @@ enum SidecarPicker {
     bestSibling(among: names, mainPath: mainPath, isCandidate: isMmproj)
   }
 
-  /// Picks the MTP draft head for `mainPath`. `tag` is the main file's canonical
-  /// quant tag, which lets an exact `-<TAG>.gguf` head win over a merely
-  /// near-in-bits one.
-  static func mtp(among names: [String], mainPath: String, tag: String?) -> String? {
-    bestSibling(among: names, mainPath: mainPath, tag: tag, isCandidate: isMtp)
+  /// Picks the draft-head sidecar for `mainPath`, of the most preferred kind
+  /// the repo ships (`DraftHead.preferenceOrder` -- DFlash before MTP). Kinds
+  /// are tried one at a time, so a quant-matched MTP head never beats a DFlash
+  /// head of a farther quant: the kind matters more than the quant. Within a
+  /// kind, `tag` is the main file's canonical quant tag, which lets an exact
+  /// `-<TAG>.gguf` head win over a merely near-in-bits one.
+  ///
+  /// This is where the app parts ways with `llama serve -hf`: plain `-hf`
+  /// attaches no head unless asked for one by `--spec-type`. The kind of the
+  /// returned path is `DraftHead(sidecarPath:)`.
+  static func draftHead(among names: [String], mainPath: String, tag: String?) -> String? {
+    for kind in DraftHead.preferenceOrder {
+      let picked = bestSibling(among: names, mainPath: mainPath, tag: tag) {
+        DraftHead(sidecarPath: $0) == kind
+      }
+      if let picked { return picked }
+    }
+    return nil
   }
 
   /// Port of llama.cpp's `find_best_sibling` (`common/download.cpp`), the

@@ -310,7 +310,7 @@ final class MenuController: NSObject, NSMenuDelegate {
           id: model.id,
           color: Theme.Colors.textPrimary,
           hasVision: model.hasVisionSupport,
-          hasMTP: model.hasMTPSupport,
+          draftHead: model.draftHead,
           isDecision: model.isDecisionModel,
           showTags: collidingKeys.contains(ModelIdParser.displayKey(model.id))
         )

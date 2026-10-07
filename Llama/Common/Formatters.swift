@@ -281,7 +281,7 @@ extension Format {
     id: String,
     color: NSColor,
     hasVision: Bool = false,
-    hasMTP: Bool = false,
+    draftHead: DraftHead? = nil,
     isDecision: Bool = false,
     showTags: Bool = false,
     font: NSFont = Theme.Fonts.primary
@@ -321,18 +321,19 @@ extension Format {
       result.append(NSAttributedString(string: " "))
       result.append(chip(quant, style: .rounded, nameFont: font))
     }
-    // MTP (multi-token prediction) reads as a chip rather than a glyph: unlike
-    // vision, it has no obvious symbol, and it sits with the other chips
-    // because it's the same kind of fact — something the weights carry. Same
-    // `.rounded` style as quant, so it can't out-shout the metadata around it.
-    if hasMTP {
+    // The draft head ("MTP", "DFlash") reads as a chip rather than a glyph:
+    // unlike vision, it has no obvious symbol, and it sits with the other
+    // chips because it's the same kind of fact — something the weights carry.
+    // Same `.rounded` style as quant, so it can't out-shout the metadata
+    // around it.
+    if let draftHead {
       result.append(NSAttributedString(string: " "))
-      result.append(chip("MTP", style: .rounded, nameFont: font))
+      result.append(chip(draftHead.label, style: .rounded, nameFont: font))
     }
     // Decision models can't chat (they score options through `/v1/systemone`),
     // so the row says so up front -- otherwise one looks like any other small
     // model and the missing Chat action reads as a bug. Same chip treatment as
-    // MTP: a fact about the weights, sitting with the other metadata.
+    // the draft head: a fact about the weights, sitting with the other metadata.
     if isDecision {
       result.append(NSAttributedString(string: " "))
       result.append(chip("Decision", style: .rounded, nameFont: font))

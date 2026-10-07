@@ -508,22 +508,18 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         section.set("mmproj", mmprojPath)
       }
 
-      // Wire up MTP speculative decoding -- a free speedup on the MoE builds
-      // (Qwen3.6 etc.) that ship a multi-token-prediction head. Two shapes:
-      // a separate `mtp-….gguf` sidecar (passed as the draft model), or a head
-      // embedded in the main weights (reused via its own MTP context, no draft
-      // file). Sidecar wins when both look present.
-      if let mtpSidecar = paths.mtpSidecarFile {
-        section.set("spec-type", "draft-mtp")
-        section.set("spec-draft-model", mtpSidecar)
-      } else if paths.usesMTP {
-        section.set("spec-type", "draft-mtp")
-      }
-      // Cap drafted tokens per step at 3 for MTP -- the value Georgi Gerganov
-      // recommended; MTP heads only predict a few tokens ahead reliably, so
-      // drafting deeper just wastes compute on tokens the target rejects.
-      if paths.mtpSidecarFile != nil || paths.usesMTP {
-        section.set("spec-draft-n-max", "3")
+      // Wire up speculative decoding -- a free speedup on models that ship a
+      // draft head (Qwen3.6/3.8 etc.). Two shapes: a separate sidecar
+      // (`dflash-….gguf` or `mtp-….gguf`, passed as the draft model), or an
+      // MTP head embedded in the main weights (reused via its own MTP context,
+      // no draft file). Sidecar wins when both look present. Each kind gets
+      // its own draft depth (`DraftHead.draftNMax`).
+      if let draftKind = paths.draftSidecarKind ?? (paths.usesMTP ? .mtp : nil) {
+        section.set("spec-type", draftKind.specType)
+        if let sidecar = paths.draftSidecarFile {
+          section.set("spec-draft-model", sidecar)
+        }
+        section.set("spec-draft-n-max", "\(draftKind.draftNMax)")
       }
 
       if useLargeBatch {
@@ -907,8 +903,8 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     if let mmprojUrl = model.mmprojUrl, !hfFileExists(model: model, url: mmprojUrl) {
       files.append(mmprojUrl)
     }
-    if let mtpUrl = model.mtpUrl, !hfFileExists(model: model, url: mtpUrl) {
-      files.append(mtpUrl)
+    if let draftUrl = model.draftUrl, !hfFileExists(model: model, url: draftUrl) {
+      files.append(draftUrl)
     }
 
     return files

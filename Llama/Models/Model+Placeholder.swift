@@ -12,7 +12,7 @@ extension Model {
     mainUrl: URL,
     additionalParts: [URL],
     mmprojUrl: URL?,
-    mtpUrl: URL?,
+    draftUrl: URL?,
     fileSize: Int64
   ) -> Model {
     Model(
@@ -21,7 +21,7 @@ extension Model {
       downloadUrl: mainUrl,
       additionalParts: additionalParts.isEmpty ? nil : additionalParts,
       mmprojUrl: mmprojUrl,
-      mtpUrl: mtpUrl
+      draftUrl: draftUrl
     )
   }
 }

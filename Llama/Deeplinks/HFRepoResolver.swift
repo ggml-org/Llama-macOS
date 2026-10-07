@@ -28,8 +28,9 @@ enum HFRepoResolver {
     let additionalParts: [URL]
     /// Optional mmproj sidecar.
     let mmprojUrl: URL?
-    /// Optional MTP draft-head sidecar (`mtp-….gguf`), quant-matched to the main.
-    let mtpUrl: URL?
+    /// Optional draft-head sidecar (`dflash-….gguf`, else `mtp-….gguf`),
+    /// quant-matched to the main.
+    let draftUrl: URL?
     /// Size in bytes if the HF API disclosed it (aggregated across main+shards+mmproj).
     /// 0 when the API didn't return per-file sizes. We start the download either way;
     /// `fetchHFDownloadPlan` does HEAD requests that produce real byte counts.
@@ -109,15 +110,15 @@ enum HFRepoResolver {
       siblings: siblings, budgetMb: budgetMb
     )
 
-    // Expand shards + attach mmproj + attach the quant-matched MTP head.
+    // Expand shards + attach mmproj + attach the quant-matched draft head.
     let shards = try expandShards(main: pick.rfilename, siblings: siblings, repo: repo)
     let mmproj = pickMmproj(main: pick.rfilename, siblings: siblings)
-    let mtp = pickMtp(main: pick.rfilename, siblings: siblings, mainQuant: pick.tag)
+    let draft = pickDraftHead(main: pick.rfilename, siblings: siblings, mainQuant: pick.tag)
 
-    // Aggregate size (main + shards + mmproj + mtp), dropping unknown entries.
+    // Aggregate size (main + shards + mmproj + draft), dropping unknown entries.
     var allPicked: [String] = shards  // includes the main shard at index 0
     if let m = mmproj { allPicked.append(m.rfilename) }
-    if let m = mtp { allPicked.append(m.rfilename) }
+    if let d = draft { allPicked.append(d.rfilename) }
     let sizeByPath: [String: Int64] = Dictionary(
       uniqueKeysWithValues: siblings.map { ($0.rfilename, $0.size ?? 0) })
     let approxBytes = allPicked.reduce(Int64(0)) { $0 + (sizeByPath[$1] ?? 0) }
@@ -129,14 +130,14 @@ enum HFRepoResolver {
     let mainUrl = resolveUrl(repo: repo, path: pick.rfilename)
     let extraUrls = shards.dropFirst().map { resolveUrl(repo: repo, path: $0) }
     let mmprojUrl = mmproj.map { resolveUrl(repo: repo, path: $0.rfilename) }
-    let mtpUrl = mtp.map { resolveUrl(repo: repo, path: $0.rfilename) }
+    let draftUrl = draft.map { resolveUrl(repo: repo, path: $0.rfilename) }
 
     return Resolved(
       modelId: modelId,
       mainUrl: mainUrl,
       additionalParts: Array(extraUrls),
       mmprojUrl: mmprojUrl,
-      mtpUrl: mtpUrl,
+      draftUrl: draftUrl,
       approximateBytes: approxBytes
     )
   }
@@ -386,11 +387,13 @@ enum HFRepoResolver {
     return siblings.first { $0.rfilename == picked }
   }
 
-  /// Picks the MTP draft-head sidecar (`mtp-….gguf`) for the chosen main quant.
-  /// Selection policy lives in `SidecarPicker.mtp`.
-  private static func pickMtp(main: String, siblings: [Sibling], mainQuant: String) -> Sibling? {
+  /// Picks the draft-head sidecar for the chosen main quant. Selection policy
+  /// lives in `SidecarPicker.draftHead`, shared with the cache scan.
+  private static func pickDraftHead(main: String, siblings: [Sibling], mainQuant: String)
+    -> Sibling?
+  {
     let names = siblings.map(\.rfilename)
-    guard let picked = SidecarPicker.mtp(among: names, mainPath: main, tag: mainQuant)
+    guard let picked = SidecarPicker.draftHead(among: names, mainPath: main, tag: mainQuant)
     else { return nil }
     return siblings.first { $0.rfilename == picked }
   }
