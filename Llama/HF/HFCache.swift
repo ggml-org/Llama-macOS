@@ -75,6 +75,17 @@ enum HFCache {
   static func removePartials(cacheDir: URL, modelId: String) {
     let dir = partialDir(cacheDir: cacheDir, modelId: modelId)
     try? FileManager.default.removeItem(at: dir)
+
+    // A model id has a slash (`org/repo:quant`), so its dir sits inside an org
+    // dir that would otherwise be left behind empty. Remove that one level, but
+    // only if it's empty -- POSIX `rmdir` refuses a non-empty dir, so this
+    // can't take another download's partials with it, even one that creates
+    // its dir under the same org between our check and the delete (which
+    // `FileManager.removeItem`, being recursive, could).
+    let orgDir = dir.deletingLastPathComponent()
+    if orgDir.path != cacheDir.appendingPathComponent(partialRootDirName).path {
+      rmdir(orgDir.path)
+    }
   }
 
   /// Sum of `.partial` file sizes in a single model's staging dir.
