@@ -211,6 +211,32 @@ enum SettingsTab: CaseIterable, Identifiable {
 
   var id: Self { self }
 
+  /// The sections the sidebar lists and scripting can open.
+  ///
+  /// Aliases is held back from release builds until it ships as a release's
+  /// highlight -- it works, but each release leads with one feature. Hiding
+  /// the tab is enough: without it no alias can be created, and with none set
+  /// the rest of the alias code (the `alias` key in `models.ini`, the menu's
+  /// Aliases row) does nothing.
+  static var allCases: [SettingsTab] {
+    #if DEBUG
+      [.general, .network, .chat, .aliases, .advanced]
+    #else
+      [.general, .network, .chat, .advanced]
+    #endif
+  }
+
+  /// Whether this section is listed only in DEBUG builds (see `allCases`).
+  /// The sidebar tints it orange, like the debug-only options in
+  /// `PillPicker`, so it doesn't pass for a shipped feature during testing.
+  var isDebugOnly: Bool {
+    #if DEBUG
+      return self == .aliases
+    #else
+      return false
+    #endif
+  }
+
   var title: String {
     switch self {
     case .general: "General"
@@ -276,6 +302,10 @@ struct SettingsSidebar: View {
     VStack(spacing: 0) {
       List(SettingsTab.allCases, selection: $tabSelection.tab) { tab in
         Label(tab.title, systemImage: tab.icon)
+          // Not while selected: orange on the blue selection is hard to read,
+          // and the flag only needs to show when scanning the column.
+          .foregroundStyle(
+            tab.isDebugOnly && tabSelection.tab != tab ? Color.orange : Color.primary)
       }
       // Set explicitly: hosted in an NSSplitViewItem the list doesn't reliably
       // inherit the sidebar look, and without it renders as a plain table.
