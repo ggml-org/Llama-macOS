@@ -788,7 +788,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 6) {
         SettingRow(
           title: "Custom web UI",
-          description: "Serves your own folder in place of the built-in chat."
+          description: "Serves your own web app in place of the built-in chat, at the same address as the API."
         ) {
           HStack(spacing: 6) {
             // Resetting means going back to the built-in UI.
