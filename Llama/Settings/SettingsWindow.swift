@@ -783,7 +783,7 @@ struct SettingsView: View {
       // Custom web UI section. Last in the tab: it's for people building their
       // own chat, a smaller group than either setting above.
       Section {
-        // Row, caution and hint share one Form row, like agent mode above, so
+        // Row and caution share one Form row, like agent mode above, so
         // the grouped style doesn't rule separators between them.
         VStack(alignment: .leading, spacing: 6) {
         SettingRow(
@@ -823,22 +823,14 @@ struct SettingsView: View {
           .font(.callout)
         }
 
+          // No hint about the built-in chat's service worker: a browser that
+          // has opened the built-in chat used to keep showing it after the
+          // switch, but since llama.cpp b11258 the server answers `/sw.js`
+          // with a worker that removes itself, so the tab reloads into the
+          // custom UI on its own. Only an unmanaged engine older than that
+          // still shows the old behavior -- too rare to explain here.
           if let caution = customWebUICaution {
             SettingCaution(text: caution)
-          }
-
-          // Only once a folder is set: that's when a browser that has opened
-          // the built-in chat can keep showing it. The built-in UI installs a
-          // service worker that answers page loads from its cache, and the
-          // server can't retire it -- the worker's own update check now gets a
-          // 404, which browsers treat as "keep the old one". Clearing the
-          // site's data is the fix, and without this line the setting just
-          // looks broken.
-          if customWebUIDir != nil {
-            Text("A browser that has opened the built-in chat may keep showing it until you clear its data for this site.")
-              .font(.system(size: 11))
-              .foregroundStyle(.secondary)
-              .fixedSize(horizontal: false, vertical: true)
           }
         }
       }
