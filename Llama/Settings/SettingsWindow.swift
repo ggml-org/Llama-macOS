@@ -647,7 +647,7 @@ struct SettingsView: View {
   /// a Downloads tab of their own: almost nobody changes the directory, and
   /// the token is found through the gated-model error that names it, not by
   /// browsing. What it shouldn't become is the home of whatever can't be
-  /// placed -- the port and the custom web UI are rarely touched too, but they
+  /// placed -- the port and the custom web app are rarely touched too, but they
   /// clearly belong to Network and Chat.
   ///
   /// Two cards rather than one per row: the rows pair up (models, server),
@@ -810,14 +810,14 @@ struct SettingsView: View {
         }
       }
 
-      // Custom web UI section. Last in the tab: it's for people building their
+      // Custom web app section. Last in the tab: it's for people building their
       // own chat, a smaller group than either setting above.
       Section {
         // Row and caution share one Form row, like agent mode above, so
         // the grouped style doesn't rule separators between them.
         VStack(alignment: .leading, spacing: 6) {
         SettingRow(
-          title: "Custom web UI",
+          title: "Custom web app",
           description: "Serves your own web app in place of the built-in chat, at the same address as the API."
         ) {
           HStack(spacing: 6) {
@@ -868,7 +868,7 @@ struct SettingsView: View {
     .formStyle(.grouped)
   }
 
-  /// The caution for the custom web UI row, or nil when the server is
+  /// The caution for the custom web app row, or nil when the server is
   /// reachable only from this Mac.
   ///
   /// The server hands out every file in the folder, dotfiles included, so
@@ -880,7 +880,7 @@ struct SettingsView: View {
     return "Network access is on, so \(who) could read every file in the chosen folder."
   }
 
-  /// Opens a folder picker and sets it as the custom web UI.
+  /// Opens a folder picker and sets it as the custom web app.
   ///
   /// Refuses a folder with no `index.html` at its top level: the server would
   /// start fine and then answer the root with a 404, which reads as the app
@@ -894,7 +894,7 @@ struct SettingsView: View {
       panel.canChooseDirectories = true
       panel.canCreateDirectories = false
       panel.allowsMultipleSelection = false
-      panel.message = "Choose a folder with an index.html to serve as the web UI"
+      panel.message = "Choose a folder with an index.html to serve as the web app"
       panel.prompt = "Select"
       panel.directoryURL = customWebUIDir
 
@@ -908,14 +908,14 @@ struct SettingsView: View {
     if let marker = projectMarker(in: url) {
       ModalPresentation.showAlert(
         style: .warning, title: "This folder has a \(marker)",
-        body: "The server hands out every file in the folder, so \(marker) would be readable too. Choose the folder with just the built web UI -- usually build or dist.")
+        body: "The server hands out every file in the folder, so \(marker) would be readable too. Choose the folder with just the built web app -- usually build or dist.")
       return
     }
 
     guard LlamaServer.hasIndexPage(url) else {
       ModalPresentation.showAlert(
         style: .warning, title: "No index.html in this folder",
-        body: "Choose the folder that holds your web UI's index.html -- for a project with a build step, that's usually its build output.")
+        body: "Choose the folder that holds your web app's index.html -- for a project with a build step, that's usually its build output.")
       return
     }
 
@@ -1045,10 +1045,10 @@ struct SettingsView: View {
               .padding(.top, 2)
           }
 
-          // Same idea for a custom web UI: every file in its folder is served,
+          // Same idea for a custom web app: every file in its folder is served,
           // so exposing the server exposes the folder.
           if option == .localNetwork, customWebUIDir != nil {
-            SettingCaution(text: "A custom web UI is set, so anyone who connects could read every file in its folder.")
+            SettingCaution(text: "A custom web app is set, so anyone who connects could read every file in its folder.")
               .padding(.top, 2)
           }
         }

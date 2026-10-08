@@ -85,7 +85,7 @@ class LlamaServer {
     return configured
   }
 
-  /// The custom web UI folder the server will actually serve, which is the
+  /// The custom web app folder the server will actually serve, which is the
   /// configured one only while it still has an `index.html`.
   ///
   /// Same reasoning as `effectiveBindAddress`: a folder can be moved or
@@ -97,7 +97,7 @@ class LlamaServer {
   nonisolated static var effectiveWebUIDirectory: String? {
     guard let dir = UserSettings.customWebUIDirectory else { return nil }
     guard hasIndexPage(dir) else {
-      logger.notice("custom web UI folder has no index.html -- using the built-in web UI")
+      logger.notice("custom web app folder has no index.html -- using the built-in web UI")
       return nil
     }
     return dir.path
@@ -449,7 +449,7 @@ class LlamaServer {
       "--log-file", Self.logFilePath,
     ]
 
-    // Custom web UI: serve the user's folder at `/` instead of the built-in
+    // Custom web app: serve the user's folder at `/` instead of the built-in
     // chat. The API routes are unaffected. Kept with the other path flags.
     if let webUIDirectory = effectiveWebUIDirectory {
       arguments.append(contentsOf: ["--path", webUIDirectory])

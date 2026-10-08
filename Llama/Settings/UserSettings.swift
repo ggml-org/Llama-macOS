@@ -329,7 +329,7 @@ enum UserSettings {
     }
   }
 
-  // MARK: - Custom Web UI
+  // MARK: - Custom Web App
 
   /// A folder the server serves at `/` in place of the built-in web UI
   /// (`--path`), or `nil` for the built-in one -- the default. Lets a web app
