@@ -96,7 +96,24 @@ final class MenuController: NSObject, NSMenuDelegate {
     }
   }
 
-  func openMenu() {
+  /// Opens the menu programmatically, after `delay` seconds.
+  ///
+  /// `performClick` doesn't return while the menu is open -- it runs the menu's
+  /// tracking loop right there. So it must never be called from inside a
+  /// main-queue block (`DispatchQueue.main.async[After]`, or a notification
+  /// observer registered with `queue: .main`): the main queue is serial, and
+  /// that block wouldn't finish until the menu closed, so nothing else queued
+  /// on it could run meanwhile -- including the `queue: .main` observers that
+  /// push download progress and server state into the open menu, and any
+  /// `@MainActor` task continuation. The menu would sit frozen on its first
+  /// frame. A run loop timer (`perform(_:with:afterDelay:)`) isn't a
+  /// main-queue block, so the queue keeps draining underneath the menu, as it
+  /// does when the user opens it with a click.
+  func openMenu(after delay: TimeInterval = 0) {
+    perform(#selector(performOpenMenu), with: nil, afterDelay: delay)
+  }
+
+  @objc private func performOpenMenu() {
     statusItem.button?.performClick(nil)
   }
 

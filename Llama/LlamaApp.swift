@@ -170,10 +170,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       // experiment flag here.)
       //
       // No race to handle: the scan above is synchronous, so the model list is
-      // already populated by the time this runs.
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-        self?.menuController?.openMenu()
-      }
+      // already populated by the time this runs. The delay gives the status
+      // item time to appear in the menu bar. `openMenu` schedules it on a run
+      // loop timer, not the main queue, so the open menu still updates live.
+      menuController?.openMenu(after: 0.5)
     #endif
 
     // Drain any llama:// URLs that arrived during cold-launch before the rest
