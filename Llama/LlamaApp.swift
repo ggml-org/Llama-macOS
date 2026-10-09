@@ -163,19 +163,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // Ensure a usable llama binary exists, then start the server in Router Mode.
     LlamaInstallManager.shared.startServerWhenReady()
 
-    #if DEBUG
-      // Auto-open the menu in debug builds to save a click. (To bring up the
-      // global-input capture panel while iterating on it, run the "show global
-      // input" AppleScript command -- see CLAUDE.md -- rather than gating on the
-      // experiment flag here.)
-      //
-      // No race to handle: the scan above is synchronous, so the model list is
-      // already populated by the time this runs. The delay gives the status
-      // item time to appear in the menu bar. `openMenu` schedules it on a run
-      // loop timer, not the main queue, so the open menu still updates live.
-      menuController?.openMenu(after: 0.5)
-    #endif
-
     // Drain any llama:// URLs that arrived during cold-launch before the rest
     // of the app was ready.
     didBootstrap = true
