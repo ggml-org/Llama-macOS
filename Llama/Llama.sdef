@@ -8,6 +8,9 @@
                 <cocoa key="tab"/>
             </parameter>
         </command>
+        <command name="show menu" code="LBrnShMn" description="Open the menu bar menu. While the menu is open the app can't take script commands, so don't send this to an open menu: it waits until the menu closes, then reopens it.">
+            <cocoa class="Llama.ShowMenuCommand"/>
+        </command>
         <command name="show global input" code="LBrnGinp" description="Open the global-input capture panel.">
             <cocoa class="Llama.ShowGlobalInputCommand"/>
         </command>
