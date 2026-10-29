@@ -37,9 +37,8 @@ enum HFAuth {
   /// The public OAuth app registered on huggingface.co. Its redirect URIs must
   /// list both builds' callbacks (`llama://oauth/callback` and
   /// `llama-dev://oauth/callback`) -- HF matches custom schemes exactly.
-  /// Registered under a maintainer's account for now (HF orgs can't own OAuth
-  /// apps yet); HF can move it to its system apps, or an org later, and the
-  /// client ID stays the same, so shipped builds keep working.
+  /// Owned by the `ggml-org` org (moved there from a maintainer's account,
+  /// keeping the client ID that shipped builds use).
   private static let clientID = "32a98453-7e8e-4b35-86d2-de29ae91d231"
 
   /// `gated-repos` is the only scope downloads need: it reads public gated
