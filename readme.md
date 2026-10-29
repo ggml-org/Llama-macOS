@@ -2,7 +2,7 @@
 
 Llama is a macOS menu bar app for running local LLMs.
 
-[Watch a 2-minute intro](https://www.youtube.com/watch?v=7AieF7rZUTc) 📽️
+[Watch a short intro](https://www.youtube.com/watch?v=w6dSNCg9I5k) 📽️
 
 <br>
 
