@@ -54,6 +54,10 @@ enum Catalog {
     /// Macs with more RAM than this, the size is not suggested (e.g. the small
     /// Gemma 4 E-series on 32 GB+ Macs). Absent → the family's cap alone applies.
     let maxMemGb: UInt64?
+    /// Whether the catalog marks this size as the suggested starting point for
+    /// newcomers. The row gets a "Good first model" badge and is listed first.
+    /// Absent → false.
+    let goodFirstModel: Bool?
     let builds: [Build]
   }
 
@@ -83,6 +87,7 @@ enum Catalog {
     let quant: String?  // catalog quant label, e.g. "Q8_0"
     let sizeLabel: String?  // human size, e.g. "5.0 GB"
     let hasVision: Bool  // catalog `vision` flag — shows the glasses marker
+    let isGoodFirstModel: Bool  // catalog `goodFirstModel` flag — badged, listed first
   }
 
   /// Fetches the catalog and returns one suggestion per fitting size of each
@@ -106,7 +111,7 @@ enum Catalog {
     }
 
     let budgetMb = Model.deviceMemoryBudgetMb
-    return
+    let suggestions =
       families
       .filter { $0.featured == true }
       // Honor the catalog's per-family memory cap: skip families marked as
@@ -115,6 +120,10 @@ enum Catalog {
         family.maxMemGb.map { systemMemoryMb <= $0 * 1024 } ?? true
       }
       .flatMap { picks(for: $0, budgetMb: budgetMb, systemMemoryMb: systemMemoryMb) }
+    // The good first model leads the list, wherever its family sits in the
+    // catalog -- it's the one pick we want a newcomer to see first. The rest
+    // keep catalog order.
+    return suggestions.filter(\.isGoodFirstModel) + suggestions.filter { !$0.isGoodFirstModel }
   }
 
   // MARK: - Selection
@@ -150,7 +159,8 @@ enum Catalog {
       return Suggestion(
         brand: family.brand,
         repo: best.repo, quant: best.quant, sizeLabel: best.size,
-        hasVision: size.vision == true)
+        hasVision: size.vision == true,
+        isGoodFirstModel: size.goodFirstModel == true)
     }
   }
 

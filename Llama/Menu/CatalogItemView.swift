@@ -14,10 +14,33 @@ final class CatalogItemView: ItemView {
   private let subtitleLabel = Theme.tertiaryLabel()
   private let installImageView = NSImageView()
 
-  /// Subtitle: just the download size, e.g. "2.5 GB". Line two is for the
+  /// Subtitle: the download size, e.g. "2.5 GB". Line two is for the
   /// model's properties (size); the quant — which says *which* build this is —
   /// belongs on line one next to the name (see `titleText`).
-  private var subtitleText: String { suggestion.sizeLabel ?? "" }
+  ///
+  /// The good first model adds "Good first model" after the size, in green:
+  /// colored so it stands out from the grey metadata, but not blue, which
+  /// the menu uses for links. It goes on line two, not as a chip on line one,
+  /// because the chips there are facts about the weights and this is our
+  /// recommendation.
+  private var subtitleText: NSAttributedString {
+    let attributes: [NSAttributedString.Key: Any] = [
+      .font: Theme.Fonts.secondary,
+      .foregroundColor: Theme.Colors.textSecondary,
+      .paragraphStyle: Theme.noTighteningParagraphStyle,
+    ]
+    let result = NSMutableAttributedString(
+      string: suggestion.sizeLabel ?? "", attributes: attributes)
+    if suggestion.isGoodFirstModel {
+      if result.length > 0 {
+        result.append(NSAttributedString(string: "  ∣  ", attributes: attributes))
+      }
+      var badgeAttributes = attributes
+      badgeAttributes[.foregroundColor] = NSColor.systemGreen
+      result.append(NSAttributedString(string: "Good first model", attributes: badgeAttributes))
+    }
+    return result
+  }
 
   /// Title: the parsed view of the id the suggestion resolves to — the same
   /// rendering the installed row uses, so the row looks identical before and
@@ -51,7 +74,7 @@ final class CatalogItemView: ItemView {
     titleLabel.maximumNumberOfLines = 1
     titleLabel.lineBreakMode = .byTruncatingTail
 
-    subtitleLabel.stringValue = subtitleText
+    subtitleLabel.attributedStringValue = subtitleText
     subtitleLabel.maximumNumberOfLines = 1
     subtitleLabel.lineBreakMode = .byTruncatingTail
 
