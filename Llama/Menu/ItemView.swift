@@ -71,6 +71,11 @@ class ItemView: NSView {
 
   override func mouseEntered(with event: NSEvent) {
     super.mouseEntered(with: event)
+    // Clear siblings before highlighting this row, including when this row
+    // itself will not draw a fill (section headers and footers force
+    // highlightEnabled off). A dropped mouseExited otherwise leaves the
+    // previous model row lit.
+    clearOtherRowHighlights()
     setHighlight(true)
   }
 
@@ -82,10 +87,30 @@ class ItemView: NSView {
   /// Programmatically set selection highlight.
   func setHighlight(_ highlighted: Bool) {
     let shouldHighlight = highlighted && highlightEnabled
+    // Run before the early return so a row that is already highlighted still
+    // clears siblings. updateTrackingAreas relies on that to keep at most one
+    // row lit while scrolling. setHighlight(false) does not take this path, so
+    // the walk cannot recurse.
+    if shouldHighlight {
+      clearOtherRowHighlights()
+    }
     guard shouldHighlight != isHighlighted else { return }
     isHighlighted = shouldHighlight
     backgroundView.setHighlight(shouldHighlight, cornerRadius: Layout.cornerRadius)
     highlightDidChange(shouldHighlight)
+  }
+
+  /// Turns off the hover fill on every other `ItemView` in this menu.
+  ///
+  /// AppKit can drop `mouseExited` when the pointer crosses adjacent tracking
+  /// areas, which leaves `isHighlighted` stuck. Walking the menu's items and
+  /// calling `setHighlight(false)` on the others is what clears those fills.
+  private func clearOtherRowHighlights() {
+    guard let items = enclosingMenuItem?.menu?.items else { return }
+    for item in items {
+      guard let row = item.view as? ItemView, row !== self else { continue }
+      row.setHighlight(false)
+    }
   }
 
   // MARK: - Helpers
