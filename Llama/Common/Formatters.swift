@@ -213,11 +213,12 @@ extension Format {
 
   /// Formats model metadata text.
   /// Format: "3.1 GB  ∣  4k ctx" (file size + effective context tier)
-  /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
+  /// If a note is provided, it replaces the line: an incompatibility
+  /// ("Requires a Mac with 32 GB+ of memory") or a failed load ("Couldn’t load")
   /// For sideloaded models awaiting their MemProfile: "3.1 GB  ∣  estimating..."
   static func modelMetadata(
     for model: Model,
-    incompatibility: String? = nil
+    note: String? = nil
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
@@ -234,8 +235,8 @@ extension Format {
       .paragraphStyle: paragraphStyle,
     ]
 
-    if let incompatibility = incompatibility {
-      result.append(NSAttributedString(string: incompatibility, attributes: secondaryAttributes))
+    if let note {
+      result.append(NSAttributedString(string: note, attributes: secondaryAttributes))
     } else {
       // File size
       result.append(NSAttributedString(string: model.totalSize, attributes: secondaryAttributes))
