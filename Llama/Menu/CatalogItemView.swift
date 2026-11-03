@@ -18,28 +18,17 @@ final class CatalogItemView: ItemView {
   /// model's properties (size); the quant — which says *which* build this is —
   /// belongs on line one next to the name (see `titleText`).
   ///
-  /// The good first model adds "Good first model" after the size, in green:
-  /// colored so it stands out from the grey metadata, but not blue, which
-  /// the menu uses for links. It goes on line two, not as a chip on line one,
-  /// because the chips there are facts about the weights and this is our
-  /// recommendation.
-  private var subtitleText: NSAttributedString {
-    let attributes: [NSAttributedString.Key: Any] = [
-      .font: Theme.Fonts.secondary,
-      .foregroundColor: Theme.Colors.textSecondary,
-      .paragraphStyle: Theme.noTighteningParagraphStyle,
-    ]
-    let result = NSMutableAttributedString(
-      string: suggestion.sizeLabel ?? "", attributes: attributes)
-    if suggestion.isGoodFirstModel {
-      if result.length > 0 {
-        result.append(NSAttributedString(string: "  ∣  ", attributes: attributes))
-      }
-      var badgeAttributes = attributes
-      badgeAttributes[.foregroundColor] = NSColor.systemGreen
-      result.append(NSAttributedString(string: "Good first model", attributes: badgeAttributes))
-    }
-    return result
+  /// The good first model leads with "Good first model", in the same grey as
+  /// the size. Tried and dropped: green text (too loud, poor contrast on the
+  /// light material), a chip on line one (the chips there are facts about the
+  /// weights, this is our recommendation), and offering it in the empty
+  /// Installed slot (it looked installed). Plain text at the start of line two
+  /// is easy to spot and quiet enough to leave on permanently, so it needs no
+  /// "only for newcomers" condition.
+  private var subtitleText: String {
+    let size = suggestion.sizeLabel ?? ""
+    guard suggestion.isGoodFirstModel else { return size }
+    return size.isEmpty ? "Good first model" : "Good first model  ∣  \(size)"
   }
 
   /// Title: the parsed view of the id the suggestion resolves to — the same
@@ -74,7 +63,7 @@ final class CatalogItemView: ItemView {
     titleLabel.maximumNumberOfLines = 1
     titleLabel.lineBreakMode = .byTruncatingTail
 
-    subtitleLabel.attributedStringValue = subtitleText
+    subtitleLabel.stringValue = subtitleText
     subtitleLabel.maximumNumberOfLines = 1
     subtitleLabel.lineBreakMode = .byTruncatingTail
 
