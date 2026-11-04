@@ -54,6 +54,7 @@
 			children = (
 				1568919E2E2685F700F71BD4 /* Llama */,
 				1568919D2E2685F700F71BD4 /* Products */,
+				E0000000000000000000000F /* CatalogTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -61,6 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				1568919C2E2685F700F71BD4 /* Llama.app */,
+				E00000000000000000000001 /* CatalogTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -126,6 +128,7 @@
 			projectRoot = "";
 			targets = (
 				1568919B2E2685F700F71BD4 /* Llama */,
+				E0000000000000000000000B /* CatalogTests */,
 			);
 		};
 /* End PBXProject section */
@@ -391,6 +394,50 @@
 			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
+/* Catalog logic tests compile the wire contract without launching the app. */
+        E00000000000000000000001 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = CatalogTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+        E00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Llama/Catalog/CatalogTypes.swift; sourceTree = SOURCE_ROOT; };
+        E00000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogTests/CatalogInputsTests.swift; sourceTree = SOURCE_ROOT; };
+        E00000000000000000000005 = {isa = PBXBuildFile; fileRef = E00000000000000000000002; };
+        E00000000000000000000007 = {isa = PBXBuildFile; fileRef = E00000000000000000000004; };
+        E00000000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (E00000000000000000000005, E00000000000000000000007,); runOnlyForDeploymentPostprocessing = 0; };
+        E00000000000000000000009 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        E0000000000000000000000A = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        E0000000000000000000000B = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = E0000000000000000000000E;
+            buildPhases = (E00000000000000000000008, E00000000000000000000009, E0000000000000000000000A,);
+            buildRules = ();
+            dependencies = ();
+            name = CatalogTests;
+            productName = CatalogTests;
+            productReference = E00000000000000000000001;
+            productType = "com.apple.product-type.bundle.unit-test";
+        };
+        E0000000000000000000000C = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                GENERATE_INFOPLIST_FILE = YES;
+                MACOSX_DEPLOYMENT_TARGET = 15.0;
+                PRODUCT_BUNDLE_IDENTIFIER = app.llama.CatalogTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+            };
+            name = Debug;
+        };
+        E0000000000000000000000D = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                GENERATE_INFOPLIST_FILE = YES;
+                MACOSX_DEPLOYMENT_TARGET = 15.0;
+                PRODUCT_BUNDLE_IDENTIFIER = app.llama.CatalogTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+            };
+            name = Release;
+        };
+        E0000000000000000000000E = {isa = XCConfigurationList; buildConfigurations = (E0000000000000000000000C, E0000000000000000000000D,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        E0000000000000000000000F = {isa = PBXGroup; children = (E00000000000000000000002, E00000000000000000000004,); name = CatalogTests; sourceTree = "<group>"; };
 	};
 	rootObject = 156891942E2685F700F71BD4 /* Project object */;
 }
