@@ -54,6 +54,7 @@
 			children = (
 				1568919E2E2685F700F71BD4 /* Llama */,
 				1568919D2E2685F700F71BD4 /* Products */,
+				D0000000000000000000000F /* EngineTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -61,6 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				1568919C2E2685F700F71BD4 /* Llama.app */,
+				D00000000000000000000001 /* EngineTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -126,6 +128,7 @@
 			projectRoot = "";
 			targets = (
 				1568919B2E2685F700F71BD4 /* Llama */,
+				D0000000000000000000000B /* EngineTests */,
 			);
 		};
 /* End PBXProject section */
@@ -391,6 +394,50 @@
 			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
+/* Engine logic tests compile launch helpers without launching the app. */
+        D00000000000000000000001 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = EngineTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+        D00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Llama/Engine/ExecutableSearchPath.swift; sourceTree = SOURCE_ROOT; };
+        D00000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineTests/ExecutableSearchPathTests.swift; sourceTree = SOURCE_ROOT; };
+        D00000000000000000000005 = {isa = PBXBuildFile; fileRef = D00000000000000000000002; };
+        D00000000000000000000007 = {isa = PBXBuildFile; fileRef = D00000000000000000000004; };
+        D00000000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (D00000000000000000000005, D00000000000000000000007,); runOnlyForDeploymentPostprocessing = 0; };
+        D00000000000000000000009 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        D0000000000000000000000A = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        D0000000000000000000000B = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = D0000000000000000000000E;
+            buildPhases = (D00000000000000000000008, D00000000000000000000009, D0000000000000000000000A,);
+            buildRules = ();
+            dependencies = ();
+            name = EngineTests;
+            productName = EngineTests;
+            productReference = D00000000000000000000001;
+            productType = "com.apple.product-type.bundle.unit-test";
+        };
+        D0000000000000000000000C = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                GENERATE_INFOPLIST_FILE = YES;
+                MACOSX_DEPLOYMENT_TARGET = 15.0;
+                PRODUCT_BUNDLE_IDENTIFIER = app.llama.EngineTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+            };
+            name = Debug;
+        };
+        D0000000000000000000000D = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                GENERATE_INFOPLIST_FILE = YES;
+                MACOSX_DEPLOYMENT_TARGET = 15.0;
+                PRODUCT_BUNDLE_IDENTIFIER = app.llama.EngineTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+            };
+            name = Release;
+        };
+        D0000000000000000000000E = {isa = XCConfigurationList; buildConfigurations = (D0000000000000000000000C, D0000000000000000000000D,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        D0000000000000000000000F = {isa = PBXGroup; children = (D00000000000000000000002, D00000000000000000000004,); name = EngineTests; sourceTree = "<group>"; };
 	};
 	rootObject = 156891942E2685F700F71BD4 /* Project object */;
 }

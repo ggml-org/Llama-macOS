@@ -447,8 +447,8 @@ class LlamaServer {
   }
 
   /// Builds the `llama serve` launch spec from the current settings. Pure with
-  /// respect to process state -- it only reads settings, the resolved binary
-  /// path and its version -- so the settings UI can call it to preview the
+  /// respect to launching processes -- it only reads settings, the launch
+  /// environment and resolved binary -- so Settings can preview the same
   /// command. Returns nil when no llama binary has been resolved: none is
   /// installed, or the launch-time check hasn't finished yet.
   static func buildLaunchSpec() -> LaunchSpec? {
@@ -459,6 +459,11 @@ class LlamaServer {
     let presetsPath = UserSettings.appSupportDir.appendingPathComponent("models.ini").path
 
     var env = [
+      (
+        key: "PATH",
+        value: ExecutableSearchPath.serverPath(
+          inherited: ProcessInfo.processInfo.environment["PATH"])
+      ),
       (key: "GGML_METAL_NO_RESIDENCY", value: "1"),
       // Set HF_HUB_CACHE so llama-server can resolve model paths in preset
       (key: "HF_HUB_CACHE", value: UserSettings.hfCacheDirectory.path),

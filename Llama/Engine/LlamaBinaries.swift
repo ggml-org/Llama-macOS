@@ -50,7 +50,7 @@ enum LlamaBinaries {
 
   /// Unmanaged locations to probe when the app hasn't installed its own binary.
   /// Covers the Homebrew bin dirs (Apple Silicon and Intel).
-  private static let unmanagedDirs = ["/opt/homebrew/bin", "/usr/local/bin"]
+  private static let unmanagedDirs = ExecutableSearchPath.homebrewDirectories
 
   /// The build the app installs and keeps its own binary at -- the pinned
   /// target, not whatever is newest. Bump per app release after smoke-testing
