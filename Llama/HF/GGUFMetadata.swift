@@ -15,6 +15,26 @@ import Foundation
 /// model must never block install or scan.
 enum GGUFMetadata {
 
+  /// Encoder inputs declared by the projector, independent of its filename.
+  /// Video requires a loaded server's capabilities; audio generation is a separate flag.
+  static func inputModalities(path: String) -> [String]? {
+    func encoder(_ key: String) -> Bool? {
+      guard
+        let found = value(
+          forKey: key, path: path,
+          read: { cursor, type -> Bool? in
+            guard type == .bool, let flag: UInt8 = cursor.readInt(), flag <= 1 else { return nil }
+            return flag == 1
+          })
+      else { return nil }
+      return found ?? .some(false)
+    }
+    guard let vision = encoder("clip.has_vision_encoder"),
+      let audio = encoder("clip.has_audio_encoder")
+    else { return nil }
+    return ["text"] + (vision ? ["image"] : []) + (audio ? ["audio"] : [])
+  }
+
   /// Whether the GGUF at `path` carries an embedded multi-token-prediction
   /// head, per its `<arch>.nextn_predict_layers` metadata key (the same key
   /// llama.cpp loads into `hparams.n_layer_nextn`). We match on the key
@@ -58,7 +78,7 @@ enum GGUFMetadata {
   /// decision model, whatever its value. Suffix-matched like the keys above.
   /// Returns nil when the header can't be parsed.
   static func isDecisionModel(path: String) -> Bool? {
-    value(forKeySuffix: ".decision.type", path: path) { _, _ in () }.map { $0 != nil }
+    value(forKey: ".decision.type", path: path, matchSuffix: true) { _, _ in () }.map { $0 != nil }
   }
 
   /// A decision model's `<arch>.decision.type` value (e.g. `laya`, `kev`,
@@ -67,7 +87,7 @@ enum GGUFMetadata {
   static func decisionType(path: String) -> String? {
     // Three layers of nil (header unparseable / key absent / not a string)
     // all mean "no type" here, so flatten them.
-    let found = value(forKeySuffix: ".decision.type", path: path) { cursor, type in
+    let found = value(forKey: ".decision.type", path: path, matchSuffix: true) { cursor, type in
       type == .string ? cursor.readString() : nil
     }
     return found.flatMap { $0 }.flatMap { $0 }
@@ -110,15 +130,18 @@ enum GGUFMetadata {
   /// couldn't be parsed at all; `.some(nil)` = the header parsed cleanly but
   /// the key isn't there (or isn't numeric) -- a trustworthy absence.
   private static func intValue(forKeySuffix keySuffix: String, path: String) -> Int?? {
-    value(forKeySuffix: keySuffix, path: path) { cursor, type in cursor.readIntValue(of: type) }
-      .map { $0 ?? nil }
+    value(forKey: keySuffix, path: path, matchSuffix: true) { cursor, type in
+      cursor.readIntValue(of: type)
+    }
+    .map { $0 ?? nil }
   }
 
-  /// The scan behind the typed lookups above: finds the first key ending in
-  /// `keySuffix` and hands its value to `read`. Same double optional -- outer
+  /// The scan behind the typed lookups above: matches an exact key or an
+  /// explicitly requested suffix and hands its value to `read`. Outer
   /// nil = header unparseable, `.some(nil)` = key absent.
   private static func value<T>(
-    forKeySuffix keySuffix: String, path: String, read: (inout Cursor, ValueType) -> T
+    forKey key: String, path: String, matchSuffix: Bool = false,
+    read: (inout Cursor, ValueType) -> T
   ) -> T?? {
     // `.alwaysMapped` avoids reading the (potentially huge) file into memory;
     // parsing only faults in the header pages.
@@ -139,12 +162,12 @@ enum GGUFMetadata {
     else { return nil }
 
     for _ in 0..<kvCount {
-      guard let key = cursor.readString(),
+      guard let candidate = cursor.readString(),
         let rawType: UInt32 = cursor.readInt(),
         let type = ValueType(rawValue: rawType)
       else { return nil }
 
-      if key.hasSuffix(keySuffix) {
+      if matchSuffix ? candidate.hasSuffix(key) : candidate == key {
         return .some(read(&cursor, type))
       }
       guard cursor.skipValue(of: type) else { return nil }

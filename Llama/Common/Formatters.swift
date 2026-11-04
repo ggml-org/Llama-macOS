@@ -281,6 +281,7 @@ extension Format {
     id: String,
     color: NSColor,
     hasVision: Bool = false,
+    hasAudio: Bool = false,
     draftHead: DraftHead? = nil,
     kind: ModelKind = .chat,
     showTags: Bool = false,
@@ -362,6 +363,13 @@ extension Format {
           color: Theme.Colors.textTertiary))
     }
 
+    if hasAudio {
+      result.append(NSAttributedString(string: " "))
+      result.append(
+        Format.symbol(
+          "waveform", pointSize: Theme.Fonts.primary.pointSize,
+          color: Theme.Colors.textTertiary))
+    }
 
     // Disable letter-spacing tightening before truncation (see Theme.noTighteningParagraphStyle).
     result.addAttribute(

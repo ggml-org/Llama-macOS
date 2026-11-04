@@ -751,6 +751,7 @@ enum HFCache {
       // them apart because they produce different `models.ini` lines.
       scannedDraftHead: draftSidecar.flatMap { DraftHead(sidecarPath: $0) }
         ?? (hasEmbeddedHead ? .mtp : nil),
+      scannedInputModalities: mmprojFile.flatMap { GGUFMetadata.inputModalities(path: $0) } ?? [],
       kind: kind
     )
 

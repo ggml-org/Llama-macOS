@@ -54,6 +54,7 @@
 			children = (
 				1568919E2E2685F700F71BD4 /* Llama */,
 				1568919D2E2685F700F71BD4 /* Products */,
+				F0000000000000000000000F /* ModelMetadataTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -61,6 +62,7 @@
 			isa = PBXGroup;
 			children = (
 				1568919C2E2685F700F71BD4 /* Llama.app */,
+				F00000000000000000000001 /* ModelMetadataTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -126,6 +128,7 @@
 			projectRoot = "";
 			targets = (
 				1568919B2E2685F700F71BD4 /* Llama */,
+				F0000000000000000000000B /* ModelMetadataTests */,
 			);
 		};
 /* End PBXProject section */
@@ -391,6 +394,53 @@
 			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
+
+/* Model metadata logic tests compile the same readers without launching the app. */
+        F00000000000000000000001 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = ModelMetadataTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+        F00000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Llama/HF/GGUFMetadata.swift; sourceTree = SOURCE_ROOT; };
+        F00000000000000000000003 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Llama/Models/ModelKind.swift; sourceTree = SOURCE_ROOT; };
+        F00000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelMetadataTests/GGUFMetadataTests.swift; sourceTree = SOURCE_ROOT; };
+        F00000000000000000000005 = {isa = PBXBuildFile; fileRef = F00000000000000000000002; };
+        F00000000000000000000006 = {isa = PBXBuildFile; fileRef = F00000000000000000000003; };
+        F00000000000000000000007 = {isa = PBXBuildFile; fileRef = F00000000000000000000004; };
+        F00000000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F00000000000000000000005, F00000000000000000000006, F00000000000000000000007,); runOnlyForDeploymentPostprocessing = 0; };
+        F00000000000000000000009 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        F0000000000000000000000A = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+        F0000000000000000000000B = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = F0000000000000000000000E;
+            buildPhases = (F00000000000000000000008, F00000000000000000000009, F0000000000000000000000A,);
+            buildRules = ();
+            dependencies = ();
+            name = ModelMetadataTests;
+            productName = ModelMetadataTests;
+            productReference = F00000000000000000000001;
+            productType = "com.apple.product-type.bundle.unit-test";
+        };
+        F0000000000000000000000C = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                GENERATE_INFOPLIST_FILE = YES;
+                MACOSX_DEPLOYMENT_TARGET = 15.0;
+                PRODUCT_BUNDLE_IDENTIFIER = app.llama.ModelMetadataTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+            };
+            name = Debug;
+        };
+        F0000000000000000000000D = {
+            isa = XCBuildConfiguration;
+            buildSettings = {
+                GENERATE_INFOPLIST_FILE = YES;
+                MACOSX_DEPLOYMENT_TARGET = 15.0;
+                PRODUCT_BUNDLE_IDENTIFIER = app.llama.ModelMetadataTests;
+                PRODUCT_NAME = "$(TARGET_NAME)";
+                SWIFT_VERSION = 5.0;
+            };
+            name = Release;
+        };
+        F0000000000000000000000E = {isa = XCConfigurationList; buildConfigurations = (F0000000000000000000000C, F0000000000000000000000D,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+        F0000000000000000000000F = {isa = PBXGroup; children = (F00000000000000000000002, F00000000000000000000003, F00000000000000000000004,); name = ModelMetadataTests; sourceTree = "<group>"; };
 	};
 	rootObject = 156891942E2685F700F71BD4 /* Project object */;
 }

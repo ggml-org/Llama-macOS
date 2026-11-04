@@ -125,7 +125,8 @@
         residentBytes: Int((memGB ?? 0) * 1_000_000_000),
         downloadUrl: url,
         mmprojUrl: vision ? url : nil,
-        draftUrl: mtp ? url.appendingPathComponent("mtp-head.gguf") : nil)
+        draftUrl: mtp ? url.appendingPathComponent("mtp-head.gguf") : nil,
+        scannedInputModalities: vision ? ["text", "image"] : ["text"])
     }
   }
 #endif

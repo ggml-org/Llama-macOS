@@ -30,7 +30,7 @@ struct Model: Identifiable, Codable {
   /// Additional shard URLs for multi-part GGUFs (00002-of-00003.gguf etc.).
   /// `llama-server` discovers these in the same directory as the main file.
   let additionalParts: [URL]?
-  /// Vision projection sidecar URL (mmproj.gguf). Pre-download placeholders
+  /// Media projector sidecar URL (mmproj.gguf). Pre-download placeholders
   /// from the deeplink path carry this when the resolver attaches one.
   let mmprojUrl: URL?
   /// Draft-head sidecar URL (`dflash-….gguf` or `mtp-….gguf`, see
@@ -45,6 +45,9 @@ struct Model: Identifiable, Codable {
   /// `HFCache.buildSideloadedEntry`); the deeplink path leaves it nil and
   /// carries the sidecar in `draftUrl` instead. Read it through `draftHead`.
   let scannedDraftHead: DraftHead?
+  /// Inputs read from the installed projector's GGUF header by the cache scan.
+  /// An unknown projector or a remote download URL does not assert a capability.
+  let scannedInputModalities: [String]
   /// What the model does, which decides how it's served and offered: a chat
   /// model generates text; a decision model scores the options of typed
   /// questions through `/v1/systemone`; an embedding model turns input into
@@ -64,6 +67,7 @@ struct Model: Identifiable, Codable {
     mmprojUrl: URL? = nil,
     draftUrl: URL? = nil,
     scannedDraftHead: DraftHead? = nil,
+    scannedInputModalities: [String] = [],
     kind: ModelKind = .chat
   ) {
     self.id = id
@@ -76,10 +80,11 @@ struct Model: Identifiable, Codable {
     self.mmprojUrl = mmprojUrl
     self.draftUrl = draftUrl
     self.scannedDraftHead = scannedDraftHead
+    self.scannedInputModalities = scannedInputModalities
     self.kind = kind
   }
 
-  /// Decoding treats `kind` and `scannedDraftHead` as optional:
+  /// Decoding treats scanned metadata as optional:
   /// download placeholders are `Model`s written to disk by earlier app
   /// versions, and a required key would make every paused download from before
   /// the field existed fail to decode and silently drop out of the list.
@@ -102,6 +107,7 @@ struct Model: Identifiable, Codable {
       try c.decodeIfPresent(URL.self, forKey: .draftUrl)
       ?? legacy.decodeIfPresent(URL.self, forKey: .mtpUrl)
     scannedDraftHead = try c.decodeIfPresent(DraftHead.self, forKey: .scannedDraftHead)
+    scannedInputModalities = try c.decodeIfPresent([String].self, forKey: .scannedInputModalities) ?? []
     kind = try c.decodeIfPresent(ModelKind.self, forKey: .kind) ?? .chat
   }
 
@@ -167,9 +173,13 @@ struct Model: Identifiable, Codable {
     Format.gigabytes(fileSize)
   }
 
-  /// Vision support is implied by an attached mmproj sidecar.
+  /// A projector can encode images, audio, or both; its presence alone says nothing about vision.
   var hasVisionSupport: Bool {
-    mmprojUrl != nil
+    scannedInputModalities.contains("image")
+  }
+
+  var hasAudioSupport: Bool {
+    scannedInputModalities.contains("audio")
   }
 
   /// The draft head this model runs speculative decoding with, if any, from
@@ -229,25 +239,5 @@ struct Model: Identifiable, Codable {
     let keyOrder = lhs.sortKey.caseInsensitiveCompare(rhs.sortKey)
     if keyOrder != .orderedSame { return keyOrder == .orderedAscending }
     return lhs.id < rhs.id
-  }
-}
-
-/// What a model does. The raw value is also its `tags` entry in `models.ini`,
-/// which llama-server passes through to `/v1/models` -- the only place there a
-/// client can tell a chat model from the others (all read text-in/text-out in
-/// the listing's `architecture` modalities).
-enum ModelKind: String, Codable {
-  case chat
-  case decision
-  case embedding
-
-  /// The row chip for a model that can't chat; nil for chat models, which are
-  /// the default and need no label.
-  var chipLabel: String? {
-    switch self {
-    case .chat: nil
-    case .decision: "Decision"
-    case .embedding: "Embedding"
-    }
   }
 }
