@@ -403,7 +403,7 @@ struct ServerCommandSheet: View {
         Text("Server command")
           .font(.headline)
 
-        Text("See exactly how the app starts the server for you.")
+        Text("See how the app starts the server.")
           .font(.caption)
           .foregroundStyle(.secondary)
       }
@@ -763,7 +763,7 @@ struct SettingsView: View {
       Section {
         SettingRow(
           title: "Server command",
-          description: "See exactly how the app starts the server for you."
+          description: "See how the app starts the server."
         ) {
           Button("Show") { showingServerCommandSheet = true }
         }
