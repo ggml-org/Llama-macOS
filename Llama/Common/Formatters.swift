@@ -365,12 +365,14 @@ extension Format {
     }
 
     if hasAudio {
-      // Same treatment for audio input. An ear rather than a waveform: the
-      // marker means the model listens, and a waveform could read as "speaks".
+      // Same treatment for audio input. Headphones pair with the glasses --
+      // what the model wears to hear, like the glasses to see -- and are
+      // symmetrical like them. Not a waveform: the marker means the model
+      // listens, and a waveform could read as "speaks".
       result.append(NSAttributedString(string: " "))
       result.append(
         Format.symbol(
-          "ear", pointSize: Theme.Fonts.primary.pointSize,
+          "headphones", pointSize: Theme.Fonts.primary.pointSize,
           color: Theme.Colors.textTertiary))
     }
 
