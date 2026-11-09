@@ -50,6 +50,8 @@ enum Catalog {
   struct Size: Decodable {
     /// Whether this size supports image input. Absent → false.
     let vision: Bool?
+    /// Whether this size takes audio input (speech, sounds). Absent → false.
+    let audio: Bool?
     /// Memory cap for featuring, like `Family.maxMemGb` but for one size: on
     /// Macs with more RAM than this, the size is not suggested (e.g. the small
     /// Gemma 4 E-series on 32 GB+ Macs). Absent → the family's cap alone applies.
@@ -87,6 +89,7 @@ enum Catalog {
     let quant: String?  // catalog quant label, e.g. "Q8_0"
     let sizeLabel: String?  // human size, e.g. "5.0 GB"
     let hasVision: Bool  // catalog `vision` flag — shows the glasses marker
+    let hasAudio: Bool  // catalog `audio` flag — shows the headphones marker
     let isGoodFirstModel: Bool  // catalog `goodFirstModel` flag — badged, listed first
   }
 
@@ -160,6 +163,7 @@ enum Catalog {
         brand: family.brand,
         repo: best.repo, quant: best.quant, sizeLabel: best.size,
         hasVision: size.vision == true,
+        hasAudio: size.audio == true,
         isGoodFirstModel: size.goodFirstModel == true)
     }
   }

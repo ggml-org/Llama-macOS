@@ -40,7 +40,8 @@ final class CatalogItemView: ItemView {
     let id = suggestion.quant.map { Model.makeId(orgSlashRepo: suggestion.repo, tag: $0) }
       ?? suggestion.repo
     return Format.modelName(
-      id: id, color: Theme.Colors.textPrimary, hasVision: suggestion.hasVision)
+      id: id, color: Theme.Colors.textPrimary, hasVision: suggestion.hasVision,
+      hasAudio: suggestion.hasAudio)
   }
 
   init(suggestion: Catalog.Suggestion, onInstall: @escaping (Catalog.Suggestion) -> Void) {
