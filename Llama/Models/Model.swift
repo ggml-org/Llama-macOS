@@ -45,6 +45,12 @@ struct Model: Identifiable, Codable {
   /// `HFCache.buildSideloadedEntry`); the deeplink path leaves it nil and
   /// carries the sidecar in `draftUrl` instead. Read it through `draftHead`.
   let scannedDraftHead: DraftHead?
+  /// The media the model's projector takes, read from the projector's header
+  /// by the cache scan (see `HFCache.buildSideloadedEntry`). Nil when there's
+  /// no projector, and for download placeholders -- the deeplink path can't
+  /// read a file it hasn't downloaded, and carries the sidecar in `mmprojUrl`
+  /// instead. Read it through `hasVisionSupport` / `hasAudioInput`.
+  let scannedMediaInputs: MediaInputs?
   /// What the model does, which decides how it's served and offered: a chat
   /// model generates text; a decision model scores the options of typed
   /// questions through `/v1/systemone`; an embedding model turns input into
@@ -64,6 +70,7 @@ struct Model: Identifiable, Codable {
     mmprojUrl: URL? = nil,
     draftUrl: URL? = nil,
     scannedDraftHead: DraftHead? = nil,
+    scannedMediaInputs: MediaInputs? = nil,
     kind: ModelKind = .chat
   ) {
     self.id = id
@@ -76,10 +83,11 @@ struct Model: Identifiable, Codable {
     self.mmprojUrl = mmprojUrl
     self.draftUrl = draftUrl
     self.scannedDraftHead = scannedDraftHead
+    self.scannedMediaInputs = scannedMediaInputs
     self.kind = kind
   }
 
-  /// Decoding treats `kind` and `scannedDraftHead` as optional:
+  /// Decoding treats `kind` and the `scanned…` fields as optional:
   /// download placeholders are `Model`s written to disk by earlier app
   /// versions, and a required key would make every paused download from before
   /// the field existed fail to decode and silently drop out of the list.
@@ -102,6 +110,7 @@ struct Model: Identifiable, Codable {
       try c.decodeIfPresent(URL.self, forKey: .draftUrl)
       ?? legacy.decodeIfPresent(URL.self, forKey: .mtpUrl)
     scannedDraftHead = try c.decodeIfPresent(DraftHead.self, forKey: .scannedDraftHead)
+    scannedMediaInputs = try c.decodeIfPresent(MediaInputs.self, forKey: .scannedMediaInputs)
     kind = try c.decodeIfPresent(ModelKind.self, forKey: .kind) ?? .chat
   }
 
@@ -167,9 +176,24 @@ struct Model: Identifiable, Codable {
     Format.gigabytes(fileSize)
   }
 
-  /// Vision support is implied by an attached mmproj sidecar.
+  /// The inputs a projector sidecar adds on top of text.
+  struct MediaInputs: Codable, Equatable {
+    let image: Bool
+    let audio: Bool
+  }
+
+  /// Whether the model takes images: what the scan read from the projector on
+  /// disk, else -- for a download placeholder -- whether one will be
+  /// downloaded (a projector is assumed to be for images until its header can
+  /// be read).
   var hasVisionSupport: Bool {
-    mmprojUrl != nil
+    scannedMediaInputs?.image ?? (mmprojUrl != nil)
+  }
+
+  /// Whether the model takes audio (speech, sounds). Only known once the
+  /// projector is on disk, so placeholders never claim it.
+  var hasAudioInput: Bool {
+    scannedMediaInputs?.audio ?? false
   }
 
   /// The draft head this model runs speculative decoding with, if any, from

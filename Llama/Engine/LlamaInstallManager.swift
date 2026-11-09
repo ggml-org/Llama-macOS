@@ -22,11 +22,6 @@ final class LlamaInstallManager {
     case installing
     /// The install failed; `message` is user-facing. Retry via `install()`.
     case failed(message: String)
-    /// An unmanaged (e.g. Homebrew) binary is present but below `floorVersion`.
-    /// The app can't update it, so it nudges the user to do so. Non-blocking:
-    /// the server still runs, since the old binary often works. `origin` picks
-    /// the advice: only a Homebrew install can be told the exact command.
-    case unmanagedTooOld(version: LlamaVersion, origin: LlamaBinaries.Origin)
   }
 
   private(set) var state: State = .idle {
@@ -57,7 +52,7 @@ final class LlamaInstallManager {
 
   /// Ensures a usable `llama` binary is present -- installing one if none is
   /// found -- then starts the server. Runs at launch and from the menu's setup
-  /// banner (retry a failed install, or re-check after a `brew upgrade`).
+  /// banner (retry a failed install).
   /// Install logic lives here rather than in `LlamaServer.start()`, which runs
   /// on every model load and settings change.
   ///
@@ -72,10 +67,11 @@ final class LlamaInstallManager {
   }
 
   /// Ensures a usable `llama` binary is available, applying the version policy:
-  /// install when missing, stage the pinned target in the background when the
-  /// managed binary trails it, or nudge when an unmanaged binary is below the
-  /// floor. Returns true if the server should start afterward (always, except a
-  /// failed install when no binary exists at all).
+  /// install when missing (which includes when the user's own install is below
+  /// the floor -- `resolve` skips it), and stage the pinned target in the
+  /// background when the managed binary trails it. Returns true if the server
+  /// should start afterward (always, except a failed install when no binary
+  /// exists at all).
   private func ensureReady() async -> Bool {
     // Off the main thread: both the promotion and the version read touch the
     // binary (the latter runs it).
@@ -111,13 +107,9 @@ final class LlamaInstallManager {
       return true
 
     case .brew, .external:
-      // Can't touch an unmanaged install; nudge if below the floor but keep
-      // running (warn, not block).
-      if let version, version < LlamaBinaries.floorVersion {
-        state = .unmanagedTooOld(version: version, origin: origin)
-      } else {
-        state = .idle
-      }
+      // The user's own install, used as-is and never modified. Nothing to
+      // check here: `resolve` only returns one that's new enough.
+      state = .idle
       return true
     }
   }

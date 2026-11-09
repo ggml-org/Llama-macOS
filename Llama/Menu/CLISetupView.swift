@@ -33,20 +33,6 @@ final class CLISetupView: ItemView {
         "Llama needs to download llama.cpp once, but the download failed. " + message)
       views = [title, description, actionLink("Retry")]
 
-    case .unmanagedTooOld(let version, let origin):
-      let title = Theme.primaryLabel("Update llama.cpp")
-      // Homebrew has one known update command. Anything else (an `install.sh`
-      // copy, a manual install) is updated however it was installed, which
-      // the app can't tell -- so just ask for an update.
-      let howTo =
-        origin == .brew
-        ? "Update it with “brew upgrade llama.cpp”."
-        : "Update it, then click Re-check."
-      let description = wrappingLabel(
-        "Your llama.cpp (\(version.tag)) is older than the recommended "
-          + "\(LlamaBinaries.floorVersion.tag). " + howTo)
-      views = [title, description, actionLink("Re-check")]
-
     case .idle:
       // Not rendered when idle; guard anyway so the view is never blank-but-present.
       views = []

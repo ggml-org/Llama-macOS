@@ -213,11 +213,12 @@ extension Format {
 
   /// Formats model metadata text.
   /// Format: "3.1 GB  ∣  4k ctx" (file size + effective context tier)
-  /// If incompatibility is provided: "Requires a Mac with 32 GB+ of memory"
+  /// If a note is provided, it replaces the line: an incompatibility
+  /// ("Requires a Mac with 32 GB+ of memory") or a failed load ("Couldn’t load")
   /// For sideloaded models awaiting their MemProfile: "3.1 GB  ∣  estimating..."
   static func modelMetadata(
     for model: Model,
-    incompatibility: String? = nil
+    note: String? = nil
   ) -> NSAttributedString {
     let result = NSMutableAttributedString()
 
@@ -234,8 +235,8 @@ extension Format {
       .paragraphStyle: paragraphStyle,
     ]
 
-    if let incompatibility = incompatibility {
-      result.append(NSAttributedString(string: incompatibility, attributes: secondaryAttributes))
+    if let note {
+      result.append(NSAttributedString(string: note, attributes: secondaryAttributes))
     } else {
       // File size
       result.append(NSAttributedString(string: model.totalSize, attributes: secondaryAttributes))
@@ -281,6 +282,7 @@ extension Format {
     id: String,
     color: NSColor,
     hasVision: Bool = false,
+    hasAudio: Bool = false,
     draftHead: DraftHead? = nil,
     kind: ModelKind = .chat,
     showTags: Bool = false,
@@ -359,6 +361,18 @@ extension Format {
       result.append(
         Format.symbol(
           "eyeglasses", pointSize: Theme.Fonts.primary.pointSize,
+          color: Theme.Colors.textTertiary))
+    }
+
+    if hasAudio {
+      // Same treatment for audio input. Headphones pair with the glasses --
+      // what the model wears to hear, like the glasses to see -- and are
+      // symmetrical like them. Not a waveform: the marker means the model
+      // listens, and a waveform could read as "speaks".
+      result.append(NSAttributedString(string: " "))
+      result.append(
+        Format.symbol(
+          "headphones", pointSize: Theme.Fonts.primary.pointSize,
           color: Theme.Colors.textTertiary))
     }
 
