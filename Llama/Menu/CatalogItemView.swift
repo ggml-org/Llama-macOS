@@ -26,7 +26,9 @@ final class CatalogItemView: ItemView {
   /// is easy to spot and quiet enough to leave on permanently, so it needs no
   /// "only for newcomers" condition.
   private var subtitleText: String {
-    suggestion.subtitle
+    let size = suggestion.sizeLabel ?? ""
+    guard suggestion.isGoodFirstModel else { return size }
+    return size.isEmpty ? "Good first model" : "Good first model  ∣  \(size)"
   }
 
   /// Title: the parsed view of the id the suggestion resolves to — the same
@@ -35,11 +37,11 @@ final class CatalogItemView: ItemView {
   private var titleText: NSAttributedString {
     // Build the would-be id (repo + quant when known) and reuse the installed
     // row's formatter so both sections get identical treatment.
-    let id =
-      suggestion.quant.map { Model.makeId(orgSlashRepo: suggestion.repo, tag: $0) }
+    let id = suggestion.quant.map { Model.makeId(orgSlashRepo: suggestion.repo, tag: $0) }
       ?? suggestion.repo
     return Format.modelName(
-      id: id, color: Theme.Colors.textPrimary, hasVision: suggestion.hasVision)
+      id: id, color: Theme.Colors.textPrimary, hasVision: suggestion.hasVision,
+      hasAudio: suggestion.hasAudio)
   }
 
   init(suggestion: Catalog.Suggestion, onInstall: @escaping (Catalog.Suggestion) -> Void) {
