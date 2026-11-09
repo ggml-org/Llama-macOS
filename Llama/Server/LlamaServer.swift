@@ -377,7 +377,16 @@ class LlamaServer {
       // Env vars as standalone `export` statements -- each flush-left on its
       // own line, no continuation backslash, so the setup reads as a calm list
       // separate from the invocation below.
-      let exportLines = env.map { "export \($0.key)=\(Self.quote($0.value))" }
+      //
+      // The `PATH` line mirrors the append in `launchServerProcess()` (see `homebrewBinDir`).
+      // It's written as `$PATH:...` rather than the expanded value: pasted into
+      // a terminal, an expanded value would replace the user's whole `PATH` for
+      // that session, and it would read differently depending on how the app
+      // was opened (Finder vs a terminal). The `$PATH` form is the same on
+      // every launch, and in a terminal it changes nothing that matters.
+      let exportLines =
+        ["export PATH=\"$PATH:\(LlamaServer.homebrewBinDir)\""]
+        + env.map { "export \($0.key)=\(Self.quote($0.value))" }
 
       // The invocation: binary + subcommand on the first line, each flag
       // hanging-indented below, joined by " \<newline>" so it stays runnable.
@@ -408,6 +417,16 @@ class LlamaServer {
   /// lists every GGUF it finds; we manage the model list ourselves via
   /// `--models-preset`. A fixed `/tmp` path keeps the rendered command short.
   nonisolated static let emptyCachePath = "/tmp/llama-empty-cache"
+
+  /// Homebrew's bin dir, appended to the server's `PATH`. llama.cpp finds
+  /// `ffmpeg` and `ffprobe` (needed for video input) through `PATH`, and an app
+  /// opened from Finder or the Dock gets only the system default
+  /// (`/usr/bin:/bin:/usr/sbin:/sbin`) -- the user's shell setup, where
+  /// Homebrew adds itself, never runs. Appended rather than prepended so
+  /// anything the inherited `PATH` already resolves keeps winning. Only the
+  /// Apple Silicon location: the app doesn't run on Intel Macs, where Homebrew
+  /// lives in `/usr/local/bin`.
+  nonisolated static let homebrewBinDir = "/opt/homebrew/bin"
 
   /// Where the server writes its log (`--log-file`). `~/Library/Logs/<App>` is
   /// the macOS convention for app logs, and Console.app lists `.log` files there
@@ -447,8 +466,8 @@ class LlamaServer {
   }
 
   /// Builds the `llama serve` launch spec from the current settings. Pure with
-  /// respect to launching processes -- it only reads settings, the launch
-  /// environment and resolved binary -- so Settings can preview the same
+  /// respect to process state -- it only reads settings, the resolved binary
+  /// path and its version -- so the settings UI can call it to preview the
   /// command. Returns nil when no llama binary has been resolved: none is
   /// installed, or the launch-time check hasn't finished yet.
   static func buildLaunchSpec() -> LaunchSpec? {
@@ -459,11 +478,6 @@ class LlamaServer {
     let presetsPath = UserSettings.appSupportDir.appendingPathComponent("models.ini").path
 
     var env = [
-      (
-        key: "PATH",
-        value: ExecutableSearchPath.serverPath(
-          inherited: ProcessInfo.processInfo.environment["PATH"])
-      ),
       (key: "GGML_METAL_NO_RESIDENCY", value: "1"),
       // Set HF_HUB_CACHE so llama-server can resolve model paths in preset
       (key: "HF_HUB_CACHE", value: UserSettings.hfCacheDirectory.path),
@@ -690,6 +704,13 @@ class LlamaServer {
 
     var environment = ProcessInfo.processInfo.environment
     for (key, value) in spec.env { environment[key] = value }
+    // Add Homebrew to the end of the inherited `PATH` (see `homebrewBinDir`).
+    // Not part of `spec.env`: that holds values we set outright, while this
+    // extends whatever the app inherited -- `displayCommand` renders it as
+    // `export PATH="$PATH:..."` to match. A duplicate entry (an app launched
+    // from a terminal already has it) is harmless: the first match wins.
+    environment["PATH"] = [environment["PATH"], Self.homebrewBinDir]
+      .compactMap { $0 }.joined(separator: ":")
     process.environment = environment
 
     process.standardOutput = Pipe()

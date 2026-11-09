@@ -56,10 +56,6 @@ curl http://localhost:9931/v1/chat/completions \
 
 See complete API reference in the llama.cpp server [docs](https://github.com/ggml-org/llama.cpp/tree/master/tools/server#api-endpoints).
 
-## Video input
-
-Video input requires a compatible model and engine, plus system `ffmpeg` and `ffprobe` executables. On macOS, install both with `brew install ffmpeg`. Llama includes the standard Homebrew binary directories in the server's search path, including when opened from Finder. Existing PATH entries keep their priority.
-
 ## Custom model settings
 
 The app configures each model for your Mac and writes that config to `models.ini`, which it regenerates on every launch. To change a setting, or add one the app doesn't set, edit `~/.config/llama/models.user.ini` instead -- the app only reads that file, and merges it into the config it generates.
