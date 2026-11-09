@@ -365,12 +365,15 @@ extension Format {
     }
 
     if hasAudio {
+      // Same treatment for audio input. An ear rather than a waveform: the
+      // marker means the model listens, and a waveform could read as "speaks".
       result.append(NSAttributedString(string: " "))
       result.append(
         Format.symbol(
-          "waveform", pointSize: Theme.Fonts.primary.pointSize,
+          "ear", pointSize: Theme.Fonts.primary.pointSize,
           color: Theme.Colors.textTertiary))
     }
+
 
     // Disable letter-spacing tightening before truncation (see Theme.noTighteningParagraphStyle).
     result.addAttribute(

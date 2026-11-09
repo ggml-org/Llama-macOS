@@ -34,7 +34,7 @@ final class ModelPageHeaderView: ItemView {
       id: model.id,
       color: Theme.Colors.textPrimary,
       hasVision: model.hasVisionSupport,
-      hasAudio: model.hasAudioSupport,
+      hasAudio: model.hasAudioInput,
       draftHead: model.draftHead,
       kind: model.kind,
       showTags: showTags,
