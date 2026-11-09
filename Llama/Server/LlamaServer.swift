@@ -397,10 +397,9 @@ class LlamaServer {
         return prefix + line + suffix
       }.joined(separator: "\n")
 
-      // A blank line sets the exports apart from the command they precede
-      // (no exports -> no leading blank line).
-      return (exportLines.isEmpty ? [cmdBlock] : exportLines + ["", cmdBlock])
-        .joined(separator: "\n")
+      // A blank line sets the exports apart from the command they precede.
+      // There's always at least the `PATH` export, so no empty case.
+      return (exportLines + ["", cmdBlock]).joined(separator: "\n")
     }
 
     /// Minimal shell quoting: wraps a token in single quotes only if it
