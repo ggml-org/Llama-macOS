@@ -7,6 +7,12 @@ enum ModelLoadState: String, Equatable {
   case loading
   case sleeping
   case unloaded
+  /// The model's last load attempt exited with an error (an unknown
+  /// architecture on an older engine, a corrupt file, ...). The router reports
+  /// this as `unloaded` plus `failed: true`, and keeps it until the next load
+  /// attempt -- so the menu can say the load failed instead of silently
+  /// showing an idle model.
+  case failed
 }
 
 /// HTTP client for communicating with llama-server's REST API.
@@ -47,7 +53,11 @@ struct LlamaServerAPI {
     }
 
     return response.data.reduce(into: [String: ModelLoadState]()) { dict, item in
-      dict[item.id] = item.status.flatMap { ModelLoadState(rawValue: $0.value) } ?? .unloaded
+      if item.status?.failed == true {
+        dict[item.id] = .failed
+      } else {
+        dict[item.id] = item.status.flatMap { ModelLoadState(rawValue: $0.value) } ?? .unloaded
+      }
     }
   }
 
@@ -119,6 +129,9 @@ struct LlamaServerAPI {
     }
     struct ModelStatus: Decodable {
       let value: String
+      /// Set (with `value` = "unloaded") when the model's instance exited
+      /// with a non-zero code. Absent otherwise.
+      let failed: Bool?
     }
     let data: [ModelData]
   }

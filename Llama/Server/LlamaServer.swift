@@ -858,6 +858,12 @@ class LlamaServer {
     return modelStatuses[model.id] == .loading
   }
 
+  /// Checks if the specified model's last load attempt failed. Cleared by the
+  /// next load attempt (optimistically set to `.loading`) or a server restart.
+  func didFailToLoad(model: Model) -> Bool {
+    return modelStatuses[model.id] == .failed
+  }
+
   /// Switch the active model in the UI. In Router Mode, this doesn't restart the server,
   /// but updates what Llama considers the "current" model.
   func loadModel(_ model: Model) {
