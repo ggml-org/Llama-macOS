@@ -297,6 +297,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       id: model.id,
       color: textColor,
       hasVision: model.hasVisionSupport,
+      hasAudio: model.hasAudioInput,
       draftHead: model.draftHead,
       kind: model.kind,
       showTags: showTags

@@ -94,6 +94,19 @@ enum GGUFMetadata {
     return .chat
   }
 
+  /// What a projector (`mmproj`) sidecar takes as input, per its
+  /// `clip.has_vision_encoder` and `clip.has_audio_encoder` keys -- the flags
+  /// llama.cpp reads to decide which media a model accepts. A projector can
+  /// encode images, audio, or both (omni models), so its presence alone
+  /// doesn't say which. An absent key means false. Returns nil when the
+  /// header can't be parsed.
+  static func projectorInputs(path: String) -> Model.MediaInputs? {
+    guard let image = boolValue(forKeySuffix: "clip.has_vision_encoder", path: path),
+      let audio = boolValue(forKeySuffix: "clip.has_audio_encoder", path: path)
+    else { return nil }
+    return Model.MediaInputs(image: image ?? false, audio: audio ?? false)
+  }
+
   // MARK: - Header parsing
 
   /// GGUF metadata value types, per the spec's `gguf_metadata_value_type`.
@@ -112,6 +125,15 @@ enum GGUFMetadata {
   private static func intValue(forKeySuffix keySuffix: String, path: String) -> Int?? {
     value(forKeySuffix: keySuffix, path: path) { cursor, type in cursor.readIntValue(of: type) }
       .map { $0 ?? nil }
+  }
+
+  /// Like `intValue`, for a bool key. Same double optional: outer nil = header
+  /// unparseable, `.some(nil)` = key absent (or not a bool).
+  private static func boolValue(forKeySuffix keySuffix: String, path: String) -> Bool?? {
+    value(forKeySuffix: keySuffix, path: path) { cursor, type in
+      type == .bool ? (cursor.readInt() as UInt8?).map { $0 != 0 } : nil
+    }
+    .map { $0 ?? nil }
   }
 
   /// The scan behind the typed lookups above: finds the first key ending in

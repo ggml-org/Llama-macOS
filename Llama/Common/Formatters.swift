@@ -282,6 +282,7 @@ extension Format {
     id: String,
     color: NSColor,
     hasVision: Bool = false,
+    hasAudio: Bool = false,
     draftHead: DraftHead? = nil,
     kind: ModelKind = .chat,
     showTags: Bool = false,
@@ -360,6 +361,16 @@ extension Format {
       result.append(
         Format.symbol(
           "eyeglasses", pointSize: Theme.Fonts.primary.pointSize,
+          color: Theme.Colors.textTertiary))
+    }
+
+    if hasAudio {
+      // Same treatment for audio input. An ear rather than a waveform: the
+      // marker means the model listens, and a waveform could read as "speaks".
+      result.append(NSAttributedString(string: " "))
+      result.append(
+        Format.symbol(
+          "ear", pointSize: Theme.Fonts.primary.pointSize,
           color: Theme.Colors.textTertiary))
     }
 

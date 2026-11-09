@@ -751,6 +751,12 @@ enum HFCache {
       // them apart because they produce different `models.ini` lines.
       scannedDraftHead: draftSidecar.flatMap { DraftHead(sidecarPath: $0) }
         ?? (hasEmbeddedHead ? .mtp : nil),
+      // What the projector takes -- images, audio or both -- for the row's
+      // markers. When its header can't be read, assume images: the common
+      // case, and how a projector was read before its header was checked.
+      scannedMediaInputs: mmprojFile.map {
+        GGUFMetadata.projectorInputs(path: $0) ?? Model.MediaInputs(image: true, audio: false)
+      },
       kind: kind
     )
 
