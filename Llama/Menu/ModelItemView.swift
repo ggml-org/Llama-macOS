@@ -303,7 +303,15 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
       showTags: showTags
     )
 
-    let incompatibility = !isCompatible ? model.incompatibilitySummary() : nil
+    // A note replaces the size+ctx line when there's something the user must
+    // know before that: the model can't run on this Mac, or its last load
+    // failed (e.g. an engine too old for its architecture). Without the latter
+    // a failed load is invisible -- the row just stays idle. The model page
+    // carries the explanation (`LoadFailureView`); the row only flags it.
+    let note =
+      !isCompatible
+      ? model.incompatibilitySummary()
+      : (server.didFailToLoad(model: model) ? "Couldn’t load" : nil)
     // Subtitle swaps between size+ctx (for installed/available rows) and a
     // transfer readout while a download is in flight: "1.2 GB of 3.1 GB", plus
     // " · Paused" when interrupted.
@@ -318,7 +326,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
     } else {
       subtitleLabel.attributedStringValue = Format.modelMetadata(
         for: model,
-        incompatibility: incompatibility
+        note: note
       )
     }
 

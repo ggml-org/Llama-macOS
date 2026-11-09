@@ -654,6 +654,12 @@ final class MenuController: NSObject, NSMenuDelegate {
       showTags: showTags
     )
     menu.addItem(NSMenuItem.viewItem(with: header))
+    // Right under the title, so it's the first thing seen after a Load that
+    // went nowhere. The page rebuilds on status changes, so it appears as soon
+    // as the server reports the failure and goes away on the next attempt.
+    if server.didFailToLoad(model: model) {
+      menu.addItem(NSMenuItem.viewItem(with: LoadFailureView()))
+    }
     menu.addItem(NSMenuItem.viewItem(with: ExpandedModelDetailsView(
       model: model, server: server)))
 

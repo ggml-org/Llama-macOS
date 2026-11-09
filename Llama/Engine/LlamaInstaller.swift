@@ -197,7 +197,15 @@ enum LlamaInstaller {
   /// doesn't break the app. We won't clobber a real file there (an `install.sh`
   /// copy, which `LlamaBinaries` would have resolved to anyway); only absent or
   /// symlink entries are (re)written.
+  ///
+  /// Skipped when the user has their own `llama` in a Homebrew bin dir: the app
+  /// then runs its copy only because theirs is too old, and a link here could
+  /// shadow theirs on PATH, switching what `llama` runs in their terminal.
   private static func linkOnPath() {
+    guard !LlamaBinaries.hasUnmanagedInstall else {
+      logger.info("Not linking \(symlinkPath, privacy: .public): the user has their own llama")
+      return
+    }
     let fm = FileManager.default
     do {
       try fm.createDirectory(atPath: symlinkDir, withIntermediateDirectories: true)
