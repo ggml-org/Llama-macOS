@@ -204,11 +204,12 @@ class LlamaServer {
   var modelStatuses: [String: ModelLoadState] = [:] {
     didSet { NotificationCenter.default.post(name: .LBModelStatusDidChange, object: self) }
   }
-  /// The ID of the currently active model, derived from `modelStatuses`.
+  /// The IDs of the currently active models, derived from `modelStatuses`.
   /// A model counts as active while it's loaded or in the process of loading.
-  /// `--models-max 1` guarantees at most one such model.
-  var activeModelId: String? {
-    modelStatuses.first { $0.value == .loaded || $0.value == .loading }?.key
+  /// Several can be active at once: the router keeps models loaded for as long
+  /// as they fit in memory together (see `--models-memory-margin`).
+  var activeModelIds: Set<String> {
+    Set(modelStatuses.filter { $0.value == .loaded || $0.value == .loading }.keys)
   }
   // Store observer token for proper cleanup
   private var settingsObserver: NSObjectProtocol?
@@ -516,7 +517,18 @@ class LlamaServer {
     arguments.append(contentsOf: [
       // Other value-taking flags.
       "--port", String(Self.port),
-      "--models-max", "1",
+      // No cap on the number of loaded models -- memory is the real limit,
+      // and the margin below enforces it: before loading a model, the router
+      // unloads idle models (least recently used first) until the new one
+      // fits while leaving this many MiB free. It's the same margin `--fit`
+      // gets, so the router's budget matches the one the app sizes each
+      // model's context against. The router measures each model up front;
+      // projectors (`mmproj`) and draft models aren't counted yet, so a model
+      // with one can take somewhat more than measured -- the margin absorbs
+      // some of that. Floored at 1 because 0 turns memory accounting off,
+      // which together with no count cap would load models without limit.
+      "--models-max", "0",
+      "--models-memory-margin", String(max(Int(Model.fitTargetMb), 1)),
       "--fit-target", String(Int(Model.fitTargetMb)),
     ])
 
@@ -759,7 +771,7 @@ class LlamaServer {
     // Set to .idle before terminating so the handler knows this is intentional
     state = .idle
 
-    // Clearing statuses also clears the derived `activeModelId`, so a stopped
+    // Clearing statuses also drops it from the derived `activeModelIds`, so a stopped
     // server never leaves a model showing as loaded in the menu.
     modelStatuses = [:]
 
@@ -902,7 +914,7 @@ class LlamaServer {
     }
 
     // Optimistically set status to loading for immediate UI feedback. This also
-    // makes the model the derived `activeModelId`. Polling updates to .loaded
+    // makes the model one of the derived `activeModelIds`. Polling updates to .loaded
     // once the server confirms.
     modelStatuses[model.id] = .loading
 
@@ -916,7 +928,7 @@ class LlamaServer {
   /// Deselects the current model in the UI.
   func unloadModel(_ model: Model) {
     // Optimistically set status to unloaded for immediate UI feedback (which
-    // also clears the derived `activeModelId`). Polling confirms once the
+    // also drops it from the derived `activeModelIds`). Polling confirms once the
     // server acknowledges.
     modelStatuses[model.id] = .unloaded
 

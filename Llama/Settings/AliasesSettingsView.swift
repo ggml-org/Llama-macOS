@@ -233,9 +233,8 @@ private struct AddAliasSheet: View {
     .onAppear {
       // Start on the model that's running, if any: the likeliest reason to
       // add an alias is having just settled on a model for something.
-      modelId = LlamaServer.shared.activeModelId.flatMap { active in
-        models.first { $0.id == active }?.id
-      } ?? models.first?.id ?? ""
+      let active = LlamaServer.shared.activeModelIds
+      modelId = models.first { active.contains($0.id) }?.id ?? models.first?.id ?? ""
     }
   }
 

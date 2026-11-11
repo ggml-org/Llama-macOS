@@ -136,7 +136,7 @@ final class LlamaInstallManager {
     Task {
       do {
         try await LlamaInstaller.install(version: LlamaBinaries.targetVersion.tag, staged: true)
-        if LlamaServer.shared.activeModelId == nil {
+        if LlamaServer.shared.activeModelIds.isEmpty {
           await applyStagedNow()
         } else {
           logger.info(

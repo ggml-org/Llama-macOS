@@ -411,7 +411,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
 
     // If the model being deleted is the active one, the server restart triggered
     // below (via reload() once models.ini changes) drops it; status polling then
-    // reconciles modelStatuses, clearing the derived activeModelId.
+    // reconciles modelStatuses, dropping it from the derived activeModelIds.
 
     let paths = resolvedPaths[model.id]
 

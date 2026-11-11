@@ -749,11 +749,11 @@ final class MenuController: NSObject, NSMenuDelegate {
     // for anything to work -- it's there because "load the model" is what
     // people reach for on a model page, and to warm a big model up before
     // the first request rather than making that request wait on it.
-    // A model counts as active while it's still loading (`activeModelId`), so
+    // A model counts as active while it's still loading (`activeModelIds`), so
     // Unload shows then too -- the slot is never empty mid-load, and unloading
     // a loading model cancels the load (the server kills the instance).
     // Sleeping counts as not active: its memory is already freed, so Load.
-    if server.activeModelId == model.id {
+    if server.activeModelIds.contains(model.id) {
       menu.addItem(NSMenuItem.viewItem(with: ActionItemView(
         title: "Unload", symbol: "eject"
       ) { [weak self] in

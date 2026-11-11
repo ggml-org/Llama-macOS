@@ -232,9 +232,11 @@ final class GlobalInputController {
     if let last = UserSettings.lastUsedModelId, installedIds.contains(last) {
       return last
     }
-    // 2. Whatever is loaded right now.
-    if let active = LlamaServer.shared.activeModelId, installedIds.contains(active) {
-      return active
+    // 2. Whatever is loaded right now -- the first in list order if several
+    //    are, so the pick doesn't vary between opens.
+    let active = LlamaServer.shared.activeModelIds
+    if let loaded = installed.first(where: { active.contains($0.id) }) {
+      return loaded.id
     }
     // 3. No history and nothing loaded (fresh install / cleared prefs): fall
     //    back to the smallest installed model -- fastest to load and respond,
