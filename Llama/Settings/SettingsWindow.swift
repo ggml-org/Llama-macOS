@@ -524,7 +524,7 @@ struct SettingsView: View {
       Section {
         SettingRow(
           title: "Unload when idle",
-          description: "Frees memory by unloading the model after this long without use."
+          description: "Frees memory by unloading a model after this long without use."
         ) {
           PillPicker(
             options: UserSettings.SleepIdleTime.allCases.map { ($0, $0.displayName) },
