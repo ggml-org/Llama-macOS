@@ -447,15 +447,13 @@ class LlamaServer {
   /// away -- `localhost:<port>`, which most OpenAI-compatible clients default
   /// to, would stop answering even on this Mac, and start answering again
   /// whenever the address went away and we fell back to loopback. Listing
-  /// loopback alongside keeps localhost working in every mode.
+  /// loopback alongside keeps localhost working in every mode. Every engine
+  /// at or above `floorVersion` accepts a list (llama.cpp PR #28690).
   ///
-  /// Only engines from `multiHostVersion` on accept a list; older ones (and an
-  /// unreadable version) get the single address, as before. `0.0.0.0` already
-  /// covers loopback, and repeating `127.0.0.1` would fail the second bind.
+  /// `0.0.0.0` already covers loopback, and repeating `127.0.0.1` would fail
+  /// the second bind.
   private static func boundAddresses(for bindAddress: String) -> [String] {
-    guard bindAddress != "0.0.0.0", bindAddress != "127.0.0.1",
-      let version = LlamaInstallManager.shared.currentVersion,
-      version >= LlamaBinaries.multiHostVersion
+    guard bindAddress != "0.0.0.0", bindAddress != "127.0.0.1"
     else { return [bindAddress] }
     return ["127.0.0.1", bindAddress]
   }
