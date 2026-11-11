@@ -193,13 +193,27 @@ final class GlobalInputController {
     // the WebUI by URL rather than going through LlamaServer.loadModel.
     UserSettings.lastUsedModelId = model.id
 
+    // Encode each value so a parser that uses form rules does not
+    // change a literal "+" to a space.
+    let queryValueAllowedCharacters = CharacterSet(
+      charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()")
+    guard
+      let encodedPrompt = prompt.addingPercentEncoding(
+        withAllowedCharacters: queryValueAllowedCharacters),
+      let encodedModelID = model.id.addingPercentEncoding(
+        withAllowedCharacters: queryValueAllowedCharacters)
+    else {
+      logger.error("Failed to encode captured prompt URL parameters")
+      return
+    }
+
     var components = LlamaServer.webuiComponents()
     // Always pass a concrete `?model=`. Handing the WebUI `?q=` with no model is
     // a dead path: its auto-send has no "pick a model first" fallback, so it
     // either 400s or spins on "Loading models…" forever.
-    components.queryItems = [
-      URLQueryItem(name: "q", value: prompt),
-      URLQueryItem(name: "model", value: model.id),
+    components.percentEncodedQueryItems = [
+      URLQueryItem(name: "q", value: encodedPrompt),
+      URLQueryItem(name: "model", value: encodedModelID),
     ]
 
     guard let url = components.url else {
