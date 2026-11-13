@@ -789,35 +789,9 @@ struct SettingsView: View {
   /// serves: what models are allowed to do in it, and how to summon it.
   private var chatForm: some View {
     Form {
-      // Agent mode section
-      Section {
-        // Row and caution share one Form row: as two children of the Section
-        // the grouped style would rule a separator between them, which the
-        // network tab's caution (nested inside its option) doesn't get.
-        VStack(alignment: .leading, spacing: 6) {
-        SettingRow(
-          title: "Agent mode",
-          description: "Lets models read and edit files and run commands on this Mac."
-        ) {
-          // The setter posts the settings-change notification, which restarts
-          // the server with/without `--agent`.
-          Toggle(
-            "",
-            isOn: Binding(
-              get: { agentMode },
-              set: { newValue in
-                UserSettings.agentMode = newValue
-                agentMode = newValue
-              })
-          )
-          .labelsHidden()
-        }
-
-          if let caution = agentModeCaution {
-            SettingCaution(text: caution)
-          }
-        }
-      }
+      // Settings are ordered by how many people need them: the quick prompt
+      // is for anyone who chats in the built-in UI, the custom web app for
+      // people building their own chat, and agent mode for fewer still.
 
       // Global-input shortcut section. It belongs here rather than in General:
       // the panel it opens only hands the prompt off to the web UI, so the
@@ -851,11 +825,11 @@ struct SettingsView: View {
         }
       }
 
-      // Custom web app section. Last in the tab: it's for people building their
-      // own chat, a smaller group than either setting above.
+      // Custom web app section -- for people building their own chat.
       Section {
-        // Row and caution share one Form row, like agent mode above, so
-        // the grouped style doesn't rule separators between them.
+        // Row and caution share one Form row: as two children of the Section
+        // the grouped style would rule a separator between them, which the
+        // network tab's caution (nested inside its option) doesn't get.
         VStack(alignment: .leading, spacing: 6) {
         SettingRow(
           title: "Custom web app",
@@ -899,6 +873,38 @@ struct SettingsView: View {
           // custom UI on its own. Only an unmanaged engine older than that
           // still shows the old behavior -- too rare to explain here.
           if let caution = customWebUICaution {
+            SettingCaution(text: caution)
+          }
+        }
+      }
+
+      // Agent mode section. Last in the tab: few people need it -- agents like
+      // Pi or OpenClaw bring their own tools -- and it's the one setting here
+      // that gives models access to the Mac.
+      Section {
+        // Row and caution share one Form row, like the custom web app above,
+        // so the grouped style doesn't rule a separator between them.
+        VStack(alignment: .leading, spacing: 6) {
+        SettingRow(
+          title: "Agent mode",
+          description:
+            "Lets models read and edit files and run commands on this Mac. Not needed for agents like Pi or OpenClaw, which bring their own tools."
+        ) {
+          // The setter posts the settings-change notification, which restarts
+          // the server with/without `--agent`.
+          Toggle(
+            "",
+            isOn: Binding(
+              get: { agentMode },
+              set: { newValue in
+                UserSettings.agentMode = newValue
+                agentMode = newValue
+              })
+          )
+          .labelsHidden()
+        }
+
+          if let caution = agentModeCaution {
             SettingCaution(text: caution)
           }
         }
