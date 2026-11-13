@@ -197,9 +197,19 @@ final class GlobalInputController {
     // Always pass a concrete `?model=`. Handing the WebUI `?q=` with no model is
     // a dead path: its auto-send has no "pick a model first" fallback, so it
     // either 400s or spins on "Loading models…" forever.
-    components.queryItems = [
-      URLQueryItem(name: "q", value: prompt),
-      URLQueryItem(name: "model", value: model.id),
+    //
+    // Encode the values ourselves: `queryItems` leaves `+` as is (it's legal
+    // in a query), but the WebUI reads the query with `URLSearchParams`, which
+    // decodes `+` as a space -- so "C++" arrived as "C  ". `&` and `=` are
+    // encoded too, so a prompt can't split into extra params.
+    var allowed = CharacterSet.urlQueryAllowed
+    allowed.remove(charactersIn: "+&=")
+    func encode(_ value: String) -> String {
+      value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    }
+    components.percentEncodedQueryItems = [
+      URLQueryItem(name: "q", value: encode(prompt)),
+      URLQueryItem(name: "model", value: encode(model.id)),
     ]
 
     guard let url = components.url else {
