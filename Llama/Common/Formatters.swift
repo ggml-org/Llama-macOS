@@ -267,8 +267,8 @@ extension Format {
   }
 
   /// Formats a model's row title: the parsed view of its id
-  /// (`ModelIdParser`), mirroring the WebUI's default rendering so the menu
-  /// and the WebUI's picker agree. The short name renders as text; params
+  /// (`ModelIdParser`), mirroring the WebUI's default rendering -- except
+  /// that catalog models take the catalog's name. The short name renders as text; params
   /// and quant render as small chips — metadata the eye can skip, while
   /// every chip still comes straight from the id. The raw id stays
   /// reachable via the row's copy button.

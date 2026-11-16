@@ -44,10 +44,12 @@ enum Catalog {
     let repo: String  // "{org}/{repo}"
   }
 
-  /// A parameter tier within a family, e.g. "Gemma 4 E4B". The catalog's
-  /// `name` is not decoded: rows are titled by the repo's id base, so the
-  /// curated display name is the website's concern only.
+  /// A parameter tier within a family, e.g. "Gemma 4 E4B".
   struct Size: Decodable {
+    /// Curated display name, e.g. "Gemma 4 E4B" -- the menu titles every row
+    /// of this size's repos with it (see `displayName(forRepo:)`). Optional
+    /// so a size without one can't fail decoding the whole catalog.
+    let name: String?
     /// Whether this size supports image input. Absent → false.
     let vision: Bool?
     /// Whether this size takes audio input (speech, sounds). Absent → false.
@@ -85,7 +87,7 @@ enum Catalog {
   /// installed.
   struct Suggestion {
     let brand: String  // "Gemma" — drives the logo
-    let repo: String  // "{org}/{repo}" — the row title is its id base
+    let repo: String  // "{org}/{repo}" — the row title derives from it (`ModelIdParser`)
     let quant: String?  // catalog quant label, e.g. "Q8_0"
     let sizeLabel: String?  // human size, e.g. "5.0 GB"
     let hasVision: Bool  // catalog `vision` flag — shows the glasses marker
@@ -98,20 +100,8 @@ enum Catalog {
   /// list on any failure — Discover simply doesn't appear, and the user can
   /// still install from the web catalog or via deeplink.
   static func fetchFeatured(systemMemoryMb: UInt64) async -> [Suggestion] {
-    let families: [Family]
-    do {
-      var request = URLRequest(url: endpoint)
-      request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
-      let (data, response) = try await URLSession.shared.data(for: request)
-      guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-        logger.error("Catalog fetch returned non-2xx")
-        return []
-      }
-      families = try JSONDecoder().decode([Family].self, from: data)
-    } catch {
-      logger.error("Catalog fetch failed: \(error.localizedDescription)")
-      return []
-    }
+    guard let families = await fetchFamilies() else { return [] }
+    storeDisplayNames(from: families)
 
     let budgetMb = Model.deviceMemoryBudgetMb
     let suggestions =
@@ -127,6 +117,63 @@ enum Catalog {
     // catalog -- it's the one pick we want a newcomer to see first. The rest
     // keep catalog order.
     return suggestions.filter(\.isGoodFirstModel) + suggestions.filter { !$0.isGoodFirstModel }
+  }
+
+  /// Fetches and decodes the whole catalog. Nil on any failure (logged).
+  private static func fetchFamilies() async -> [Family]? {
+    do {
+      var request = URLRequest(url: endpoint)
+      request.setValue(AppInfo.userAgent, forHTTPHeaderField: "User-Agent")
+      let (data, response) = try await URLSession.shared.data(for: request)
+      guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+        logger.error("Catalog fetch returned non-2xx")
+        return []
+      }
+      return try JSONDecoder().decode([Family].self, from: data)
+    } catch {
+      logger.error("Catalog fetch failed: \(error.localizedDescription)")
+      return nil
+    }
+  }
+
+  // MARK: - Display names
+  //
+  // The catalog's curated size names ("Gemma 4 E4B", "GPT-OSS 20B") read
+  // better than repo names, whose casing is each vendor's own (`gpt-oss-20b`,
+  // `Qwen3.6-27B`, `gemma-4-31B`). So any model whose repo the catalog lists
+  // -- installed or suggested, whichever org's build -- is titled with its
+  // size's name; everything else keeps the name parsed from its id.
+  //
+  // Kept in memory only: until the catalog loads (or when it can't be
+  // fetched), rows fall back to the parsed id. Read from wherever rows are
+  // rendered or sorted, hence the lock rather than actor isolation.
+
+  private static let displayNamesLock = NSLock()
+  /// Lowercased `{org}/{repo}` → size name. Lowercased because HF repo names
+  /// are case-insensitive, while a deeplink can carry any casing.
+  nonisolated(unsafe) private static var displayNames: [String: String] = [:]
+
+  /// The catalog's name for the size a repo (`{org}/{repo}`) belongs to, or
+  /// nil when the catalog doesn't list it (or hasn't loaded).
+  static func displayName(forRepo repo: String) -> String? {
+    displayNamesLock.lock()
+    defer { displayNamesLock.unlock() }
+    return displayNames[repo.lowercased()]
+  }
+
+  private static func storeDisplayNames(from families: [Family]) {
+    var names = [String: String]()
+    for size in families.flatMap(\.sizes) {
+      for build in size.builds {
+        // A repo listed under two sizes keeps the first -- catalog order.
+        if let name = size.name, names[build.repo.lowercased()] == nil {
+          names[build.repo.lowercased()] = name
+        }
+      }
+    }
+    displayNamesLock.lock()
+    displayNames = names
+    displayNamesLock.unlock()
   }
 
   // MARK: - Selection
