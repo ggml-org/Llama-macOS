@@ -44,12 +44,8 @@ enum Catalog {
     let repo: String  // "{org}/{repo}"
   }
 
-  /// A parameter tier within a family, e.g. "Gemma 4 E4B".
+  /// A parameter tier within a family, e.g. Gemma 4's "E4B".
   struct Size: Decodable {
-    /// Curated display name, e.g. "Gemma 4 E4B" -- the menu titles every row
-    /// of this size's repos with it (see `displayName(forRepo:)`). Optional
-    /// so a size without one can't fail decoding the whole catalog.
-    let name: String?
     /// Whether this size supports image input. Absent → false.
     let vision: Bool?
     /// Whether this size takes audio input (speech, sounds). Absent → false.
@@ -67,6 +63,12 @@ enum Catalog {
 
   /// A named release line, e.g. "Gemma 4". Holds the shared metadata.
   struct Family: Decodable {
+    /// The model's full name, variant included ("Gemma 4", "GLM 5.3 Flash",
+    /// "Ministral 3 Reasoning") -- the catalog makes each variant line its own
+    /// family. Rows of this family's repos are titled with it (see
+    /// `displayName(forRepo:)`). Optional so a family without one can't fail
+    /// decoding the whole catalog.
+    let name: String?
     let brand: String
     /// Whether the catalog flags this family for in-app highlighting. Absent → false.
     let featured: Bool?
@@ -138,11 +140,12 @@ enum Catalog {
 
   // MARK: - Display names
   //
-  // The catalog's curated size names ("Gemma 4 E4B", "GPT-OSS 20B") read
-  // better than repo names, whose casing is each vendor's own (`gpt-oss-20b`,
-  // `Qwen3.6-27B`, `gemma-4-31B`). So any model whose repo the catalog lists
-  // -- installed or suggested, whichever org's build -- is titled with its
-  // size's name; everything else keeps the name parsed from its id.
+  // The catalog's family names ("Gemma 4", "GPT-OSS") read better than repo
+  // names, whose casing is each vendor's own (`gpt-oss-20b`, `Qwen3.6-27B`,
+  // `gemma-4-31B`). So any model whose repo the catalog lists -- installed or
+  // suggested, whichever org's build -- is titled with its family's name;
+  // everything else keeps the name parsed from its id. Only the name: the
+  // size and quant chips still come from the id.
   //
   // Kept in memory only: until the catalog loads (or when it can't be
   // fetched), rows fall back to the parsed id. Read from wherever rows are
@@ -153,7 +156,7 @@ enum Catalog {
   /// are case-insensitive, while a deeplink can carry any casing.
   nonisolated(unsafe) private static var displayNames: [String: String] = [:]
 
-  /// The catalog's name for the size a repo (`{org}/{repo}`) belongs to, or
+  /// The catalog's name for the family a repo (`{org}/{repo}`) belongs to, or
   /// nil when the catalog doesn't list it (or hasn't loaded).
   static func displayName(forRepo repo: String) -> String? {
     displayNamesLock.lock()
@@ -163,10 +166,11 @@ enum Catalog {
 
   private static func storeDisplayNames(from families: [Family]) {
     var names = [String: String]()
-    for size in families.flatMap(\.sizes) {
-      for build in size.builds {
-        // A repo listed under two sizes keeps the first -- catalog order.
-        if let name = size.name, names[build.repo.lowercased()] == nil {
+    for family in families {
+      guard let name = family.name else { continue }
+      for build in family.sizes.flatMap(\.builds) {
+        // A repo listed under two families keeps the first -- catalog order.
+        if names[build.repo.lowercased()] == nil {
           names[build.repo.lowercased()] = name
         }
       }

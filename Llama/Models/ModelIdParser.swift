@@ -5,11 +5,11 @@ import Foundation
 /// (`tools/ui` `parseModelId`) so a model looks the same in our menu and in
 /// the WebUI's picker. The id itself is never touched.
 ///
-/// One exception to the pure parse: repos the catalog lists take its curated
+/// One exception to the pure parse: repos the catalog lists take its family
 /// name ("Gemma 4", not "gemma-4" -- see `Catalog.displayName(forRepo:)`),
 /// since repo casing is each vendor's own and reads inconsistently side by
-/// side. Org, quant and the params chip still match the id, and the raw id
-/// stays in the row tooltip.
+/// side. Org and chips still come from the id, and the raw id stays in the
+/// row tooltip.
 ///
 /// Simplified relative to upstream: our ids are always the clean
 /// `{org}/{repo}:{TAG}` shape `Model.makeId` builds, so the file-path,
@@ -147,38 +147,14 @@ enum ModelIdParser {
       }
     }
 
-    // Repos the catalog lists take its curated name instead ("Gemma 4"
-    // rather than "gemma-4"), with the params chip lifted out of that name
-    // so it still renders as a chip. Org, quant and tags stay the id's: the
-    // org and quant are identity the catalog name doesn't carry, and the
-    // tags remain the disambiguator when two rows would otherwise collide.
+    // Repos the catalog lists take its family name instead ("Gemma 4" rather
+    // than "gemma-4"). Only the name: org, params, quant and tags stay the
+    // id's, so the chips are the same either way and the tags remain the
+    // disambiguator when two rows would otherwise collide.
     if let curated = Catalog.displayName(forRepo: org.map { "\($0)/\(rest)" } ?? rest) {
-      let split = splitParams(curated)
-      name = split.name
-      params = split.params ?? params
+      name = curated
     }
 
     return Parsed(org: org, name: name, params: params, quant: quant, tags: tags)
-  }
-
-  /// Splits a catalog name into its name and params parts: "Gemma 4 E4B" →
-  /// ("Gemma 4", "E4B"), "Ministral 3 3B Reasoning" → ("Ministral 3
-  /// Reasoning", "3B"), "Qwen 3.6 35B-A3B" → ("Qwen 3.6", "35B-A3B"). The
-  /// params token is the first space-separated word shaped like a
-  /// params segment, optionally joined to an activated-params one, the same
-  /// shapes the id parse recognizes. Nil params when the name has none
-  /// ("GLM 4.7 Flash") -- the caller then keeps the id's.
-  private static func splitParams(_ curated: String) -> (name: String, params: String?) {
-    var words = curated.split(separator: " ").map(String.init)
-    let paramsIdx = words.firstIndex { word in
-      let parts = word.split(separator: "-")
-      guard let first = parts.first, first.wholeMatch(of: paramsRe) != nil else { return false }
-      return parts.count == 1 || (parts.count == 2 && parts[1].wholeMatch(of: activatedParamsRe) != nil)
-    }
-    guard let paramsIdx else { return (curated, nil) }
-    let params = words.remove(at: paramsIdx).uppercased()
-    // A name that's only a params word ("4B") isn't a name -- keep it whole.
-    guard !words.isEmpty else { return (curated, nil) }
-    return (words.joined(separator: " "), params)
   }
 }
