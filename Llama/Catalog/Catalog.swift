@@ -129,7 +129,7 @@ enum Catalog {
       let (data, response) = try await URLSession.shared.data(for: request)
       guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
         logger.error("Catalog fetch returned non-2xx")
-        return []
+        return nil
       }
       return try JSONDecoder().decode([Family].self, from: data)
     } catch {
