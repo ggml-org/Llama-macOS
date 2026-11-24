@@ -34,7 +34,13 @@ final class NetworkExposureGuard {
     check()
   }
 
-  /// Withdraws a Tailscale bind whose address this Mac no longer holds.
+  /// Set while a Tailscale bind waits for its address to come up, so the
+  /// server -- which fell back to loopback meanwhile -- can be restarted on it
+  /// once it does.
+  private var waitingForTailscale = false
+
+  /// Withdraws a Tailscale bind once this Mac holds a different Tailscale
+  /// address, and rebinds when the stored one comes back.
   ///
   /// The stored address goes stale when the tailnet changes -- switching
   /// between a work and a personal account is enough. It's tempting to just
@@ -45,25 +51,47 @@ final class NetworkExposureGuard {
   /// changing wifi breaks, so it gets the same answer -- turn it off, say so,
   /// and let re-enabling be a decision.
   ///
-  /// The server has already fallen back to loopback by itself
-  /// (`effectiveBindAddress`); this is what stops the setting from going on
-  /// claiming otherwise.
-  private func withdrawStaleTailscaleBind() {
+  /// Holding *no* Tailscale address is different: it's what the Mac looks like
+  /// at login before Tailscale connects, after wake, or while Tailscale
+  /// restarts or is signed out. Nothing points at another tailnet, so the
+  /// setting stays; the server sits on loopback meanwhile
+  /// (`effectiveBindAddress`) and is restarted on the stored address once
+  /// Tailscale brings it back -- otherwise every reboot would quietly take a
+  /// Mac that serves the tailnet offline.
+  private func checkTailscaleBind() {
     guard case .tailscale = UserSettings.networkAccess,
-      let stored = UserSettings.networkBindAddress,
-      !TailscaleInterface.isCurrentAddress(stored)
-    else { return }
+      let stored = UserSettings.networkBindAddress
+    else {
+      waitingForTailscale = false
+      return
+    }
 
-    logger.notice("stored Tailscale address is no longer held -- turning network access off")
-    UserSettings.setNetworkAccess(.off)
-    NotificationCenter.default.post(
-      name: .LBShowMenuHint, object: nil,
-      userInfo: ["message": "Network access turned off — Tailscale changed"])
+    switch TailscaleInterface.address() {
+    case nil:
+      if !waitingForTailscale {
+        logger.notice("no Tailscale address yet -- serving on loopback until it's back")
+      }
+      waitingForTailscale = true
+
+    case stored:
+      guard waitingForTailscale else { return }
+      waitingForTailscale = false
+      logger.notice("Tailscale address is back -- restarting the server on it")
+      LlamaServer.shared.reload()
+
+    default:
+      waitingForTailscale = false
+      logger.notice("Tailscale holds a different address -- turning network access off")
+      UserSettings.setNetworkAccess(.off)
+      NotificationCenter.default.post(
+        name: .LBShowMenuHint, object: nil,
+        userInfo: ["message": "Network access turned off — Tailscale changed"])
+    }
   }
 
   /// Turns exposure off if the current network isn't the one it was granted on.
   private func check() {
-    withdrawStaleTailscaleBind()
+    checkTailscaleBind()
 
     // Only `.localNetwork` is scoped to a place. A Tailscale (or other
     // hand-set) bind follows an interface, not a network: it's reachable over

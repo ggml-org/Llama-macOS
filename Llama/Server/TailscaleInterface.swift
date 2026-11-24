@@ -41,10 +41,4 @@ enum TailscaleInterface {
       .sorted()  // stable when more than one utun qualifies
       .first
   }
-
-  /// Whether `address` is the one this Mac holds right now. False for a
-  /// stored address that has gone stale -- signed out, or a different tailnet.
-  static func isCurrentAddress(_ address: String) -> Bool {
-    self.address() == address
-  }
 }

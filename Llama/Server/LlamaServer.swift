@@ -79,7 +79,10 @@ class LlamaServer {
     guard let configured = UserSettings.networkBindAddress else { return nil }
     guard configured != "0.0.0.0" else { return configured }
     guard LocalNetwork.ipv4Addresses().values.contains(configured) else {
-      logger.notice("configured bind address is not on any interface -- using loopback")
+      // Debug level: it runs on every server URL lookup, so it repeats about
+      // once a second while a Tailscale bind waits for its address
+      // (`NetworkExposureGuard`), which logs the wait once itself.
+      logger.debug("configured bind address is not on any interface -- using loopback")
       return nil
     }
     return configured
