@@ -42,6 +42,13 @@ enum Catalog {
     let quant: String?
     let size: String?  // human label, e.g. "5.0 GB"
     let repo: String  // "{org}/{repo}"
+    /// The oldest llama.cpp build that can run this build, as a tag
+    /// (`"b12650"`) -- set when a model needs engine support newer than what
+    /// shipped app versions run (a new architecture, tokenizer, or quant
+    /// type). Lets the catalog list a model as soon as it's published: an app
+    /// whose engine is older hides the suggestion until its engine updates,
+    /// rather than offering a download that can't load. Absent → any engine.
+    let minEngine: String?
   }
 
   /// A parameter tier within a family, e.g. Gemma 4's "E4B".
@@ -95,6 +102,20 @@ enum Catalog {
     let hasVision: Bool  // catalog `vision` flag — shows the glasses marker
     let hasAudio: Bool  // catalog `audio` flag — shows the headphones marker
     let isGoodFirstModel: Bool  // catalog `goodFirstModel` flag — badged, listed first
+    /// The build's `minEngine`, parsed. Nil when the catalog sets none (or it
+    /// doesn't parse) -- runs on any engine. Checked when the menu renders,
+    /// not at fetch time, since the engine can update (or first resolve)
+    /// after the catalog has loaded.
+    let minEngine: LlamaVersion?
+
+    /// Whether this suggestion can run on `engine` (the resolved binary's
+    /// version). An unknown engine version only passes suggestions with no
+    /// requirement -- without a readable binary nothing runs anyway.
+    func runs(on engine: LlamaVersion?) -> Bool {
+      guard let minEngine else { return true }
+      guard let engine else { return false }
+      return engine >= minEngine
+    }
   }
 
   /// Fetches the catalog and returns one suggestion per fitting size of each
@@ -215,7 +236,8 @@ enum Catalog {
         repo: best.repo, quant: best.quant, sizeLabel: best.size,
         hasVision: size.vision == true,
         hasAudio: size.audio == true,
-        isGoodFirstModel: size.goodFirstModel == true)
+        isGoodFirstModel: size.goodFirstModel == true,
+        minEngine: best.minEngine.flatMap { LlamaVersion(parsing: $0) })
     }
   }
 

@@ -784,11 +784,15 @@ final class MenuController: NSObject, NSMenuDelegate {
   /// Featured suggestions minus anything already installed, downloading, or
   /// paused — matched quant-agnostically by running the suggestion's repo
   /// through the same id grammar (`Model.idBase`) the resolver and cache scan
-  /// use, so native (ggml-org) models' short ids compare correctly.
+  /// use, so native (ggml-org) models' short ids compare correctly. Also drops
+  /// suggestions that need a newer engine than the one in use (`minEngine`);
+  /// the menu rebuilds on every open, so they appear the next time it's
+  /// opened after the engine updates.
   private func visibleDiscoverSuggestions(managed: [Model]) -> [Catalog.Suggestion] {
     let managedIdBases = Set(managed.map(\.idBase))
+    let engine = LlamaInstallManager.shared.currentVersion
     return discoverSuggestions.filter {
-      !managedIdBases.contains(Model.idBase(orgSlashRepo: $0.repo))
+      !managedIdBases.contains(Model.idBase(orgSlashRepo: $0.repo)) && $0.runs(on: engine)
     }
   }
 
