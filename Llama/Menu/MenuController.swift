@@ -788,16 +788,26 @@ final class MenuController: NSObject, NSMenuDelegate {
   /// suggestions that need a newer engine than the one in use (`minEngine`);
   /// the menu rebuilds on every open, so they appear the next time it's
   /// opened after the engine updates.
+  ///
+  /// Capped at `maxDiscoverRows`, applied after the filtering so installing a
+  /// pick lets the next one in. The cap keeps the list to a handful of choices
+  /// on Macs where most featured families fit; which ones make it is the
+  /// catalog's order (after the good first model, which leads).
   private func visibleDiscoverSuggestions(managed: [Model]) -> [Catalog.Suggestion] {
     let managedIdBases = Set(managed.map(\.idBase))
     let engine = LlamaInstallManager.shared.currentVersion
-    return discoverSuggestions.filter {
+    let visible = discoverSuggestions.filter {
       !managedIdBases.contains(Model.idBase(orgSlashRepo: $0.repo)) && $0.runs(on: engine)
     }
+    return Array(visible.prefix(Self.maxDiscoverRows))
   }
 
-  /// Adds the "Discover" section: a short list of featured models — up to two
-  /// device-appropriate picks per family — that install with a single click.
+  /// Most rows the recommended section shows.
+  private static let maxDiscoverRows = 5
+
+  /// Adds the "Discover" section: a short list of featured models — one
+  /// device-appropriate pick per family, at most `maxDiscoverRows` — that
+  /// install with a single click.
   /// The whole section (divider + header + rows) is omitted when there's nothing
   /// to suggest; the standalone Browse models row below it covers that state.
   private func addDiscoverSection(to menu: NSMenu, suggestions: [Catalog.Suggestion]) {
@@ -807,7 +817,7 @@ final class MenuController: NSObject, NSMenuDelegate {
 
     // Self-describing header: a curated subset recommended for this Mac
     // ("recommended" signals it's not the full compatible set, and the per-Mac
-    // framing explains why a family can appear at two sizes).
+    // framing explains why a family's size differs from Mac to Mac).
     let header = SectionHeaderView(title: "Recommended for your Mac")
     menu.addItem(NSMenuItem.viewItem(with: header))
 

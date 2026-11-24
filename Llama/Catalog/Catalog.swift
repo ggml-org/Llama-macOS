@@ -6,12 +6,14 @@ import os.log
 /// Llama no longer ships a hard-coded catalog; curation lives on the web at
 /// `llama.app`, which also publishes a JSON endpoint the app can
 /// consume. We use it for a lightweight in-app "Discover" section — a handful of
-/// featured families, up to two device-appropriate picks each — so a fresh
-/// install can get a model running in a couple of clicks without first visiting
-/// the website.
+/// featured families, one device-appropriate pick each — so a fresh install can
+/// get a model running in a couple of clicks without first visiting the
+/// website.
 ///
-/// Each featured family shows every size this Mac can run, one row per size,
-/// each resolved to the highest-precision quant that fits. "Full precision" is
+/// Each featured family shows one row: the largest size this Mac can run,
+/// resolved to the highest-precision quant that fits. One row per family keeps
+/// the list to distinct choices -- several sizes of one family read as the same
+/// model listed again, and made the list long on Macs with lots of memory. "Full precision" is
 /// whatever the catalog lists as the size's top build — Q8 for 16-bit families,
 /// Q4 for QAT ones like Gemma 3 — and lower quants are strictly fallbacks. So a
 /// row's quant is never a choice we made: a below-top quant means the top one
@@ -63,6 +65,8 @@ enum Catalog {
     let maxMemGb: UInt64?
     /// Whether the catalog marks this size as the suggested starting point for
     /// newcomers. The row gets a "Good first model" badge and is listed first.
+    /// Only shown when it's the size picked for its family (the largest that
+    /// fits), so it belongs on a family's largest size or a one-size family.
     /// Absent → false.
     let goodFirstModel: Bool?
     let builds: [Build]
@@ -118,8 +122,8 @@ enum Catalog {
     }
   }
 
-  /// Fetches the catalog and returns one suggestion per fitting size of each
-  /// featured family (see `picks(for:)`), in catalog order. Returns an empty
+  /// Fetches the catalog and returns one suggestion per featured family that
+  /// has a size fitting this Mac (see `pick(for:)`), in catalog order. Returns an empty
   /// list on any failure — Discover simply doesn't appear, and the user can
   /// still install from the web catalog or via deeplink.
   static func fetchFeatured(systemMemoryMb: UInt64) async -> [Suggestion] {
@@ -135,7 +139,7 @@ enum Catalog {
       .filter { family in
         family.maxMemGb.map { systemMemoryMb <= $0 * 1024 } ?? true
       }
-      .flatMap { picks(for: $0, budgetMb: budgetMb, systemMemoryMb: systemMemoryMb) }
+      .compactMap { pick(for: $0, budgetMb: budgetMb, systemMemoryMb: systemMemoryMb) }
     // The good first model leads the list, wherever its family sits in the
     // catalog -- it's the one pick we want a newcomer to see first. The rest
     // keep catalog order.
@@ -203,10 +207,15 @@ enum Catalog {
 
   // MARK: - Selection
 
-  /// Picks the builds to suggest for a family: one per size that fits this
-  /// Mac's memory budget, in catalog order.
+  /// Picks the build to suggest for a family: its largest size that fits this
+  /// Mac's memory budget -- the last fitting one in catalog order, since the
+  /// catalog lists sizes smallest first. Nil when no size fits.
   ///
-  /// Each size resolves to its highest-precision fitting quant — the largest
+  /// "Largest" is by parameters, not speed: in a family with a dense size
+  /// above a mixture-of-experts one (Gemma 4's 31B over 26B-A4B), the slower
+  /// dense size wins. Accepted while that's the only such featured family.
+  ///
+  /// The size resolves to its highest-precision fitting quant — the largest
   /// build within budget — so full precision (whatever the size's top listed
   /// build is) wins whenever it fits and lower quants are strictly fallbacks.
   /// Quant selection is thus mechanical, not curatorial: a below-top quant
@@ -214,8 +223,8 @@ enum Catalog {
   /// are dropped rather than shown as uninstallable rows; a family where
   /// nothing fits contributes no rows. If the whole featured set is too big,
   /// the section is empty and the menu falls back to the "Browse models" link.
-  private static func picks(for family: Family, budgetMb: Double, systemMemoryMb: UInt64)
-    -> [Suggestion]
+  private static func pick(for family: Family, budgetMb: Double, systemMemoryMb: UInt64)
+    -> Suggestion?
   {
     family.sizes.compactMap { size -> Suggestion? in
       // Honor the catalog's per-size memory cap, like the family-level one:
@@ -238,7 +247,7 @@ enum Catalog {
         hasAudio: size.audio == true,
         isGoodFirstModel: size.goodFirstModel == true,
         minEngine: best.minEngine.flatMap { LlamaVersion(parsing: $0) })
-    }
+    }.last
   }
 
   /// Parses catalog size strings like "5.0 GB", "806 MB", "12.1 GB" into bytes.
