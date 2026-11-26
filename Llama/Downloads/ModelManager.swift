@@ -905,8 +905,12 @@ class ModelManager: NSObject, URLSessionDataDelegate {
           model: model, bytesOnDisk: bytes, resumeOnReconnect: resumeOnReconnect)
       } else {
         // Failure path already wiped the partials (e.g. 404, hash mismatch) — nothing
-        // to resume, so don't leave a ghost entry in pausedDownloads.
+        // to resume, so don't leave a ghost entry in pausedDownloads. Remove the
+        // partial dir too: the hash-mismatch path deletes only the failed file, and
+        // the placeholder left beside it would bring the row back, at 0 bytes, on
+        // the next cache scan.
         pausedDownloads.removeValue(forKey: modelId)
+        HFCache.removePartials(cacheDir: UserSettings.hfCacheDirectory, modelId: modelId)
       }
     }
 
