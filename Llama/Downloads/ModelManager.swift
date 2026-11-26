@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import Network
 import Sentry
@@ -59,12 +58,12 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// an interrupted download reappears as a paused row rather than vanishing.
   var pausedDownloads: [String: PausedDownload] = [:]
 
-  /// Per-task streaming state for in-flight downloads, keyed by
-  /// `URLSessionTask.taskIdentifier`. Accessed from both the URLSession delegate
-  /// queue (nonisolated) and the main actor; the table serializes all access.
+  /// In-flight segment requests and the writers they stream into. Accessed from
+  /// both the URLSession delegate queue (nonisolated) and the main actor; the
+  /// table serializes all access.
   nonisolated let writerTable = WriterTable()
 
-  // Retry policy. The per-URL attempt counters live on each `ActiveDownload`
+  // Retry policy. The per-segment attempt counters live on each `ActiveDownload`
   // entry, so they're dropped automatically with the entry on teardown.
   let maxRetryAttempts = 3
   let baseRetryDelay: TimeInterval = 2.0  // Doubles each attempt: 2s, 4s, 8s
@@ -81,7 +80,12 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// wrongly treated as offline.
   var isNetworkAvailable = true
 
-  private var urlSession: URLSession!
+  /// One session per segment slot: segment `i` of every file goes through
+  /// `sessions[i % count]`. Within a session, URLSession multiplexes every
+  /// request to a host over one HTTP/2 connection, and one connection is the
+  /// bottleneck -- measured on a GitHub macOS runner, 8 ranges in one session
+  /// ran no faster than 1 (~50 MB/s), while 8 sessions reached ~370 MB/s.
+  private var sessions: [URLSession] = []
   let logger = Logger(subsystem: Logging.subsystem, category: "ModelManager")
 
   /// Minimum interval between progress notifications, to prevent excessive UI
@@ -96,14 +100,21 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // it needs (model, cache dir, plan) — so they never hop back to the main actor synchronously;
     // they only fire-and-forget `DispatchQueue.main.async` for UI/state updates. Shared writer
     // state lives in `writerTable`, which serializes access on its own queue.
+    //
+    // Serial, as URLSession asks of a delegate queue: a task's callbacks then
+    // arrive in order, which segment writes rely on -- each chunk lands at the
+    // offset its predecessors advanced to. All the pool's sessions share it.
     let queue = OperationQueue()
     queue.qualityOfService = .userInitiated
+    queue.maxConcurrentOperationCount = 1
 
     let config = URLSessionConfiguration.default
     config.timeoutIntervalForRequest = 120  // Temporary network stalls
     config.timeoutIntervalForResource = 60 * 60 * 24  // 24 hours for large files
 
-    urlSession = URLSession(configuration: config, delegate: self, delegateQueue: queue)
+    sessions = (0..<PartialState.maxSegments).map { _ in
+      URLSession(configuration: config, delegate: self, delegateQueue: queue)
+    }
 
     // Watch the network path so connectivity-paused downloads can auto-resume when
     // the path is restored (e.g. after wake-from-sleep, once wifi reassociates).
@@ -183,12 +194,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let totalUnitCount = max(remainingBytesRequired(for: model), 1)
     let progress = Progress(totalUnitCount: totalUnitCount)
     progress.completedUnitCount = min(resumedBytes, totalUnitCount)
-    activeDownloads[modelId] = ActiveDownload(
-      model: model,
-      progress: progress,
-      tasks: [:],
-      completedFilesBytes: 0
-    )
+    activeDownloads[modelId] = ActiveDownload(model: model, progress: progress)
     postDownloadsDidChange()
 
     // Fetch HF metadata before starting download tasks.
@@ -242,9 +248,10 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
   }
 
-  /// Starts URLSession data tasks for the given files.
-  /// Each file streams into a `.partial` file under `<hf-cache>/.llama-partial/<modelId>/`;
-  /// if a partial already exists on disk, we resume via a `Range` header.
+  /// Starts the downloads of the given files.
+  /// Each file streams into a `.partial` file under `<hf-cache>/.llama-partial/<modelId>/`,
+  /// split into segments fetched in parallel by range requests; segments with
+  /// bytes on disk from an earlier attempt resume where they left off.
   private func startDownloadTasks(model: Model, files: [URL]) {
     let modelId = model.id
     // Reuse the placeholder entry `downloadModel` registered — it already carries
@@ -257,10 +264,9 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     }
     let cacheDir = UserSettings.hfCacheDirectory
 
-    // Open every `.partial` writer off the main actor (each re-hashes its on-disk
-    // prefix — potentially many GB on a resume), then hop back here to register
-    // the tasks and start them. The `Task` inherits the main actor, so the body
-    // resumes on it after each `await`.
+    // Open every `.partial` writer off the main actor (file I/O), then hop back
+    // here to register them and start their segments. The `Task` inherits the
+    // main actor, so the body resumes on it after each `await`.
     Task {
       var writers: [PartialWriter] = []
       do {
@@ -269,7 +275,7 @@ class ModelManager: NSObject, URLSessionDataDelegate {
             try await openPartialWriter(model: model, cacheDir: cacheDir, url: fileUrl, plan: plan))
         }
       } catch {
-        // Couldn't open/rehash one of the partials — abort the whole model
+        // Couldn't open one of the partials — abort the whole model
         // download and close any handles we did open so we don't leak them.
         for writer in writers { writer.closeHandle() }
         failDownload(
@@ -278,50 +284,68 @@ class ModelManager: NSObject, URLSessionDataDelegate {
         return
       }
 
-      // Register and start each task. `startWriterTask` skips (and closes) any
-      // writer whose download was cancelled/paused while we were hashing.
-      for writer in writers { startWriterTask(writer, modelId: modelId) }
+      // Cancelled or paused while the files were being opened.
+      guard activeDownloads[modelId] != nil else {
+        for writer in writers { writer.closeHandle() }
+        return
+      }
+      // Register every writer before starting any: a file that's already
+      // complete goes straight to verification, and the download counts as
+      // done when the last registered writer is promoted.
+      for writer in writers { activeDownloads[modelId]?.writers[writer.url] = writer }
+      for writer in writers { startSegments(of: writer) }
       refreshProgress(modelId: modelId)
       postDownloadsDidChange()
     }
   }
 
-  /// Registers an opened writer's data task with the transfer machinery and starts it.
-  /// No-op (closing the writer's handle) if the download was cancelled while the writer
-  /// was being opened off the main actor. Main-actor only.
-  func startWriterTask(_ writer: PartialWriter, modelId: String) {
-    guard activeDownloads[modelId] != nil else {
-      writer.closeHandle()
+  /// Starts a request for each of the file's unfinished segments -- or, for a
+  /// resumed file that has all its bytes already, goes straight to verification.
+  private func startSegments(of writer: PartialWriter) {
+    let pending = writerTable.sync { _ in
+      writer.state.segments.indices.filter { !writer.state.segments[$0].isDone }
+    }
+    if pending.isEmpty {
+      finalizeIfComplete(writer)
+    } else {
+      for index in pending { startSegment(index, of: writer) }
+    }
+  }
+
+  /// Registers a range request for one segment with the transfer machinery and
+  /// starts it. No-op if the download was cancelled or paused in the meantime
+  /// (e.g. while a retry waited out its backoff). Main-actor only.
+  func startSegment(_ index: Int, of writer: PartialWriter) {
+    let modelId = writer.modelId
+    guard activeDownloads[modelId]?.writers[writer.url] === writer else { return }
+
+    let segment = writerTable.sync { _ in writer.state.segments[index] }
+    // A retry of a segment whose bytes all arrived before its connection
+    // dropped: nothing to fetch, but it may have been the file's last.
+    guard !segment.isDone else {
+      finalizeIfComplete(writer)
       return
     }
-    let task = makeDataTask(for: writer.url, modelId: modelId, writer: writer)
-    writerTable.sync { $0[task.taskIdentifier] = writer }
-    _ = updateActiveDownload(modelId: modelId) { $0.addTask(task) }
+
+    // Sync, so it can't refresh: every path here first awaits `HFAuth.token()`
+    // (the plan fetch, `restartSegment`), which leaves the stored token fresh.
+    var request = HFRequest.make(writer.url, token: HFAuth.currentToken)
+    request.setValue("bytes=\(segment.offset)-\(segment.end - 1)", forHTTPHeaderField: "Range")
+    if segment.written > 0 {
+      logger.info(
+        "Resuming \(writer.filename) segment \(index) from byte \(segment.offset)")
+    }
+    let task = sessions[index % sessions.count].dataTask(with: request)
+    task.taskDescription = modelId
+    writerTable.sync {
+      $0[ObjectIdentifier(task)] = SegmentTask(task: task, writer: writer, index: index)
+    }
+    activeDownloads[modelId]?.addTask(task)
     task.resume()
   }
 
-  /// Builds a URLSessionDataTask for a remote file. Adds a `Range: bytes=N-` header when
-  /// the writer's on-disk `.partial` already has N bytes.
-  func makeDataTask(
-    for url: URL, modelId: String, writer: PartialWriter
-  ) -> URLSessionDataTask {
-    // Sync, so it can't refresh: every path here first awaits `HFAuth.token()`
-    // (the plan fetch, `restartTask`), which leaves the stored token fresh.
-    var request = HFRequest.make(url, token: HFAuth.currentToken)
-    if writer.bytesWritten > 0 {
-      request.setValue("bytes=\(writer.bytesWritten)-", forHTTPHeaderField: "Range")
-      logger.info(
-        "Resuming \(url.lastPathComponent) from byte \(writer.bytesWritten)")
-    }
-    let task = urlSession.dataTask(with: request)
-    task.taskDescription = modelId
-    return task
-  }
-
-  /// Opens (or creates) the `.partial` file for a remote URL and rebuilds the running SHA256
-  /// hash over any already-present prefix. `nonisolated async` so the re-hash runs off the
-  /// main actor: on a resumed download the existing prefix can be many GB, and hashing it
-  /// synchronously on the main actor freezes the UI (spinning-wait cursor) until it finishes.
+  /// Opens (or creates) the `.partial` file for a remote URL along with its
+  /// segment state. `nonisolated async` so the file I/O runs off the main actor.
   nonisolated func openPartialWriter(
     model: Model, cacheDir: URL, url: URL, plan: HFDownloadPlan
   ) async throws -> PartialWriter {
@@ -335,34 +359,44 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     let dir = partialURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-    // Stat existing partial (0 if absent). Create empty file if missing so FileHandle(forWritingTo:) works.
-    let existing: Int64
-    if FileManager.default.fileExists(atPath: partialURL.path) {
-      existing = FileManager.default.fileSize(atPath: partialURL.path)
+    // The plan fetch fails without every file's size, so this always passes.
+    guard let size = plan.fileSizes[url] else { throw URLError(.cannotParseResponse) }
+
+    let fm = FileManager.default
+    let exists = fm.fileExists(atPath: partialURL.path)
+    let saved = exists ? PartialState.load(for: partialURL) : nil
+    let state: PartialState
+    if let saved, saved.size == size {
+      state = saved
     } else {
-      FileManager.default.createFile(atPath: partialURL.path, contents: nil)
-      existing = 0
+      // No state to resume from. A `.partial` without saved state was written
+      // front to back by an earlier app version, so its bytes are the file's
+      // first ones -- keep them. Anything else starts over: no `.partial`, one
+      // larger than the file, or saved state for another size (the file
+      // changed upstream since).
+      let legacy = exists && saved == nil ? fm.fileSize(atPath: partialURL.path) : 0
+      let prefix = legacy <= size ? legacy : 0
+      if prefix == 0 {
+        fm.createFile(atPath: partialURL.path, contents: nil)  // creates or truncates
+      }
+      state = PartialState(size: size, prefix: prefix)
     }
+    // Saved before the first byte is written, so a `.partial` without saved
+    // state can only be an earlier app version's -- the case above relies on it.
+    try state.save(for: partialURL)
 
     let handle = try FileHandle(forWritingTo: partialURL)
-    try handle.seekToEnd()
-
-    var hasher = SHA256()
-    if existing > 0 {
-      try HFCache.feedHasher(&hasher, from: partialURL)
-    }
 
     return PartialWriter(
       model: model, cacheDir: cacheDir, plan: plan,
-      url: url, filename: filename,
-      partialURL: partialURL, handle: handle, hasher: hasher,
-      bytesWritten: existing,
+      url: url, filename: filename, partialURL: partialURL,
+      handle: handle, state: state,
       expectedBlobHash: plan.blobHashes[url]
     )
   }
 
-  /// Fetches HF file metadata (commit hash, blob hashes) for a model via HEAD requests.
-  /// Each HEAD request returns both X-Repo-Commit and X-Linked-Etag, so one request
+  /// Fetches HF file metadata (commit hash, blob hashes, sizes) for a model via HEAD requests.
+  /// Each HEAD request returns X-Repo-Commit, X-Linked-Etag and X-Linked-Size, so one request
   /// per file gives us everything we need. Returns nil on failure (caller aborts download),
   /// or throws `HFCache.GatedRepoError` when the repo is gated and we lack access.
   private nonisolated func fetchHFDownloadPlan(for model: Model) async throws -> HFDownloadPlan? {
@@ -381,7 +415,14 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     // Collect blob hashes (some may be nil if header was missing)
     let blobHashes = allMetadata.compactMapValues(\.blobHash)
 
-    return HFDownloadPlan(repoDir: repoDir, commit: commit, blobHashes: blobHashes)
+    // Sizes, though, are required: a file is split into segments by its size.
+    // A file missing one had its HEAD fail (HF sends X-Linked-Size for every
+    // file), so the download fails as for any metadata the HEADs didn't get.
+    let fileSizes = allMetadata.compactMapValues(\.size)
+    guard model.allDownloadUrls.allSatisfy({ fileSizes[$0] != nil }) else { return nil }
+
+    return HFDownloadPlan(
+      repoDir: repoDir, commit: commit, blobHashes: blobHashes, fileSizes: fileSizes)
   }
 
   /// Gets the current status of a model.
@@ -396,6 +437,12 @@ class ModelManager: NSObject, URLSessionDataDelegate {
       return .paused(bytesOnDisk: paused.bytesOnDisk, totalBytes: model.fileSize)
     }
     return .available
+  }
+
+  /// Whether an in-flight download has all its bytes and is verifying them
+  /// (see `ActiveDownload.isVerifying`).
+  func isVerifying(_ model: Model) -> Bool {
+    activeDownloads[model.id]?.isVerifying ?? false
   }
 
   /// Current transfer rate for an in-flight download, in bytes/sec.
@@ -799,34 +846,23 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   /// Does NOT delete partial files — that's a separate decision (user cancel vs. failure).
   private func cancelTasks(for modelId: String) {
     guard let download = activeDownloads[modelId] else { return }
-    let taskIds = Array(download.tasks.keys)
     for task in download.tasks.values {
       task.cancel()
     }
-    // Drop writers and close their handles synchronously so the partial files aren't held open.
-    writerTable.sync { writers in
-      for id in taskIds {
-        writers.removeValue(forKey: id)?.closeHandle()
+    writerTable.sync { entries in
+      for key in download.tasks.keys {
+        entries.removeValue(forKey: key)
       }
-    }
-  }
-
-  /// Updates an active download by applying a modification and removing it if empty.
-  /// Returns true if the download was removed (completed or cancelled), false if still in progress.
-  func updateActiveDownload(
-    modelId: String,
-    modify: (inout ActiveDownload) -> Void
-  ) -> Bool {
-    guard var aggregate = activeDownloads[modelId] else { return false }
-
-    modify(&aggregate)
-
-    if aggregate.isEmpty {
-      activeDownloads.removeValue(forKey: modelId)
-      return true
-    } else {
-      activeDownloads[modelId] = aggregate
-      return false
+      // Save each file's state as it stands, so a resume picks up from here
+      // rather than from the last periodic save, and close its handle
+      // synchronously so the partial file isn't held open. A file being
+      // verified was saved and closed when verification began -- and when it
+      // failed verification, its bytes and state are gone, and saving would
+      // bring the state back.
+      for writer in download.writers.values where !writer.isFinalizing {
+        writer.saveState()
+        writer.closeHandle()
+      }
     }
   }
 
@@ -895,23 +931,16 @@ class ModelManager: NSObject, URLSessionDataDelegate {
     )
   }
 
-  /// Recomputes the aggregate progress for a model from its per-task writer state.
+  /// Recomputes the aggregate progress for a model from its per-file writer state.
   /// Safe to call from the main actor at any time.
   func refreshProgress(modelId: String) {
     guard var download = activeDownloads[modelId] else { return }
-    let taskIds = Array(download.tasks.keys)
-    let (active, expected) = writerTable.sync { writers -> (Int64, Int64) in
-      var a: Int64 = 0
-      var e: Int64 = 0
-      for id in taskIds {
-        if let w = writers[id] {
-          a += w.bytesWritten
-          e += w.totalExpected > 0 ? w.totalExpected : w.bytesWritten
-        }
-      }
-      return (a, e)
+    let writers = Array(download.writers.values)
+    let (done, size) = writerTable.sync { _ -> (Int64, Int64) in
+      writers.reduce((0, 0)) { ($0.0 + $1.state.bytesDone, $0.1 + $1.state.size) }
     }
-    download.refreshProgress(activeBytes: active, expectedActiveBytes: expected)
+    download.isVerifying = !writers.isEmpty && done == size
+    download.refreshProgress(activeBytes: done, expectedActiveBytes: size)
     activeDownloads[modelId] = download
   }
 

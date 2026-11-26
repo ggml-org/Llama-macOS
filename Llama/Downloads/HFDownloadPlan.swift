@@ -11,4 +11,8 @@ struct HFDownloadPlan {
   /// URLs whose hash couldn't be obtained from the API are absent —
   /// their hash must be computed after download.
   var blobHashes: [URL: String]
+  /// Maps each remote download URL to its size in bytes -- needed up front to
+  /// split the file into segments. Every file of the model has one (the plan
+  /// fetch fails otherwise).
+  var fileSizes: [URL: Int64]
 }

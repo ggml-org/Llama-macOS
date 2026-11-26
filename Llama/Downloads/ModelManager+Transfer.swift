@@ -4,13 +4,14 @@ import Sentry
 import os.log
 
 /// The transfer engine behind `ModelManager.downloadModel`: URLSession delegate
-/// callbacks that stream bytes into `.partial` files, finalization (hash
-/// verification + promotion into the HF cache), failure reporting, and retry
-/// with exponential backoff.
+/// callbacks that stream each file's segments into its `.partial`, finalization
+/// (hash verification + promotion into the HF cache), failure reporting, and
+/// retry with exponential backoff.
 ///
-/// The delegate methods are nonisolated — they run on the session's background
-/// queue and only hop to the main actor via fire-and-forget dispatch. Each
-/// task's `PartialWriter` carries the context they need (model, cache dir,
+/// The delegate methods are nonisolated — they run on the sessions' shared
+/// background queue and only hop to the main actor via fire-and-forget
+/// dispatch. Each request's `SegmentTask` entry leads to its file's
+/// `PartialWriter`, which carries the context they need (model, cache dir,
 /// plan), so they never reach back into main-actor state synchronously.
 extension ModelManager {
   // MARK: - URLSessionDataDelegate
@@ -21,100 +22,75 @@ extension ModelManager {
     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
   ) {
     // The writer carries everything we need (model, cache dir, plan), so the
-    // delegate never reaches back into the main actor. The writer is registered
-    // before the task is resumed, so it's always present by the first response.
-    let taskId = dataTask.taskIdentifier
-    guard let writer = writerTable.sync({ $0[taskId] }),
+    // delegate never reaches back into the main actor. The entry is registered
+    // before the task is resumed, so it's present by the first response unless
+    // a teardown already dropped it.
+    let key = ObjectIdentifier(dataTask)
+    guard let writer = writerTable.sync({ $0[key]?.writer }),
       let http = response as? HTTPURLResponse
     else {
       completionHandler(.cancel)
       return
     }
-    let modelId = writer.modelId
 
+    // Every request asks for a range, so 206 Partial Content is the one success.
     let status = http.statusCode
-
-    // 416 Range Not Satisfiable — partial is already at or past the remote's size.
-    // Short-circuit: cancel the transfer (no body needed) and finalize what's on disk.
-    if status == 416 {
-      writerTable.sync { $0[taskId] = nil }
-      completionHandler(.cancel)
-      logger.info("416 for \(writer.filename); partial appears complete, finalizing")
-      finalizeTask(writer: writer, dataTask: dataTask)
+    if status == 206 {
+      completionHandler(.allow)
       return
     }
 
-    // Non-success statuses: fail the download with a user-facing message.
-    if !(200...299).contains(status) {
-      let message = userMessage(forHTTPStatus: status)
+    writerTable.sync { $0[key] = nil }
+    completionHandler(.cancel)
+
+    let message: String
+    if status == 200 {
+      // The server ignored the Range header and is sending the whole file,
+      // which a segment can't take. HF's CDN honors ranges, so this would take
+      // something in between (a proxy) -- reported to Sentry with the HTTP
+      // errors below, so it shows up if it ever happens.
+      message = "Download failed: the server ignored a request for part of the file (HTTP 200)."
+    } else {
+      message = userMessage(forHTTPStatus: status)
       // 401/403/404 are permanent — remove partials so a later retry doesn't replay a bad state.
       if [401, 403, 404].contains(status) {
-        HFCache.removePartials(cacheDir: writer.cacheDir, modelId: modelId)
-      }
-      writerTable.sync { $0[taskId] = nil }
-      writer.closeHandle()
-
-      // Keep Sentry error-grouping stable across releases.
-      let nsErr = NSError(
-        domain: "Llama.ModelManager", code: status,
-        userInfo: [
-          NSLocalizedDescriptionKey: "Download failed with HTTP \(status)",
-          "modelId": modelId,
-          "url": dataTask.originalRequest?.url?.absoluteString ?? "unknown",
-        ])
-      SentrySDK.capture(error: nsErr)
-      completionHandler(.cancel)
-      handleDownloadFailure(model: writer.model, reason: message)
-      return
-    }
-
-    // 200 OK — server ignored our Range request (or we didn't send one).
-    // Restart the file: truncate, reset the running hash, reset byte counter.
-    // Both 200 and 206 yield a full-size; stash it for progress tracking.
-    let fullSize = extractFullSize(from: http)
-    writerTable.sync { _ in
-      if status == 200 {
-        if writer.bytesWritten > 0 {
-          logger.warning(
-            "Server ignored Range for \(writer.filename); restarting from byte 0")
-        }
-        try? writer.handle.truncate(atOffset: 0)
-        try? writer.handle.seek(toOffset: 0)
-        writer.bytesWritten = 0
-        writer.hasher = SHA256()
-      }
-      if fullSize > 0 {
-        writer.totalExpected = fullSize
+        HFCache.removePartials(cacheDir: writer.cacheDir, modelId: writer.modelId)
       }
     }
 
-    DispatchQueue.main.async { [weak self] in
-      self?.refreshProgress(modelId: modelId)
-    }
-    completionHandler(.allow)
+    // Keep Sentry error-grouping stable across releases.
+    let nsErr = NSError(
+      domain: "Llama.ModelManager", code: status,
+      userInfo: [
+        NSLocalizedDescriptionKey: "Download failed with HTTP \(status)",
+        "modelId": writer.modelId,
+        "url": dataTask.originalRequest?.url?.absoluteString ?? "unknown",
+      ])
+    handleDownloadFailure(model: writer.model, reason: message, error: nsErr)
   }
 
   nonisolated func urlSession(
     _ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data
   ) {
-    let taskId = dataTask.taskIdentifier
-    let writeFailed = writerTable.sync { writers -> Bool in
-      guard let writer = writers[taskId] else { return false }
+    let key = ObjectIdentifier(dataTask)
+    let failure = writerTable.sync { entries -> (writer: PartialWriter, error: Error)? in
+      guard let entry = entries[key] else { return nil }
       do {
-        try writer.handle.write(contentsOf: data)
-        writer.hasher.update(data: data)
-        writer.bytesWritten += Int64(data.count)
-        return false
+        try entry.writer.write(data, segment: entry.index)
+        return nil
       } catch {
-        logger.error(
-          "Write failed for \(writer.filename): \(error.localizedDescription)")
-        return true
+        entries[key] = nil
+        return (entry.writer, error)
       }
     }
-    if writeFailed {
-      // Cancel this task; didCompleteWithError will handle the failure path (including
-      // Sentry capture). Do not treat cancellation itself as success.
+    if let failure {
+      // Typically a full disk, which no segment gets past -- fail the download.
       dataTask.cancel()
+      logger.error(
+        "Write failed for \(failure.writer.filename): \(failure.error.localizedDescription)")
+      handleDownloadFailure(
+        model: failure.writer.model,
+        reason: "Couldn't save \(failure.writer.filename): \(failure.error.localizedDescription)")
       return
     }
 
@@ -134,107 +110,137 @@ extension ModelManager {
   nonisolated func urlSession(
     _ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?
   ) {
-    guard let dataTask = task as? URLSessionDataTask else { return }
-    let taskId = task.taskIdentifier
+    // Always drop the entry, so nothing more is written for this request. Its
+    // writer is our source of truth for reporting.
+    let key = ObjectIdentifier(task)
+    let finished = writerTable.sync { entries -> (entry: SegmentTask, segmentDone: Bool)? in
+      guard let entry = entries.removeValue(forKey: key) else { return nil }
+      return (entry, entry.writer.state.segments[entry.index].isDone)
+    }
 
-    // Always drop the writer so its file handle is closed before anything else
-    // touches the file. Its `model` is our source of truth for reporting.
-    let writer = writerTable.sync { $0.removeValue(forKey: taskId) }
+    // Cancelled: either a teardown or our own short-circuit (HTTP error or
+    // failed write, already handled). Either way there's nothing to do.
+    if let error, (error as NSError).code == NSURLErrorCancelled { return }
 
-    if let error {
-      let nsError = error as NSError
-      writer?.closeHandle()
+    // No entry means a terminal handler already ran for this task; nothing to report.
+    guard let (entry, segmentDone) = finished else { return }
+    let writer = entry.writer
+    let modelId = writer.modelId
 
-      // Cancelled: either user cancel or our own short-circuit (416 / HTTP error already handled).
-      // In both cases we've already done the cleanup or it doesn't apply.
-      if nsError.code == NSURLErrorCancelled {
-        return
-      }
+    DispatchQueue.main.async { [weak self] in
+      guard let self = self else { return }
 
-      // Capture remaining errors to Sentry; the SDK config in LlamaApp filters common noise.
-      SentrySDK.capture(error: error)
+      // Only while this file is still part of the live download. A sibling's
+      // failure may have torn the download down already (transient failures
+      // can park it, then cancel the others — those arrive here as
+      // NSURLErrorCancelled and returned early above, but guard anyway so a
+      // late straggler doesn't resurrect state), and a resume since would have
+      // its own writer for the file.
+      guard self.activeDownloads[modelId]?.writers[writer.url] === writer else { return }
 
-      // No writer means a terminal handler already ran for this task; nothing to report.
-      guard let writer else { return }
-      let modelId = writer.modelId
-      let model = writer.model
-      let originalURL = task.originalRequest?.url
+      // This request is over either way; a retry gets a task of its own.
+      self.activeDownloads[modelId]?.removeTask(key)
 
-      DispatchQueue.main.async { [weak self] in
-        guard let self = self else { return }
+      if let error {
+        // Captured here, behind the guard above, so a failure that hits every
+        // segment at once is reported once. The SDK config in LlamaApp
+        // filters common noise.
+        SentrySDK.capture(error: error)
         self.logger.error("Model download failed: \(error.localizedDescription)")
 
-        // A sibling task's failure may have already torn the whole download down
-        // (transient failures pause every file, then cancel the others — those
-        // arrive here as NSURLErrorCancelled and returned early above, but guard
-        // anyway so a late straggler doesn't resurrect state).
-        guard self.activeDownloads[modelId] != nil else { return }
-
-        // This task is dead: drop it from the aggregate so a retry's replacement
-        // task is the only one left to tick off. Without this the dead id sits in
-        // `tasks` forever, `isEmpty` never becomes true, and the download is never
-        // retired — the model shows a stuck downloading row beside its installed
-        // one, long after the bytes have landed.
-        //
-        // Mutating the entry directly rather than via `updateActiveDownload` is
-        // deliberate. This can leave `tasks` empty (single-file model, or the last
-        // survivor failing), and that helper reads empty as "all files finished":
-        // it would drop the whole entry and report completion, which strands the
-        // retry (`scheduleRetry` re-checks `activeDownloads` and would bail) and
-        // fires a bogus completion for a download still missing bytes. Retiring
-        // the entry stays the business of completion and teardown.
-        self.activeDownloads[modelId]?.removeTask(with: taskId)
-
         // Transient network errors (timeout, connection lost, offline) are
-        // resumable — the partial file is our resume state. Handle them inline
-        // (retry or park as a paused row) rather than popping a modal.
-        if let originalURL, self.isTransientNetworkError(nsError) {
-          self.handleTransientFailure(model: model, url: originalURL, modelId: modelId)
+        // resumable — the segment's bytes on disk are our resume state. Handle
+        // them inline (retry or park as a paused row) rather than popping a modal.
+        if self.isTransientNetworkError(error as NSError) {
+          self.handleTransientFailure(writer: writer, segment: entry.index)
           return
         }
 
         // Anything else (bad cert, unsupported URL, ...) is genuinely actionable:
         // drop to a paused row and surface the failure alert.
-        self.failDownload(model: model, reason: error.localizedDescription)
+        self.failDownload(model: writer.model, reason: error.localizedDescription)
+        return
       }
-      return
-    }
 
-    // Success: promote the `.partial` into the HF cache.
-    guard let writer else { return }  // already handled (e.g. 416 path)
-    finalizeTask(writer: writer, dataTask: dataTask)
+      // The response ended before the segment's last byte, without an error:
+      // fetch the rest, as after a dropped connection.
+      guard segmentDone else {
+        self.logger.warning("\(writer.filename) segment \(entry.index) ended early")
+        self.handleTransientFailure(writer: writer, segment: entry.index)
+        return
+      }
+      self.finalizeIfComplete(writer)
+    }
   }
 
-  /// Hashes, verifies, and promotes a completed `.partial` file into `blobs/<sha256>`.
-  /// Runs on the delegate queue (background). Never on the main queue — we do file I/O here.
-  nonisolated private func finalizeTask(
-    writer: PartialWriter, dataTask: URLSessionDataTask
-  ) {
-    writer.closeHandle()
+  // MARK: - Finalization
 
-    let model = writer.model
-    let cacheDir = writer.cacheDir
-    let plan = writer.plan
+  /// Verifies a file and promotes it into the HF cache once all its segments
+  /// are in and none is still running. Called whenever a segment finishes (or
+  /// turns out to have nothing left to fetch); only the call that finds the
+  /// file complete goes further, and only once.
+  func finalizeIfComplete(_ writer: PartialWriter) {
+    let claimed = writerTable.sync { entries -> Bool in
+      guard !writer.isFinalizing, writer.state.isComplete,
+        !entries.values.contains(where: { $0.writer === writer })
+      else { return false }
+      writer.isFinalizing = true
+      // Nothing writes to the file any more: record it as complete (a pause
+      // mid-verification then resumes straight into verification) and close it.
+      writer.saveState()
+      writer.closeHandle()
+      return true
+    }
+    guard claimed else { return }
+
+    // Show the file as complete (and the row as verifying, when it's the last
+    // one) -- its last bytes may have landed after the last throttled refresh.
+    refreshProgress(modelId: writer.modelId)
+    postDownloadsDidChange()
+
+    // Hash off the main actor -- seconds for a large file -- but promote back
+    // on it, where pause and cancel run, so neither can slip in between the
+    // check that the download still wants this file and the move into the cache.
+    let partialURL = writer.partialURL
+    Task.detached(priority: .userInitiated) { [weak self] in
+      let digest = Result { () throws -> String in
+        var hasher = SHA256()
+        try HFCache.feedHasher(&hasher, from: partialURL)
+        return HFCache.hex(hasher.finalize())
+      }
+      await self?.promote(writer, digest: digest)
+    }
+  }
+
+  /// Second half of `finalizeIfComplete`, back on the main actor: checks the
+  /// digest, moves the file into `blobs/<sha256>`, and completes the download
+  /// when it was the last file.
+  private func promote(_ writer: PartialWriter, digest: Result<String, Error>) {
     let modelId = writer.modelId
+    let model = writer.model
 
-    let fileSize = FileManager.default.fileSize(atPath: writer.partialURL.path)
+    // Paused or cancelled while hashing: the teardown dropped the writer, and
+    // the bytes either stay for a resume (which verifies them again) or went
+    // with the partials.
+    guard activeDownloads[modelId]?.writers[writer.url] === writer else { return }
 
-    // Sanity check: reject obviously broken downloads (error pages, empty files).
-    // We don't require an exact size match — expected sizes can drift when HF re-uploads.
-    let minThreshold: Int64 = 1_000_000
-    if fileSize <= minThreshold {
-      try? FileManager.default.removeItem(at: writer.partialURL)
-      handleDownloadFailure(model: model, reason: "file too small (\(fileSize) B)")
+    let computed: String
+    switch digest {
+    case .success(let hex):
+      computed = hex
+    case .failure(let error):
+      failDownload(
+        model: model,
+        reason: "Couldn't read \(writer.filename) to verify it: \(error.localizedDescription)")
       return
     }
-
-    // Digest from the running hasher (covers existing-prefix re-hash at open time, plus streamed bytes).
-    let computed = HFCache.hex(writer.hasher.finalize())
     if let expected = writer.expectedBlobHash, expected != computed {
       logger.error(
         "Hash mismatch for \(writer.filename): expected \(expected), got \(computed)")
+      // The bytes go, and their state with them, so a retry fetches the file afresh.
       try? FileManager.default.removeItem(at: writer.partialURL)
-      handleDownloadFailure(
+      try? FileManager.default.removeItem(at: PartialState.url(for: writer.partialURL))
+      failDownload(
         model: model,
         reason: "File verification failed — the partial download was corrupt. Try again."
       )
@@ -242,57 +248,62 @@ extension ModelManager {
     }
     let blobHash = writer.expectedBlobHash ?? computed
 
+    let cacheDir = writer.cacheDir
     do {
       try HFCache.writeBlobAndLink(
-        cacheDir: cacheDir, repoDir: plan.repoDir, commit: plan.commit,
+        cacheDir: cacheDir, repoDir: writer.plan.repoDir, commit: writer.plan.commit,
         blobHash: blobHash, filename: writer.filename,
         from: writer.partialURL)
     } catch {
       logger.error(
         "Failed to promote partial \(writer.filename): \(error.localizedDescription)")
-      handleDownloadFailure(model: model, reason: error.localizedDescription)
+      failDownload(model: model, reason: error.localizedDescription)
+      return
+    }
+    // The state goes with the bytes it described.
+    try? FileManager.default.removeItem(at: PartialState.url(for: writer.partialURL))
+
+    let fileSize = writerTable.sync { _ in writer.state.size }
+    activeDownloads[modelId]?.writers[writer.url] = nil
+    activeDownloads[modelId]?.completedFilesBytes += fileSize
+    guard activeDownloads[modelId]?.writers.isEmpty == true else {
+      refreshProgress(modelId: modelId)
+      postDownloadsDidChange()
       return
     }
 
-    DispatchQueue.main.async { [weak self] in
-      guard let self = self else { return }
-
-      let wasCompleted = self.updateActiveDownload(modelId: modelId) { agg in
-        // This file is done — drop its retry counter along with its task.
-        agg.retryAttempts.removeValue(forKey: writer.url)
-        agg.markTaskFinished(dataTask, fileSize: fileSize)
-      }
-      if wasCompleted {
-        self.logger.info("All downloads completed for model: \(model.displayName)")
-        // The plan rode along inside the ActiveDownload entry, which
-        // updateActiveDownload already removed once the last task finished.
-        // Clean up the now-empty partial dir (the file itself moved to blobs).
-        HFCache.removePartials(cacheDir: cacheDir, modelId: modelId)
-        // Optimistically mark the model installed before the async cache re-scan
-        // lands. Without this, the model is neither downloading nor installed for
-        // a beat, so its row hops back to the catalog list and then reappears.
-        // The scan below replaces `downloadedModels` wholesale with the
-        // authoritative on-disk entry, so no dedup is needed.
-        if !self.downloadedModels.contains(where: { $0.id == modelId }) {
-          self.downloadedModels.append(model)
-          self.downloadedModels.sort(by: Model.displayOrder(_:_:))
-        }
-        self.refreshDownloadedModels()
-        // Let the menu bar flag the finished download on its icon, in case the
-        // user walked away during a long download and isn't watching the menu.
-        NotificationCenter.default.post(name: .LBModelDownloadDidComplete, object: nil)
-      } else {
-        self.refreshProgress(modelId: modelId)
-      }
-      self.postDownloadsDidChange()
+    activeDownloads.removeValue(forKey: modelId)
+    logger.info("All downloads completed for model: \(model.displayName)")
+    // Clean up the now-empty partial dir (the files themselves moved to blobs).
+    HFCache.removePartials(cacheDir: cacheDir, modelId: modelId)
+    // Optimistically mark the model installed before the async cache re-scan
+    // lands. Without this, the model is neither downloading nor installed for
+    // a beat, so its row hops back to the catalog list and then reappears.
+    // The scan below replaces `downloadedModels` wholesale with the
+    // authoritative on-disk entry, so no dedup is needed.
+    if !downloadedModels.contains(where: { $0.id == modelId }) {
+      downloadedModels.append(model)
+      downloadedModels.sort(by: Model.displayOrder(_:_:))
     }
+    refreshDownloadedModels()
+    // Let the menu bar flag the finished download on its icon, in case the
+    // user walked away during a long download and isn't watching the menu.
+    NotificationCenter.default.post(name: .LBModelDownloadDidComplete, object: nil)
+    postDownloadsDidChange()
   }
 
   /// Delegate-queue entry point for failures: hops to the main actor and funnels
-  /// into `failDownload`, the single failure-reporting path.
-  nonisolated private func handleDownloadFailure(model: Model, reason: String) {
+  /// into `failDownload`, the single failure-reporting path. Only the first
+  /// failure of a download gets through -- a cause that hits every segment
+  /// (a 403, a full disk) would otherwise post an alert per segment -- and
+  /// `error`, if given, goes to Sentry behind the same guard.
+  nonisolated private func handleDownloadFailure(
+    model: Model, reason: String, error: Error? = nil
+  ) {
     DispatchQueue.main.async { [weak self] in
-      self?.failDownload(model: model, reason: reason)
+      guard let self, self.activeDownloads[model.id] != nil else { return }
+      if let error { SentrySDK.capture(error: error) }
+      self.failDownload(model: model, reason: reason)
     }
   }
 
@@ -319,28 +330,6 @@ extension ModelManager {
     }
   }
 
-  /// Extracts the full (not just remaining) size of the remote file from the response.
-  /// For 206 responses we parse `Content-Range: bytes X-Y/Z`; for 200 we fall back to `Content-Length`.
-  /// Returns 0 when neither header is present / parseable.
-  nonisolated private func extractFullSize(from response: HTTPURLResponse) -> Int64 {
-    if response.statusCode == 206,
-      let cr = response.value(forHTTPHeaderField: "Content-Range")
-    {
-      // Format: "bytes X-Y/Z" (Z may be "*" when total is unknown).
-      if let slash = cr.firstIndex(of: "/") {
-        let totalStr = cr[cr.index(after: slash)...]
-          .trimmingCharacters(in: .whitespaces)
-        if totalStr != "*", let total = Int64(totalStr) { return total }
-      }
-    }
-    if let lenStr = response.value(forHTTPHeaderField: "Content-Length"),
-      let len = Int64(lenStr)
-    {
-      return len
-    }
-    return 0
-  }
-
   // MARK: - Retry Logic
 
   /// URLSession error codes we treat as transient/resumable network failures, as
@@ -358,7 +347,7 @@ extension ModelManager {
     Self.transientNetworkErrorCodes.contains(error.code)
   }
 
-  /// Handles a transient network failure for one file within an active download.
+  /// Handles a transient network failure for one segment within an active download.
   /// The decision hinges on connectivity so a wake-from-sleep recovers cleanly:
   /// - path up + attempts left: genuine blip, so back off and retry (keeps the
   ///   download live), consuming an attempt.
@@ -366,10 +355,12 @@ extension ModelManager {
   ///   the whole model as a paused row and auto-resume when the path is restored.
   /// - attempts exhausted while online: the connection is genuinely troubled; park
   ///   as a paused row (no modal) the user can resume by hand, with a fresh budget.
-  func handleTransientFailure(model: Model, url: URL, modelId: String) {
-    let attempts = activeDownloads[modelId]?.retryAttempts[url] ?? 0
+  func handleTransientFailure(writer: PartialWriter, segment index: Int) {
+    let model = writer.model
+    let modelId = model.id
+    let attempts = activeDownloads[modelId]?.retryAttempts[SegmentKey(url: writer.url, index: index)] ?? 0
     if isNetworkAvailable && attempts < maxRetryAttempts {
-      scheduleRetry(url: url, modelId: modelId)
+      scheduleRetry(index, of: writer)
       return
     }
 
@@ -384,62 +375,43 @@ extension ModelManager {
       modelId: modelId, outcome: .pause(resumeOnReconnect: !isNetworkAvailable))
   }
 
-  /// Schedules a retry with exponential backoff. The partial file on disk is our resume state,
-  /// so all we need to do is re-open a writer and issue a fresh Range request.
-  private func scheduleRetry(url: URL, modelId: String) {
-    let attempts = activeDownloads[modelId]?.retryAttempts[url] ?? 0
-    activeDownloads[modelId]?.retryAttempts[url] = attempts + 1
+  /// Schedules a retry of one segment with exponential backoff. The writer is
+  /// still open and the segment's bytes on disk are its resume state, so all a
+  /// retry needs is a fresh range request.
+  private func scheduleRetry(_ index: Int, of writer: PartialWriter) {
+    let modelId = writer.modelId
+    let key = SegmentKey(url: writer.url, index: index)
+    let attempts = activeDownloads[modelId]?.retryAttempts[key] ?? 0
+    activeDownloads[modelId]?.retryAttempts[key] = attempts + 1
 
     // Exponential backoff: 2s, 4s, 8s
     let delay = baseRetryDelay * pow(2.0, Double(attempts))
 
     logger.info(
-      "Scheduling retry \(attempts + 1)/\(self.maxRetryAttempts) for \(url.lastPathComponent) in \(delay)s"
+      "Scheduling retry \(attempts + 1)/\(self.maxRetryAttempts) for \(writer.filename) segment \(index) in \(delay)s"
     )
 
     DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-      guard let self = self else { return }
-
-      // Verify download is still active (user may have cancelled) — if not,
-      // teardown removed the entry, retry counters and all.
-      guard let model = self.activeDownloads[modelId]?.model else { return }
-
-      self.logger.info("Retrying download for \(url.lastPathComponent)")
-      self.restartTask(model: model, url: url)
+      self?.restartSegment(index, of: writer)
     }
   }
 
-  /// Restarts a single URL within an active download (used by retries).
-  /// Re-opens the `.partial` writer and issues a fresh Range request.
-  /// If we can't re-open the partial file, fail the whole model download rather than
-  /// leave it hanging in `.downloading` with no forward progress.
-  private func restartTask(model: Model, url: URL) {
-    guard let plan = activeDownloads[model.id]?.plan else { return }
-    let cacheDir = UserSettings.hfCacheDirectory
-    // Re-open the writer off the main actor — like the initial start, this
-    // re-hashes the on-disk prefix and must not block the UI. The `Task`
-    // inherits the main actor, so we resume on it after the `await`.
+  /// Restarts one segment of an active download (used by retries). Goes
+  /// through the writer the failed request used, not a lookup by URL: if the
+  /// download was paused and resumed during the backoff, the resume started
+  /// this segment already, under a writer of its own, and `startSegment` skips
+  /// a writer that's no longer the live one -- rather than run the segment twice.
+  private func restartSegment(_ index: Int, of writer: PartialWriter) {
+    // Cancelled or paused meanwhile -- teardown removed the entry, retry
+    // counters and all. (`startSegment` checks again after the token refresh.)
+    guard activeDownloads[writer.modelId]?.writers[writer.url] === writer else { return }
+    // The `Task` inherits the main actor, so `startSegment` runs on it.
     Task {
       // A retry can come hours into a long download, past the signed-in
-      // token's expiry -- renew it before `startWriterTask` reads it.
+      // token's expiry -- renew it before `startSegment` reads it.
       await HFAuth.refreshIfNeeded()
-      let writer: PartialWriter
-      do {
-        writer = try await openPartialWriter(
-          model: model, cacheDir: cacheDir, url: url, plan: plan)
-      } catch {
-        logger.error(
-          "Retry failed to open partial for \(url.lastPathComponent): \(error.localizedDescription)"
-        )
-        handleDownloadFailure(
-          model: model,
-          reason: "Couldn't reopen staging file for retry: \(error.localizedDescription)"
-        )
-        return
-      }
-      // Register and start the task (no-op if cancelled during the re-hash).
-      startWriterTask(writer, modelId: model.id)
+      logger.info("Retrying \(writer.filename) segment \(index)")
+      startSegment(index, of: writer)
     }
   }
-
 }

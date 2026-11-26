@@ -98,8 +98,13 @@ enum HFCache {
     }
   }
 
-  /// Sum of `.partial` file sizes in a single model's staging dir.
+  /// Bytes downloaded so far across a single model's `.partial` files.
   /// Returns 0 if the dir doesn't exist or contains no `.partial` files.
+  ///
+  /// Counts from each file's saved segment state (`PartialState`): a
+  /// `.partial` fills at several offsets at once, so its length is no measure.
+  /// One without saved state was written front to back by an earlier app
+  /// version, so there the length is the count.
   ///
   /// Walks recursively — some HF repos nest GGUFs in per-quant subdirs
   /// (e.g. `Q4_K_M/model.gguf`), and the partial layout mirrors the repo
@@ -122,7 +127,7 @@ enum HFCache {
         let vals = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
         vals.isRegularFile == true
       else { continue }
-      total += Int64(vals.fileSize ?? 0)
+      total += PartialState.load(for: url)?.bytesDone ?? Int64(vals.fileSize ?? 0)
     }
     return total
   }
@@ -203,6 +208,9 @@ enum HFCache {
     /// Repo commit hash from the X-Repo-Commit header.
     /// Nil if the header is missing.
     let commitHash: String?
+    /// File size in bytes, from X-Linked-Size (sent for LFS and regular files
+    /// alike) or a 200's Content-Length. Nil if neither is there.
+    let size: Int64?
   }
 
   /// A download refused because the repo is gated and the request doesn't
@@ -230,7 +238,7 @@ enum HFCache {
     }
   }
 
-  /// Fetches blob hash and commit hash for multiple files via HEAD requests.
+  /// Fetches blob hash, commit hash and size for multiple files via HEAD requests.
   ///
   /// HF serves `X-Linked-Etag` (blob SHA256) and `X-Repo-Commit` (commit hash) in
   /// the response to the resolve URL. We use a same-host redirect delegate to prevent
@@ -285,7 +293,13 @@ enum HFCache {
       }()
 
       let commitHash = httpResponse.value(forHTTPHeaderField: "X-Repo-Commit")
-      results[url] = FileMetadata(blobHash: blobHash, commitHash: commitHash)
+      // An LFS file's response is the redirect to the CDN, whose Content-Length
+      // is the redirect body's -- so it only counts on a 200.
+      let size =
+        httpResponse.value(forHTTPHeaderField: "X-Linked-Size").flatMap { Int64($0) }
+        ?? (httpResponse.statusCode == 200
+          ? httpResponse.value(forHTTPHeaderField: "Content-Length").flatMap { Int64($0) } : nil)
+      results[url] = FileMetadata(blobHash: blobHash, commitHash: commitHash, size: size)
     }
 
     return results
@@ -395,18 +409,13 @@ enum HFCache {
   }
 
   /// Lowercase hex of a SHA256 digest -- the form HF names blobs by.
-  ///
-  /// The resumable download path hashes incrementally with CryptoKit's
-  /// `SHA256`: bytes are streamed into the hasher as they're written to the
-  /// `.partial` file (and any existing prefix is re-hashed once at resume time,
-  /// see `feedHasher`), so the digest is ready at completion without a second
-  /// full-file pass.
   static func hex(_ digest: SHA256.Digest) -> String {
     digest.map { String(format: "%02x", $0) }.joined()
   }
 
   /// Feeds the entire contents of `fileURL` into `hasher` in 1 MB chunks.
-  /// Used on resume to reconstruct the running hash over the existing `.partial` prefix.
+  /// Used to verify a finished download: its segments land out of order, so
+  /// the file can only be hashed once it's all there (~3 GB/s on an M5 Max).
   static func feedHasher(_ hasher: inout SHA256, from fileURL: URL) throws {
     let handle = try FileHandle(forReadingFrom: fileURL)
     defer { try? handle.close() }

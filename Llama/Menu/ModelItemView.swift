@@ -321,6 +321,7 @@ final class ModelItemView: ItemView, NSGestureRecognizerDelegate {
         downloadedBytes: downloadedBytes,
         totalBytes: model.fileSize,
         paused: isPaused,
+        verifying: modelManager.isVerifying(model),
         bytesPerSecond: modelManager.downloadRate(for: model)
       )
     } else {

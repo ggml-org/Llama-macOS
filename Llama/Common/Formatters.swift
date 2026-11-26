@@ -186,17 +186,21 @@ extension Format {
   /// stuck. A nil rate while downloading shows "Starting…" instead — the gap
   /// between kicking off a (re)start and the first bytes flowing can run many
   /// seconds (metadata resolve, connection setup), and an empty slot there
-  /// reads as dead.
+  /// reads as dead. Once all the bytes are in, "Verifying…" takes the rate's
+  /// place for the seconds the final hash check takes -- a full bar with a
+  /// frozen rate would look hung.
   /// Progress is conveyed by the bar, so no percentage here. Uses tabular digits
   /// (so the counting-up figures don't jitter their width) and the same
   /// secondary font / color / no-tightening paragraph style as `modelMetadata`.
   static func downloadSubtitle(
     downloadedBytes: Int64, totalBytes: Int64, paused: Bool,
-    bytesPerSecond: Int64? = nil
+    verifying: Bool = false, bytesPerSecond: Int64? = nil
   ) -> NSAttributedString {
     var text = "\(bytesAdaptive(downloadedBytes)) of \(bytesAdaptive(totalBytes))"
     if paused {
       text += " · Paused"
+    } else if verifying {
+      text += " · Verifying…"
     } else if let bps = bytesPerSecond {
       text += " · \(bytesAdaptive(bps))/s"
     } else {
