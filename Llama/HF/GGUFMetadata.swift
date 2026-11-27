@@ -13,21 +13,41 @@ import Foundation
 /// version, truncated header, unknown value type) returns nil rather than
 /// throwing -- callers fall back to their filename heuristics. Misreading a
 /// model must never block install or scan.
-enum GGUFMetadata {
+struct GGUFMetadata {
 
-  /// Whether the GGUF at `path` carries an embedded multi-token-prediction
-  /// head, per its `<arch>.nextn_predict_layers` metadata key (the same key
-  /// llama.cpp loads into `hparams.n_layer_nextn`). We match on the key
-  /// suffix rather than resolving `general.architecture` first -- the key is
-  /// namespaced per arch (`qwen35moe.nextn_predict_layers`, ...) but unique
-  /// within a file. Returns nil when the header can't be parsed.
-  static func hasEmbeddedMTPHead(path: String) -> Bool? {
-    // Outer nil = header unparseable (caller falls back to heuristics);
-    // inner nil = header fine but key absent, a definitive "no head".
-    guard let layers = intValue(forKeySuffix: ".nextn_predict_layers", path: path) else {
-      return nil
-    }
-    return (layers ?? 0) > 0
+  /// The header's scalar key-value pairs, in file order. Arrays (the tokenizer
+  /// vocab, merges, ...) aren't kept -- nothing we read is an array -- but
+  /// their keys are, as `.other`, so a presence check still sees them.
+  private let entries: [(key: String, value: Value)]
+
+  private enum Value {
+    case int(Int)
+    case bool(Bool)
+    case string(String)
+    /// Floats, arrays, and integers too large for `Int`: present, but not
+    /// something any lookup below reads.
+    case other
+  }
+
+  /// Parses the header of the GGUF at `path` in one pass, or returns nil when
+  /// it can't be parsed. Every lookup below then reads from memory.
+  ///
+  /// Parse once per file and ask it everything: walking the header means
+  /// stepping through the whole tokenizer vocab whenever a key is absent, and
+  /// the cache scan runs on the main thread at launch -- where it used to walk
+  /// each model's header 4-6 times, once per lookup.
+  static func read(path: String) -> GGUFMetadata? {
+    parse(path: path).map(GGUFMetadata.init(entries:))
+  }
+
+  /// Whether the model carries an embedded multi-token-prediction head, per
+  /// its `<arch>.nextn_predict_layers` metadata key (the same key llama.cpp
+  /// loads into `hparams.n_layer_nextn`). We match on the key suffix rather
+  /// than resolving `general.architecture` first -- the key is namespaced per
+  /// arch (`qwen35moe.nextn_predict_layers`, ...) but unique within a file. An
+  /// absent key is a definitive "no head".
+  var hasEmbeddedMTPHead: Bool {
+    (int(forKeySuffix: ".nextn_predict_layers") ?? 0) > 0
   }
 
   /// The model's native (training) context window, per its
@@ -40,57 +60,46 @@ enum GGUFMetadata {
   /// `<arch>.rope.scaling.original_context_length` ends in `_context_length`
   /// (underscore, not dot), so anchoring on `.context_length` excludes it.
   ///
-  /// The double optional keeps the two nil-ish outcomes apart, and callers care
-  /// about the difference: outer nil = header unparseable, fall back to a
-  /// default; `.some(nil)` = header fine but the key is genuinely absent, which
-  /// means llama.cpp can't run the file at all. `llama-model.cpp` reads this key
-  /// as required (unlike the optional hparams around it) for every arch but
-  /// CLIP, so a clean absence marks a non-LLM GGUF -- e.g. speech-to-text models
-  /// (`cohere_asr`, ...), which namespace their hparams under `stt.*` instead.
-  static func contextLength(path: String) -> Int?? {
-    intValue(forKeySuffix: ".context_length", path: path)
+  /// Nil means the key is genuinely absent, which means llama.cpp can't run the
+  /// file at all: `llama-model.cpp` reads this key as required (unlike the
+  /// optional hparams around it) for every arch but CLIP, so a clean absence
+  /// marks a non-LLM GGUF -- e.g. speech-to-text models (`cohere_asr`, ...),
+  /// which namespace their hparams under `stt.*` instead.
+  var contextLength: Int? {
+    int(forKeySuffix: ".context_length")
   }
 
-  /// Whether the GGUF at `path` is a decision model -- one that answers typed
-  /// questions with a probability per option via llama-server's
-  /// `/v1/systemone` endpoint, rather than generating text. llama.cpp keys this
-  /// off `<arch>.decision.type` (`common.cpp`), so we do too: present means a
+  /// Whether this is a decision model -- one that answers typed questions with
+  /// a probability per option via llama-server's `/v1/systemone` endpoint,
+  /// rather than generating text. llama.cpp keys this off
+  /// `<arch>.decision.type` (`common.cpp`), so we do too: present means a
   /// decision model, whatever its value. Suffix-matched like the keys above.
-  /// Returns nil when the header can't be parsed.
-  static func isDecisionModel(path: String) -> Bool? {
-    value(forKeySuffix: ".decision.type", path: path) { _, _ in () }.map { $0 != nil }
+  var isDecisionModel: Bool {
+    value(forKeySuffix: ".decision.type") != nil
   }
 
   /// A decision model's `<arch>.decision.type` value (e.g. `laya`, `kev`,
   /// `clef`) -- which of llama.cpp's scoring schemes it uses. Nil when the
-  /// key is absent, isn't a string, or the header can't be parsed.
-  static func decisionType(path: String) -> String? {
-    // Three layers of nil (header unparseable / key absent / not a string)
-    // all mean "no type" here, so flatten them.
-    let found = value(forKeySuffix: ".decision.type", path: path) { cursor, type in
-      type == .string ? cursor.readString() : nil
-    }
-    return found.flatMap { $0 }.flatMap { $0 }
+  /// key is absent or isn't a string.
+  var decisionType: String? {
+    if case .string(let type) = value(forKeySuffix: ".decision.type") { return type }
+    return nil
   }
 
-  /// Whether the GGUF at `path` is an embedding model, per its
-  /// `<arch>.pooling_type` key -- how llama.cpp pools token states into one
-  /// vector (`llama_pooling_type`: 1 mean, 2 cls, 3 last). Chat models don't
-  /// carry the key. 4 (rank) marks a reranker, which scores pairs rather than
-  /// embedding, so it isn't counted. Returns nil when the header can't be
-  /// parsed.
-  static func isEmbeddingModel(path: String) -> Bool? {
-    intValue(forKeySuffix: ".pooling_type", path: path).map { (1...3).contains($0 ?? 0) }
+  /// Whether this is an embedding model, per its `<arch>.pooling_type` key --
+  /// how llama.cpp pools token states into one vector (`llama_pooling_type`:
+  /// 1 mean, 2 cls, 3 last). Chat models don't carry the key. 4 (rank) marks a
+  /// reranker, which scores pairs rather than embedding, so it isn't counted.
+  var isEmbeddingModel: Bool {
+    (1...3).contains(int(forKeySuffix: ".pooling_type") ?? 0)
   }
 
   /// The model's kind, from the two checks above. Decision is tested first:
   /// some decision models are built on encoders that may also carry a pooling
-  /// type, and what they're served as is the decision endpoint. An unparseable
-  /// header reads as a chat model -- the behavior every model had before kinds
-  /// existed.
-  static func kind(path: String) -> ModelKind {
-    if isDecisionModel(path: path) == true { return .decision }
-    if isEmbeddingModel(path: path) == true { return .embedding }
+  /// type, and what they're served as is the decision endpoint.
+  var kind: ModelKind {
+    if isDecisionModel { return .decision }
+    if isEmbeddingModel { return .embedding }
     return .chat
   }
 
@@ -98,13 +107,35 @@ enum GGUFMetadata {
   /// `clip.has_vision_encoder` and `clip.has_audio_encoder` keys -- the flags
   /// llama.cpp reads to decide which media a model accepts. A projector can
   /// encode images, audio, or both (omni models), so its presence alone
-  /// doesn't say which. An absent key means false. Returns nil when the
-  /// header can't be parsed.
-  static func projectorInputs(path: String) -> Model.MediaInputs? {
-    guard let image = boolValue(forKeySuffix: "clip.has_vision_encoder", path: path),
-      let audio = boolValue(forKeySuffix: "clip.has_audio_encoder", path: path)
-    else { return nil }
-    return Model.MediaInputs(image: image ?? false, audio: audio ?? false)
+  /// doesn't say which. An absent key means false.
+  var projectorInputs: Model.MediaInputs {
+    Model.MediaInputs(
+      image: bool(forKeySuffix: "clip.has_vision_encoder") ?? false,
+      audio: bool(forKeySuffix: "clip.has_audio_encoder") ?? false)
+  }
+
+  // MARK: - Lookups
+
+  /// The value of the first key ending in `keySuffix`, or nil when there's no
+  /// such key.
+  private func value(forKeySuffix keySuffix: String) -> Value? {
+    entries.first { $0.key.hasSuffix(keySuffix) }?.value
+  }
+
+  /// A numeric key's value; nil when the key is absent or isn't numeric. A
+  /// bool counts as 0/1, as it did when values were read straight off disk.
+  private func int(forKeySuffix keySuffix: String) -> Int? {
+    switch value(forKeySuffix: keySuffix) {
+    case .int(let value): return value
+    case .bool(let value): return value ? 1 : 0
+    default: return nil
+    }
+  }
+
+  /// A bool key's value; nil when the key is absent or isn't a bool.
+  private func bool(forKeySuffix keySuffix: String) -> Bool? {
+    if case .bool(let value) = value(forKeySuffix: keySuffix) { return value }
+    return nil
   }
 
   // MARK: - Header parsing
@@ -118,30 +149,9 @@ enum GGUFMetadata {
     case uint64 = 10, int64 = 11, float64 = 12
   }
 
-  /// Scans the KV section for the first key ending in `keySuffix`. The double
-  /// optional distinguishes the two nil-ish outcomes: outer nil = the header
-  /// couldn't be parsed at all; `.some(nil)` = the header parsed cleanly but
-  /// the key isn't there (or isn't numeric) -- a trustworthy absence.
-  private static func intValue(forKeySuffix keySuffix: String, path: String) -> Int?? {
-    value(forKeySuffix: keySuffix, path: path) { cursor, type in cursor.readIntValue(of: type) }
-      .map { $0 ?? nil }
-  }
-
-  /// Like `intValue`, for a bool key. Same double optional: outer nil = header
-  /// unparseable, `.some(nil)` = key absent (or not a bool).
-  private static func boolValue(forKeySuffix keySuffix: String, path: String) -> Bool?? {
-    value(forKeySuffix: keySuffix, path: path) { cursor, type in
-      type == .bool ? (cursor.readInt() as UInt8?).map { $0 != 0 } : nil
-    }
-    .map { $0 ?? nil }
-  }
-
-  /// The scan behind the typed lookups above: finds the first key ending in
-  /// `keySuffix` and hands its value to `read`. Same double optional -- outer
-  /// nil = header unparseable, `.some(nil)` = key absent.
-  private static func value<T>(
-    forKeySuffix keySuffix: String, path: String, read: (inout Cursor, ValueType) -> T
-  ) -> T?? {
+  /// Walks the KV section once, keeping every key and its scalar value. Nil
+  /// when the header can't be parsed.
+  private static func parse(path: String) -> [(key: String, value: Value)]? {
     // `.alwaysMapped` avoids reading the (potentially huge) file into memory;
     // parsing only faults in the header pages.
     guard let data = try? Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped)
@@ -160,18 +170,16 @@ enum GGUFMetadata {
       kvCount < 1_000_000  // sanity bound against corrupt headers
     else { return nil }
 
+    var entries: [(key: String, value: Value)] = []
     for _ in 0..<kvCount {
       guard let key = cursor.readString(),
         let rawType: UInt32 = cursor.readInt(),
-        let type = ValueType(rawValue: rawType)
+        let type = ValueType(rawValue: rawType),
+        let value = cursor.readValue(of: type)
       else { return nil }
-
-      if key.hasSuffix(keySuffix) {
-        return .some(read(&cursor, type))
-      }
-      guard cursor.skipValue(of: type) else { return nil }
+      entries.append((key, value))
     }
-    return .some(nil)
+    return entries
   }
 
   /// Bounds-checked little-endian reader over the mapped file.
@@ -209,6 +217,33 @@ enum GGUFMetadata {
       guard offset + count <= data.count else { return false }
       offset += count
       return true
+    }
+
+    /// Reads a value of `type`, keeping scalars and stepping over the rest.
+    /// Nil when the bytes run out or are malformed.
+    mutating func readValue(of type: ValueType) -> Value? {
+      switch type {
+      case .bool:
+        return (readInt() as UInt8?).map { .bool($0 != 0) }
+      case .string:
+        // Not `readString()`: its length cap and strict decoding are a key's
+        // sanity checks, and a value that fails them (a huge chat template,
+        // stray non-UTF-8 bytes) shouldn't make the whole header unparseable.
+        guard let length: UInt64 = readInt(), length <= UInt64(data.count - offset) else {
+          return nil
+        }
+        let range = (data.startIndex + offset)..<(data.startIndex + offset + Int(length))
+        offset += Int(length)
+        return String(data: data[range], encoding: .utf8).map(Value.string) ?? .other
+      case .float32, .float64, .array:
+        return skipValue(of: type) ? .other : nil
+      case .uint64:
+        // Read it all either way, so the cursor stays aligned on a value
+        // that doesn't fit `Int`.
+        return (readInt() as UInt64?).map { Int(exactly: $0).map(Value.int) ?? .other }
+      default:
+        return readIntValue(of: type).map(Value.int)
+      }
     }
 
     /// Reads a numeric value of `type` as Int; nil for non-numeric types.

@@ -711,14 +711,17 @@ enum HFCache {
     // for every arch it supports, so its absence marks a non-LLM sharing the
     // cache (speech-to-text models dropped there by other apps, say). Those get
     // skipped -- we can't serve them, and their memory estimates are nonsense.
-    let ctxWindow: Int
-    switch GGUFMetadata.contextLength(path: snapshotDir.appendingPathComponent(filename).path) {
-    case .some(.some(let length)): ctxWindow = length
-    case .some(.none): return nil  // header parsed, key absent -- not an LLM
-    case .none: ctxWindow = 131_072  // header unparseable -- fall back
-    }
-
     let mainFilePath = snapshotDir.appendingPathComponent(filename).path
+    // Parsed once and asked everything below (nil = header unparseable).
+    let metadata = GGUFMetadata.read(path: mainFilePath)
+
+    let ctxWindow: Int
+    if let metadata {
+      guard let length = metadata.contextLength else { return nil }  // not an LLM
+      ctxWindow = length
+    } else {
+      ctxWindow = 131_072  // header unparseable -- fall back
+    }
 
     // A sidecar draft head shipped beside the main weights, if any -- DFlash
     // before MTP, quant-matched to the main (see `SidecarPicker.draftHead`).
@@ -734,21 +737,23 @@ enum HFCache {
     // stay conservative: wrongly emitting `spec-type = draft-mtp` for a
     // headless model makes llama-server fail to load it entirely.
     let hasEmbeddedHead =
-      GGUFMetadata.hasEmbeddedMTPHead(path: mainFilePath)
+      metadata?.hasEmbeddedMTPHead
       ?? fileHasMTPHead(URL(fileURLWithPath: filename).lastPathComponent)
 
     // Decision and embedding models don't chat -- they answer `/v1/systemone`
     // and `/v1/embeddings`. The menu hides chat actions for them, and
     // `models.ini` tags them apart and turns embeddings on (see
     // `ModelManager.generatedModelSections`).
-    let kind = GGUFMetadata.kind(path: mainFilePath)
+    // An unparseable header reads as a chat model -- the behavior every model
+    // had before kinds existed.
+    let kind = metadata?.kind ?? .chat
     // Models llama.cpp takes in one batch per input (see
     // `ResolvedPaths.batchesWholeInput`): embedding models, and the decision
     // types it scores from the embeddings output in a single pass.
     let batchesWholeInput =
       kind == .embedding
       || (kind == .decision
-        && ["laya", "clef", "lfm2-d1-omni"].contains(GGUFMetadata.decisionType(path: mainFilePath)))
+        && ["laya", "clef", "lfm2-d1-omni"].contains(metadata?.decisionType))
 
     let entry = Model(
       id: modelId,
@@ -764,7 +769,7 @@ enum HFCache {
       // markers. When its header can't be read, assume images: the common
       // case, and how a projector was read before its header was checked.
       scannedMediaInputs: mmprojFile.map {
-        GGUFMetadata.projectorInputs(path: $0) ?? Model.MediaInputs(image: true, audio: false)
+        GGUFMetadata.read(path: $0)?.projectorInputs ?? Model.MediaInputs(image: true, audio: false)
       },
       kind: kind
     )
