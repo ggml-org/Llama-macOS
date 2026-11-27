@@ -93,6 +93,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // noise. We have no other external HTTP endpoints worth auto-capturing.
         options.enableCaptureFailedRequests = false
 
+        // Disable app-hang reporting ("App hanging for at least 2000 ms"). On macOS
+        // only Sentry's V1 tracker is available, and it can't tell a real freeze
+        // from the main thread waiting on the system. In Nov 2026, hangs were ~86%
+        // of all events, and the biggest issue by far (~3.8k events/month, ~1.3k
+        // users) was the main thread blocked in a WindowServer call
+        // (SkyLight `get_current_display_system_state`, around display changes
+        // and sleep/wake) -- not our code, and not fixable. That used up the
+        // quota and buried the crashes. Real main-thread stalls (e.g. GGUF
+        // parsing, cache scans) are better found with Instruments.
+        options.enableAppHangTracking = false
+
         // Filter out non-actionable network errors globally so they don't use up quota
         options.beforeSend = { event in
           if let error = event.error as NSError? {
