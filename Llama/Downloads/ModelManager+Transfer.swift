@@ -263,7 +263,7 @@ extension ModelManager {
     // The state goes with the bytes it described.
     try? FileManager.default.removeItem(at: PartialState.url(for: writer.partialURL))
 
-    let fileSize = writerTable.sync { _ in writer.state.size }
+    let fileSize = writer.size
     activeDownloads[modelId]?.writers[writer.url] = nil
     activeDownloads[modelId]?.completedFilesBytes += fileSize
     guard activeDownloads[modelId]?.writers.isEmpty == true else {

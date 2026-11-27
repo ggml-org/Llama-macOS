@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 // MARK: - WriterTable
 
@@ -158,6 +159,16 @@ final class PartialWriter: @unchecked Sendable {
   /// Nil → we trust the computed digest instead.
   let expectedBlobHash: String?
   var state: PartialState
+  /// The file's size -- `state.size`, which never changes, kept outside
+  /// `state` so it can be read without the table's lock.
+  let size: Int64
+  /// Bytes on disk so far -- `state.bytesDone`, mirrored on every write so the
+  /// main actor can read progress without the table's lock. That lock is held
+  /// for the length of each disk write, and when writes slow down (a busy disk,
+  /// a Mac short on memory) the 10 Hz progress refresh used to wait behind
+  /// them, freezing the UI for seconds at a time.
+  private let bytesDoneCounter: Atomic<Int64>
+  var bytesDone: Int64 { bytesDoneCounter.load(ordering: .relaxed) }
   /// Set once the file's last segment is in and verification has been claimed,
   /// so the file is verified once even when two paths reach "complete" (the
   /// last segment finishing, and a retry of a segment that turns out to have
@@ -185,6 +196,8 @@ final class PartialWriter: @unchecked Sendable {
     self.partialURL = partialURL
     self.handle = handle
     self.state = state
+    self.size = state.size
+    self.bytesDoneCounter = Atomic(state.bytesDone)
     self.expectedBlobHash = expectedBlobHash
   }
 
@@ -198,6 +211,7 @@ final class PartialWriter: @unchecked Sendable {
     try handle.seek(toOffset: UInt64(segment.offset))
     try handle.write(contentsOf: data.prefix(count))
     state.segments[index].written += Int64(count)
+    bytesDoneCounter.add(Int64(count), ordering: .relaxed)
 
     if Date().timeIntervalSince(lastSaved) >= Self.saveInterval {
       saveState()

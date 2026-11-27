@@ -940,9 +940,10 @@ class ModelManager: NSObject, URLSessionDataDelegate {
   func refreshProgress(modelId: String) {
     guard var download = activeDownloads[modelId] else { return }
     let writers = Array(download.writers.values)
-    let (done, size) = writerTable.sync { _ -> (Int64, Int64) in
-      writers.reduce((0, 0)) { ($0.0 + $1.state.bytesDone, $0.1 + $1.state.size) }
-    }
+    // Read without the table's lock: it's held through every disk write, and
+    // this runs on the main actor at 10 Hz (see `PartialWriter.bytesDone`).
+    let done = writers.reduce(0) { $0 + $1.bytesDone }
+    let size = writers.reduce(0) { $0 + $1.size }
     download.isVerifying = !writers.isEmpty && done == size
     download.refreshProgress(activeBytes: done, expectedActiveBytes: size)
     activeDownloads[modelId] = download
