@@ -7,7 +7,7 @@ import Foundation
 /// catalog's brand field), so the two can't drift apart.
 enum ModelLogos {
   /// Keyword → logo asset. Several Mistral lines share one mark; GLM is z.ai's;
-  /// Nemotron is NVIDIA's; Laguna is Poolside's; Clef is Cloudflare's; LFM is Liquid AI's; Muse is Meta's. Order
+  /// Nemotron is NVIDIA's; Laguna is Poolside's; Clef is Cloudflare's; LFM is Liquid AI's; Muse is Meta's; Inkling is Thinking Machines'. Order
   /// only matters where keywords overlap (none do).
   private static let brands: [(keyword: String, asset: String)] = [
     ("qwen", "qwen"),
@@ -29,6 +29,8 @@ enum ModelLogos {
     ("liquid", "liquid"),
     ("muse", "meta"),
     ("meta", "meta"),
+    ("inkling", "inkling"),
+    ("thinking machines", "inkling"),
   ]
 
   /// Returns the asset name (e.g. "ModelLogos/qwen") for a family/brand name,
