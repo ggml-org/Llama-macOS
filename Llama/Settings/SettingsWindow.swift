@@ -933,16 +933,20 @@ struct SettingsView: View {
   /// is picking a project folder instead of its build output, so the alert
   /// says what's missing rather than just "invalid folder".
   private func chooseWebUIFolder() {
-    let panel = NSOpenPanel()
-    panel.canChooseFiles = false
-    panel.canChooseDirectories = true
-    panel.canCreateDirectories = false
-    panel.allowsMultipleSelection = false
-    panel.message = "Choose a folder with an index.html to serve as the web app"
-    panel.prompt = "Select"
-    panel.directoryURL = customWebUIDir
+    let selection = ModalPresentation.run { () -> URL? in
+      let panel = NSOpenPanel()
+      panel.canChooseFiles = false
+      panel.canChooseDirectories = true
+      panel.canCreateDirectories = false
+      panel.allowsMultipleSelection = false
+      panel.message = "Choose a folder with an index.html to serve as the web app"
+      panel.prompt = "Select"
+      panel.directoryURL = customWebUIDir
 
-    guard panel.runModal() == .OK, let url = panel.url else { return }
+      return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    guard let url = selection else { return }
 
     // Checked before `index.html`, so a project root that also lacks one gets
     // the more specific message.
@@ -1200,18 +1204,22 @@ struct SettingsView: View {
 
   /// Opens a folder picker and updates the HF cache directory
   private func chooseCacheFolder() {
-    let panel = NSOpenPanel()
-    panel.canChooseFiles = false
-    panel.canChooseDirectories = true
-    panel.canCreateDirectories = true
-    panel.allowsMultipleSelection = false
-    panel.message = "Choose a directory for downloaded models"
-    panel.prompt = "Select"
+    let selection = ModalPresentation.run { () -> URL? in
+      let panel = NSOpenPanel()
+      panel.canChooseFiles = false
+      panel.canChooseDirectories = true
+      panel.canCreateDirectories = true
+      panel.allowsMultipleSelection = false
+      panel.message = "Choose a directory for downloaded models"
+      panel.prompt = "Select"
 
-    // Start in the current cache directory
-    panel.directoryURL = hfCacheDir
+      // Start in the current cache directory
+      panel.directoryURL = hfCacheDir
 
-    if panel.runModal() == .OK, let url = panel.url {
+      return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    if let url = selection {
       UserSettings.hfCacheDirectory = url
       // Re-read for the canonical representation (the panel's URL may
       // differ in trailing slash / symlink resolution)

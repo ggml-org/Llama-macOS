@@ -93,19 +93,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // noise. We have no other external HTTP endpoints worth auto-capturing.
         options.enableCaptureFailedRequests = false
 
-        // Disable app-hang reporting ("App hanging for at least 2000 ms"). On macOS
-        // only Sentry's V1 tracker is available, and it can't tell a real freeze
-        // from the main thread waiting on the system. In Nov 2026, hangs were ~86%
-        // of all events, and the biggest issue by far (~3.8k events/month, ~1.3k
-        // users) was the main thread blocked in a WindowServer call
-        // (SkyLight `get_current_display_system_state`, around display changes
-        // and sleep/wake) -- not our code, and not fixable. That used up the
-        // quota and buried the crashes. Real main-thread stalls (e.g. GGUF
-        // parsing, cache scans) are better found with Instruments.
-        options.enableAppHangTracking = false
-
         // Filter out non-actionable network errors globally so they don't use up quota
         options.beforeSend = { event in
+          if isSystemOnlyAppHang(event) { return nil }
           if let error = event.error as NSError? {
             let ignoredCodes = [
               NSURLErrorCancelled,
@@ -227,4 +217,29 @@ extension AppDelegate: SPUUpdaterDelegate {
     logger.error(
       "Sparkle: failed to check for updates: \(error.localizedDescription, privacy: .public)")
   }
+}
+
+/// Whether `event` is an app hang with none of our code on the main thread's
+/// stack -- the main thread stuck inside the system, which we can't fix.
+///
+/// Sentry's V1 hang tracker (the only one on macOS) reports any 2s block of
+/// the main thread. In Nov 2026 hangs were ~86% of all events, and almost all
+/// of those were one issue: the main thread waiting on WindowServer
+/// (SkyLight `get_current_display_system_state`, around display changes and
+/// sleep/wake) straight out of the run loop. That burned the quota and the
+/// inbox. The hangs worth keeping -- our own work on the main thread, like
+/// GGUF parsing at launch or a lock behind a disk write -- always have frames
+/// of ours above the entry point, so they still get through.
+///
+/// The SDK marks a frame in-app by binary image, on the device, so "ours" is
+/// any frame in the app executable. An idle main thread has just two:
+/// `main` and `LlamaApp.$main`. (Sentry itself is linked statically, so its
+/// frames count as ours too -- a hang inside the SDK is kept, which is fine.)
+private func isSystemOnlyAppHang(_ event: Event) -> Bool {
+  guard let exception = event.exceptions?.first,
+    exception.mechanism?.type == "AppHang",
+    let frames = exception.stacktrace?.frames
+  else { return false }
+  let ownFrames = frames.filter { $0.inApp?.boolValue == true }.count
+  return ownFrames <= 2
 }
